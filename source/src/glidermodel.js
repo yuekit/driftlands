@@ -37,19 +37,8 @@ void main(){
   vec3 orm = texture(tORM, vUv).rgb;
   float ao = mix(1.0, orm.r, 0.85), rough = clamp(orm.g, 0.05, 1.0), metal = orm.b;
   vec3 diffuseAlb = alb * (1.0 - metal * 0.85);
-  vec3 col = litSurface(diffuseAlb, n, vWorld, 1.0, ao, 0.25);
-  // sun specular (normalised Blinn-Phong) and a sky reflection for metals
+  vec3 col = litSurfacePBR(diffuseAlb, n, vWorld, 1.0, ao, 0.25, rough, mix(vec3(0.04), alb, metal));
   float sh = dynShadow(vWorld, n);
-  vec3 H = normalize(V + uSunDir);
-  float gloss = pow(2.0, (1.0 - rough) * 11.0);
-  float spec = pow(max(dot(n, H), 0.0), gloss) * (gloss + 8.0) / 25.0;
-  vec3 F0 = mix(vec3(0.04), alb, metal);
-  float fres = pow(1.0 - max(dot(n, V), 0.0), 5.0);
-  vec3 F = F0 + (1.0 - F0) * fres * (1.0 - rough);
-  col += uSunColor * F * spec * max(dot(n, uSunDir), 0.0) * sh * ao;
-  vec3 R = reflect(-V, n);
-  vec3 env = skyColor(normalize(vec3(R.x, max(R.y, -0.2), R.z)));
-  col += env * F * (0.35 + 0.65 * metal) * (1.0 - rough * 0.85) * ao;
   // sunlight glowing through the sail fabric
   if (uTrans > 0.0) {
     float through = pow(max(dot(-V, uSunDir), 0.0), 2.0);

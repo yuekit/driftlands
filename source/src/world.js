@@ -187,7 +187,8 @@ void main(){
   vec3 n = normalize(n0 + mix(rpert * 1.0, mpert * 0.75, mossAmt) * bumpK);
   float cavAO = 1.0 - mix(rcav * 0.5, mcav * 0.35, mossAmt);
   float ao = vAo * cavAO * (0.8 + 0.2 * smoothstep(-0.2, 0.6, n.y));
-  vec3 col = litSurface(alb, n, vWorld, vSun, ao, 0.12);
+  float rough = mix(mix(0.74, 0.52, smoothstep(0.55, 0.85, rcurv)), 0.93, mossAmt);
+  vec3 col = litSurfacePBR(alb, n, vWorld, vSun, ao, 0.12, rough, vec3(0.035));
   // Moebius-style hatching in the shade (fades in close so it never fights the texture)
   float light = clamp(dot(n0, uSunDir), 0.0, 1.0) * vSun;
   float hl = sin(dot(vLocal, vec3(0.9, 1.6, 0.5)) * 2.2);

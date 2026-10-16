@@ -77,7 +77,9 @@ vec3 ambientLight(vec3 n){
   float up = n.y * 0.5 + 0.5;
   vec3 sky = mix(uAmbLo, uAmbHi, up);
   vec3 bounce = uBounce * smoothstep(0.3, -0.9, n.y);
-  return sky * (0.5 + 0.5 * up) + bounce * 0.75;
+  vec2 sh = normalize(uSunDisc.xz + vec2(1e-5));
+  float side = max(dot(normalize(n.xz + vec2(1e-5)), sh), 0.0) * (1.0 - abs(n.y));
+  return sky * (0.5 + 0.5 * up) + bounce * 0.75 + uSkySun * side * side * 0.18 * uSunVis;
 }
 const vec2 POISSON[8] = vec2[8](vec2(-0.613, 0.617), vec2(0.170, -0.040), vec2(-0.299, -0.792), vec2(0.645, 0.493),
   vec2(-0.651, -0.071), vec2(0.421, -0.651), vec2(-0.019, 0.940), vec2(0.940, -0.090));
@@ -102,15 +104,46 @@ float dynShadow(vec3 wp, vec3 n){
   }
   return mix(1.0, sum * 0.125, fade);
 }
-vec3 litSurface(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap){
+// ---- physically based specular (GGX) with an analytic sky environment
+float D_GGX(float NoH, float a){ float a2 = a * a; float d = NoH * NoH * (a2 - 1.0) + 1.0; return a2 / (3.14159265 * d * d + 1e-7); }
+float V_Smith(float NoV, float NoL, float a){ float k = a * 0.5; return 0.25 / ((NoV * (1.0 - k) + k) * (NoL * (1.0 - k) + k)); }
+vec3 F_Schlick(vec3 f0, float c){ float f = pow(1.0 - c, 5.0); return f0 + (1.0 - f0) * f; }
+// split-sum environment BRDF, analytic fit (Karis, mobile)
+vec2 envBRDF(float NoV, float rough){
+  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022); const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
+  vec4 r = rough * c0 + c1; float a004 = min(r.x * r.x, exp2(-9.28 * NoV)) * r.x + r.y;
+  return vec2(-1.04, 1.04) * a004 + r.zw;
+}
+// the sky as an environment: sharp along R for glossy surfaces, fading to the ambient lobe as roughness rises
+vec3 envLight(vec3 R, float rough){
+  vec3 sharp = skyColor(normalize(vec3(R.x, max(R.y, -0.3), R.z)));
+  return mix(sharp, ambientLight(R) * 1.1, smoothstep(0.15, 0.9, rough));
+}
+// rough: perceptual roughness 0..1; f0: reflectance at normal incidence (0.04 for most non-metals)
+vec3 litSurfacePBR(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   sunVis *= dynShadow(wp, n);
+  vec3 V = normalize(uCamPos - wp);
   float ndl = dot(n, uSunDir);
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
-  vec3 V = normalize(uCamPos - wp);
-  vec3 col = albedo * (uSunColor * diff * sunVis + ambientLight(n) * ao);
-  float rim = pow(1.0 - max(dot(n, V), 0.0), 4.0);
-  col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.05 + 0.25 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
+  float NoV = max(dot(n, V), 1e-3), NoL = max(ndl, 0.0);
+  float a = max(rough * rough, 0.02);
+  vec3 H = normalize(V + uSunDir);
+  float NoH = max(dot(n, H), 0.0), VoH = max(dot(V, H), 0.0);
+  vec3 F = F_Schlick(f0, VoH);
+  vec3 spec = D_GGX(NoH, a) * V_Smith(NoV, NoL, a) * F * NoL;
+  vec2 ab = envBRDF(NoV, rough);
+  vec3 Fenv = f0 * ab.x + ab.y;
+  float specOcc = clamp(pow(NoV + ao, exp2(-16.0 * a - 1.0)) - 1.0 + ao, 0.0, 1.0);
+  vec3 kd = 1.0 - Fenv;
+  vec3 col = albedo * kd * (uSunColor * diff * sunVis + ambientLight(n) * ao);
+  col += uSunColor * spec * sunVis;
+  col += envLight(reflect(-V, n), rough) * Fenv * specOcc;
+  float rim = pow(1.0 - NoV, 4.0);
+  col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
   return col;
+}
+vec3 litSurface(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap){
+  return litSurfacePBR(albedo, n, wp, sunVis, ao, wrap, 0.78, vec3(0.04));
 }
 `;
 
