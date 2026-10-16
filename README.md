@@ -40,7 +40,7 @@ node build.mjs --dev           # unminified
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
-Debug: press F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eight golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eight headless and `tools/sheet.py` makes a side-by-side contact sheet.
+Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eight golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eight headless and `tools/sheet.py` makes a side-by-side contact sheet.
 
 `window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
 

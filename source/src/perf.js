@@ -1,5 +1,5 @@
 // Performance instruments: per-pass GPU timers (EXT_disjoint_timer_query_webgl2) and an on-screen overlay.
-// Toggle the overlay with F3 or the ?perf URL flag.
+// Toggle the overlay with P (or F3) or the ?perf URL flag.
 
 export class GpuTimer {
   constructor(renderer) {
@@ -57,7 +57,7 @@ export class PerfOverlay {
     this.el.hidden = true;
     document.body.appendChild(this.el);
     this.t = 0; this.frames = 0; this.acc = 0; this.worst = 0;
-    window.addEventListener('keydown', (e) => { if (e.key === 'F3') { e.preventDefault(); this.toggle(); } });
+    window.addEventListener('keydown', (e) => { if (e.key === 'F3' || (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey)) { e.preventDefault(); this.toggle(); } });
     if (new URLSearchParams(location.search).has('perf')) this.toggle(true);
   }
   toggle(on = this.el.hidden) {
