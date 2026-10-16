@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { U, COMMON } from './glsl.js';
 import { mulberry32 } from './noise.js';
 import { TubeBatch } from './tubes.js';
+import { InstHistory } from './velocity.js';
 import { SKIN, SKIN_GLSL } from './skins.js';
 import { MeshPool, ANCHORS } from './parts.js';
 
@@ -185,14 +186,16 @@ class PartPool {
     this.skin = geo.attributes.aSkinI.array;
     this.mat = this.mesh.instanceMatrix.array;
     this.colA = this.mesh.instanceColor.array;
-    this.n = 0;
+    this.n = 0; this.key = null;
+    this.hist = new InstHistory(this.mesh, max);
     scene.add(this.mesh);
   }
-  begin() { this.n = 0; }
+  begin() { this.hist.begin(this.n); this.n = 0; }
   add(m4, sp, sun = 1, boost = 0, glowOverride = -1, skin) {
     if (this.n >= this.max) return;
     const i = this.n++;
     m4.toArray(this.mat, i * 16);
+    this.hist.record(i, this.key);
     const a = sp.colA, b = sp.colB, g = sp.genome;
     this.colA[i * 3] = a.x; this.colA[i * 3 + 1] = a.y; this.colA[i * 3 + 2] = a.z;
     this.colB[i * 3] = b.x; this.colB[i * 3 + 1] = b.y; this.colB[i * 3 + 2] = b.z;
@@ -212,6 +215,7 @@ class PartPool {
   }
   end() {
     this.mesh.count = this.n;
+    this.hist.end(this.n);
     this.mesh.instanceMatrix.needsUpdate = true;
     this.mesh.instanceColor.needsUpdate = true;
     const g = this.mesh.geometry.attributes;
@@ -270,8 +274,11 @@ class Draw {
       if (G[name]) this.parts[name] = new MeshPool(this.scene, G[name], T, max, { thin: !!thin });
     if (G.PolypPetal) this.pPetal = new PartPool(G.PolypPetal.clone(), 1200, this.scene, 1, 'fin');
   }
-  part(name, p, q, scale, sp, sun = 1, boost = 0, glow = -1, tile = 0) { const P = this.parts && this.parts[name]; if (P) P.add(p, q, scale, sp, sun, boost, glow, tile); }
-  petal(p, q, len, sp, sun = 1, boost = 0) { _m.compose(p, q, _s.set(len, len, len)); this.pPetal.add(_m, sp, sun, boost, -1, sp.partSkin); }
+  // stable per-creature keys so each batch can find last frame's transform of the same part (motion vectors)
+  owner(id) { this.ownerId = id; this.seq = 0; }
+  k(pool) { pool.key = (this.ownerId || 0) * 4096 + (this.seq++); return pool; }
+  part(name, p, q, scale, sp, sun = 1, boost = 0, glow = -1, tile = 0) { const P = this.parts && this.parts[name]; if (P) this.k(P).add(p, q, scale, sp, sun, boost, glow, tile); }
+  petal(p, q, len, sp, sun = 1, boost = 0) { _m.compose(p, q, _s.set(len, len, len)); this.k(this.pPetal).add(_m, sp, sun, boost, -1, sp.partSkin); }
   begin() {
     if (!this.eyes) this.eyes = new EyePool(this.scene);
     this.pEll.begin(); this.pLimb.begin(); this.pFin.begin(); this.tubes.begin(); this.glass.begin(); this.eyes.begin();
@@ -284,17 +291,17 @@ class Draw {
     if (this.pPetal) this.pPetal.end();
   }
   eye(p, q, r, o) { this.eyes.add(p, q, r, o); }
-  tube(pts, radii, o) { return (o.glass ? this.glass : this.tubes).add(pts, radii, o); }
+  tube(pts, radii, o) { return this.k(o.glass ? this.glass : this.tubes).add(pts, radii, o); }
   ellipsoid(p, q, sx, sy, sz, sp, sun = 1, boost = 0, glow = -1) {
-    _m.compose(p, q, _s.set(sx, sy, sz)); this.pEll.add(_m, sp, sun, boost, glow);
+    _m.compose(p, q, _s.set(sx, sy, sz)); this.k(this.pEll).add(_m, sp, sun, boost, glow);
   }
-  sphere(p, r, sp, sun = 1, boost = 0, glow = -1) { _m.compose(p, _q.identity(), _s.set(r, r, r)); this.pEll.add(_m, sp, sun, boost, glow); }
+  sphere(p, r, sp, sun = 1, boost = 0, glow = -1) { _m.compose(p, _q.identity(), _s.set(r, r, r)); this.k(this.pEll).add(_m, sp, sun, boost, glow); }
   limb(a, b, r, sp, sun = 1, boost = 0, glow = -1) {
     _v.subVectors(b, a); const len = _v.length(); if (len < 1e-4) return;
     _q.setFromUnitVectors(UP, _v.multiplyScalar(1 / len));
-    _m.compose(a, _q, _s.set(r, len, r)); this.pLimb.add(_m, sp, sun, boost, glow);
+    _m.compose(a, _q, _s.set(r, len, r)); this.k(this.pLimb).add(_m, sp, sun, boost, glow);
   }
-  finAt(p, q, span, chord, sp, sun = 1, boost = 0, skin) { _m.compose(p, q, _s.set(span, 1, chord)); this.pFin.add(_m, sp, sun, boost, -1, skin); }
+  finAt(p, q, span, chord, sp, sun = 1, boost = 0, skin) { _m.compose(p, q, _s.set(span, 1, chord)); this.k(this.pFin).add(_m, sp, sun, boost, -1, skin); }
 }
 
 
@@ -1263,7 +1270,7 @@ export class Ecosystem {
     this._fr.setFromProjectionMatrix(this._pm);
     ctx.visible = (p, r) => { this._sph.center.copy(p); this._sph.radius = r; return this._fr.intersectsSphere(this._sph); };
     D.begin();
-    for (const c of this.list) c.draw(D, ctx);
+    this.list.forEach((c, i) => { if (c.uid === undefined) c.uid = this.uidNext = (this.uidNext || 0) + 1; D.owner(c.uid); c.draw(D, ctx); });
     D.end();
   }
 }

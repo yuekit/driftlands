@@ -100,6 +100,9 @@ export class TubeBatch {
     g.setAttribute('aColA', this.aA); g.setAttribute('aColB', this.aB); g.setAttribute('aParams', this.aP); g.setAttribute('aBoost', this.aBo); g.setAttribute('aTan', this.aT); g.setAttribute('aSkin', this.aS);
     this.idx = new THREE.BufferAttribute(new Uint32Array(maxIdx), 1).setUsage(THREE.DynamicDrawUsage);
     g.setIndex(this.idx);
+    // last frame's positions, matched per tube by key, for motion vectors
+    this.aPrev = mk(maxVerts, 3); g.setAttribute('aPrev', this.aPrev);
+    this.prevPos = new Float32Array(maxVerts * 3); this.map = new Map(); this.prevMap = new Map(); this.key = null;
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e7);
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({ vertexShader: T_VS, fragmentShader: T_FS, uniforms: { ...U, uGlass: { value: glass ? 1 : 0 } },
       transparent: glass, depthWrite: true, side: glass ? THREE.DoubleSide : THREE.FrontSide }));
@@ -111,11 +114,15 @@ export class TubeBatch {
     this.P = new Float32Array(256 * 3); this.R = new Float32Array(256); this.F = new Float32Array(256 * 9); this.S = new Float32Array(256);
     this.frames = [];
   }
-  begin() { this.nv = 0; this.ni = 0; }
+  begin() {
+    this.prevPos.set(this.aPos.array.subarray(0, this.nv * 3));
+    const t = this.prevMap; this.prevMap = this.map; this.map = t; this.map.clear();
+    this.nv = 0; this.ni = 0;
+  }
   end() {
     const g = this.mesh.geometry;
     g.setDrawRange(0, this.ni);
-    for (const a of [this.aPos, this.aNor, this.aLoc, this.aA, this.aB, this.aP, this.aBo, this.aT, this.aS]) { a.needsUpdate = true; a.updateRanges && (a.clearUpdateRanges(), a.addUpdateRange(0, this.nv * a.itemSize)); }
+    for (const a of [this.aPos, this.aPrev, this.aNor, this.aLoc, this.aA, this.aB, this.aP, this.aBo, this.aT, this.aS]) { a.needsUpdate = true; a.updateRanges && (a.clearUpdateRanges(), a.addUpdateRange(0, this.nv * a.itemSize)); }
     this.idx.needsUpdate = true;
     this.idx.clearUpdateRanges && (this.idx.clearUpdateRanges(), this.idx.addUpdateRange(0, this.ni));
   }
@@ -220,6 +227,10 @@ export class TubeBatch {
         ska[v * 4] = sl; ska[v * 4 + 1] = st; ska[v * 4 + 2] = sv; ska[v * 4 + 3] = sa;
       }
     }
+    const key = this.key, pm = key == null ? undefined : this.prevMap.get(key);
+    if (pm && pm.n === nvNeed) this.aPrev.array.set(this.prevPos.subarray(pm.s * 3, (pm.s + nvNeed) * 3), v0 * 3);
+    else this.aPrev.array.set(pos.subarray(v0 * 3, (v0 + nvNeed) * 3), v0 * 3);
+    if (key != null) this.map.set(key, { s: v0, n: nvNeed });
     const ix = this.idx.array;
     for (let i = 0; i < rings - 1; i++) for (let k = 0; k < SEG; k++) {
       const a = v0 + i * RV + k, b = a + 1, c = a + RV, d = c + 1;

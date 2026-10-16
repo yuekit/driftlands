@@ -15,6 +15,7 @@ import { SunShadow, markCaster } from './shadow.js';
 import { UI } from './ui.js';
 import { loadGliderModel } from './glidermodel.js';
 import { GpuTimer, PerfOverlay } from './perf.js';
+import { VelocityPass } from './velocity.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -65,6 +66,13 @@ async function main() {
   const world = { islands, rocks, thermals, eco };
   const pipe = new Pipeline(renderer, noise);
   const shadow = new SunShadow(renderer, 2048);
+  const vel = new VelocityPass();
+  pipe.vel = vel;
+  for (const m of [eco.D.tubes.mesh, eco.D.glass.mesh]) vel.register(m, 'tube');
+  for (const m of [eco.D.pEll.mesh, eco.D.pLimb.mesh, eco.D.pFin.mesh]) vel.register(m, 'inst');
+  if (eco.D.parts) for (const k in eco.D.parts) vel.register(eco.D.parts[k].mesh, 'inst');
+  if (eco.D.pPetal) vel.register(eco.D.pPetal.mesh, 'inst');
+  vel.register(glider.root, 'rigid'); vel.register(glider.scarfMesh, 'rigid');
   markCaster(glider.root); markCaster(glider.scarfMesh);
   for (const m of [eco.D.pEll.mesh, eco.D.pLimb.mesh, eco.D.pFin.mesh, eco.D.tubes.mesh]) markCaster(m);
   for (const isl of islands) {
@@ -78,7 +86,7 @@ async function main() {
   window.__dl = game;
   pipe.timer = new GpuTimer(renderer);
   game.perf = new PerfOverlay(game);
-  loadGliderModel().then((m) => { glider.useModel(m); renderer.compile(scene, camera); }).catch((e) => console.warn('Glider model unavailable, using the built-in one', e));
+  loadGliderModel().then((m) => { glider.useModel(m); vel.register(glider.root, 'rigid'); renderer.compile(scene, camera); }).catch((e) => console.warn('Glider model unavailable, using the built-in one', e));
 
   function resize() {
     const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;

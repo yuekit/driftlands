@@ -275,6 +275,7 @@ precision highp float;
 in vec2 vUv; out vec4 fragColor;
 uniform sampler2D tCur; uniform sampler2D tHist; uniform sampler2D tDepth;
 uniform mat4 uInvVP; uniform mat4 uPrevVP; uniform vec2 uRes; uniform float uReset; uniform float uFeedback; uniform vec2 uNF;
+uniform sampler2D tVel; uniform float uVelOn;
 vec3 toYC(vec3 c){ return vec3(dot(c, vec3(0.25, 0.5, 0.25)), dot(c, vec3(0.5, 0.0, -0.5)), dot(c, vec3(-0.25, 0.5, -0.25))); }
 vec3 fromYC(vec3 y){ return vec3(y.x + y.y - y.z, y.x + y.z, y.x - y.y - y.z); }
 vec3 tm(vec3 c){ return c / (1.0 + max(c.r, max(c.g, c.b))); }
@@ -294,6 +295,12 @@ void main(){
   vec3 lo = mu - 1.2 * sig, hi = mu + 1.2 * sig;
   vec4 wp = uInvVP * vec4(vUv * 2.0 - 1.0, closest * 2.0 - 1.0, 1.0); wp /= wp.w;
   vec4 pc = uPrevVP * wp; vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
+  // objects that move on their own carry their own motion vectors
+  float zc = texture(tDepth, vUv).r;
+  float linC = 2.0 * uNF.x * uNF.y / (uNF.y + uNF.x - (zc * 2.0 - 1.0) * (uNF.y - uNF.x));
+  vec4 mv = uVelOn > 0.5 ? texture(tVel, vUv) : vec4(0.0);
+  bool useVel = mv.a > 0.5 && abs(mv.z - linC) < 0.03 * linC + 0.3;
+  if (useVel) puv = vUv - mv.xy;
   vec3 hist = toYC(tm(max(texture(tHist, puv).rgb, 0.0)));
   hist = clamp(hist, lo, hi);
   float fb = uFeedback;
@@ -302,7 +309,7 @@ void main(){
   fb *= mix(1.0, 0.8, clamp(vel / 40.0, 0.0, 1.0));
   // things riding with the camera (the glider) cannot be reprojected from depth alone
   float lin = 2.0 * uNF.x * uNF.y / (uNF.y + uNF.x - (closest * 2.0 - 1.0) * (uNF.y - uNF.x));
-  fb *= mix(0.45, 1.0, smoothstep(14.0, 30.0, lin));
+  if (!useVel) fb *= mix(0.45, 1.0, smoothstep(14.0, 30.0, lin));
   vec3 res = fromYC(mix(cur, hist, fb));
   fragColor = vec4(itm(clamp(res, 0.0, 0.999)), 1.0);
 }`;
@@ -486,7 +493,7 @@ export class Pipeline {
       uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uSunView: { value: new THREE.Vector3() }, uContact: { value: 1 }, uFrame: { value: 0 },
     });
     this.aoMat = mk(AO_FS, { tDepth: { value: null }, uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uFrame: { value: 0 }, uRadius: { value: 1 } });
-    this.taaMat = mk(TAA_FS, { tCur: { value: null }, tHist: { value: null }, tDepth: { value: null }, uInvVP: { value: new THREE.Matrix4() }, uPrevVP: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uReset: { value: 1 }, uFeedback: { value: 0.9 }, uNF: { value: new THREE.Vector2(0.5, 20000) } });
+    this.taaMat = mk(TAA_FS, { tVel: { value: null }, uVelOn: { value: 0 }, tCur: { value: null }, tHist: { value: null }, tDepth: { value: null }, uInvVP: { value: new THREE.Matrix4() }, uPrevVP: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uReset: { value: 1 }, uFeedback: { value: 0.9 }, uNF: { value: new THREE.Vector2(0.5, 20000) } });
     this.maskMat = mk(RAYMASK_FS, { ...U, tDepth: { value: null }, tCloud: { value: null }, uInvProj: this.cloudMat.uniforms.uInvProj, uCamWorld: this.cloudMat.uniforms.uCamWorld });
     this.radialMat = mk(RADIAL_FS, { tMask: { value: null }, uSun: { value: new THREE.Vector2() }, uAmt: { value: 1 } });
     this.threshMat = mk(THRESH_FS, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });
@@ -510,6 +517,7 @@ export class Pipeline {
     this.frame = 0;
     this.targets = null;
     this.timer = null;
+    this.vel = null;
   }
 
   resize(w, h, pixelRatio) {
@@ -529,7 +537,8 @@ export class Pipeline {
     let bw = Math.round(W / 2), bh = Math.round(H / 2);
     for (let i = 0; i < 6; i++) { bloom.push(rt(Math.max(2, bw), Math.max(2, bh))); bw = Math.round(bw / 2); bh = Math.round(bh / 2); }
     const bloomUp = bloom.map((b) => rt(b.width, b.height));
-    this.targets = { W, H, cs: this.cloudScale, scene, cloud, comp, ao, hist, mask, rays, bloom, bloomUp, list: [scene, cloud, comp, ao, ...hist, mask, rays, ...bloom, ...bloomUp] };
+    const vel = rt(W, H, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    this.targets = { W, H, cs: this.cloudScale, scene, cloud, comp, ao, hist, mask, rays, bloom, bloomUp, vel, list: [scene, cloud, comp, ao, ...hist, mask, rays, ...bloom, ...bloomUp, vel] };
     this.hasPrev = false;
     this.aoMat.uniforms.uRes.value.set(W, H);
     this.compMat.uniforms.uAORes.value.set(ao.width, ao.height);
@@ -604,8 +613,15 @@ export class Pipeline {
     VP.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     VP0.multiplyMatrices(P0, camera.matrixWorldInverse);
     if (this.taa) {
-      tm('taa');
       const tu = this.taaMat.uniforms;
+      tu.uVelOn.value = 0;
+      if (this.vel && this.vel.enabled && this.hasPrev) {
+        tm('velocity');
+        this.vel.curVP.copy(VP0); this.vel.prevVP.copy(this.prevVP);
+        this.vel.render(r, scene, camera, T.vel);
+        tu.tVel.value = T.vel.texture; tu.uVelOn.value = 1;
+      }
+      tm('taa');
       const cur = T.hist[this.histIdx], prev = T.hist[1 - this.histIdx];
       const jumped = !this.hasPrev || this.prevCam.distanceTo(camera.position) > 40;
       tu.tCur.value = T.comp.texture; tu.tHist.value = prev.texture; tu.tDepth.value = T.scene.depthTexture;

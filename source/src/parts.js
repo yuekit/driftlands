@@ -1,6 +1,7 @@
 // Sculpted creature parts from Blender (heads, whale fins and flukes, bloom petals), drawn instanced and
 // fitted to the procedural bodies each frame. Baked: normal + AO + colour/glow masks; skin from the library.
 import * as THREE from 'three';
+import { InstHistory } from './velocity.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import partsB64 from './assets/parts.glb';
 import ANCHORS from './assets/parts_anchors.json';
@@ -104,15 +105,17 @@ export class MeshPool {
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.setColorAt(0, new THREE.Color(1, 1, 1)); this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false; scene.add(this.mesh);
-    this.a = g.attributes; this.n = 0;
+    this.a = g.attributes; this.n = 0; this.key = null;
+    this.hist = new InstHistory(this.mesh, max);
   }
-  begin() { this.n = 0; }
+  begin() { this.hist.begin(this.n); this.n = 0; }
   // scale: number or Vector3 (negative x mirrors)
   add(p, q, scale, sp, sun = 1, boost = 0, glow = -1, skinTile = 0) {
     if (this.n >= this.max) return;
     const i = this.n++;
     if (typeof scale === 'number') _s.set(scale, scale, scale); else _s.copy(scale);
     _m.compose(p, q, _s); _m.toArray(this.mesh.instanceMatrix.array, i * 16);
+    this.hist.record(i, this.key);
     const a = sp.colA, b = sp.colB;
     this.mesh.instanceColor.array.set([a.x, a.y, a.z], i * 3);
     this.a.aColB.array.set([b.x, b.y, b.z], i * 3);
@@ -123,6 +126,7 @@ export class MeshPool {
   }
   end() {
     this.mesh.count = this.n;
+    this.hist.end(this.n);
     this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true;
     this.a.aColB.needsUpdate = true; this.a.aParams.needsUpdate = true; this.a.aSkinI.needsUpdate = true;
   }

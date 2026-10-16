@@ -1,0 +1,2 @@
+[{"js":"for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden'; __dl.goldenView('stilt-close'); __dl.pipe.vel.enabled = true; 'on'","wait":12000,"name":"motion-vel-on"},
+ {"js":"__dl.goldenView('stilt-close'); __dl.pipe.vel.enabled = false; 'off'","wait":12000,"name":"motion-vel-off"}]
