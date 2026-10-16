@@ -1,0 +1,3 @@
+[{"js":"__dl.perf.toggle(true); 'on'","wait":8000,"name":"perf-overlay"},
+ {"js":"__dl.bench(400); 'bench'","wait":60000},
+ {"js":"JSON.stringify(__dl.benchResult)"}]

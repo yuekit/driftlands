@@ -5,6 +5,7 @@ import { SPECIES } from './creatures.js';
 import { Audio } from './audio.js';
 import { Debris } from './debris.js';
 import { DayCycle } from './cycle.js';
+import { GOLDEN, BENCH } from './golden.js';
 
 const STORE_KEY = 'driftlands-journal-v1';
 const SETTINGS_KEY = 'driftlands-settings-v1';
@@ -185,12 +186,49 @@ export class Game {
     if (T[id]) this.ui.hint(T[id]);
   }
 
+  // ---------------------------------------------------------------- debug: golden views and benchmark
+  goldenView(i) {
+    const v = typeof i === 'number' ? GOLDEN[i] : GOLDEN.find((g) => g.name === i);
+    if (!v) return GOLDEN.map((g) => g.name);
+    this.cycle.mode = 'hold'; this.cycle.t = v.time; this.cycle.apply();
+    if (v.creature) {
+      const c = this.eco.bySpecies[v.creature][0];
+      this.sim(0.2);
+      const p = c.pos, y = (c.bodyY ?? c.pos.y) + 4;
+      this.debugCam = { p: [p.x + v.off[0], y + v.off[1], p.z + v.off[2]], t: [p.x, y, p.z], fov: v.fov };
+    } else this.debugCam = { p: v.p, t: v.t, fov: v.fov };
+    this.sim(0.1);
+    return v.name;
+  }
+  // scripted flight through BENCH at a fixed speed; logs frame-time stats to the console when done
+  bench(speed = 45) {
+    const pts = BENCH.map((p) => new THREE.Vector3(...p));
+    const curve = new THREE.CatmullRomCurve3(pts, true);
+    const len = curve.getLength();
+    this.cycle.mode = 'hold'; this.cycle.t = 120; this.cycle.apply();
+    this.benchState = { curve, len, t0: performance.now(), d: 0, speed, times: [] };
+    this.debugCam = { p: [0, 0, 0], t: [0, 0, 0], fov: 62 };
+  }
+  benchStep(dt) {
+    const B = this.benchState;
+    B.d += dt * B.speed; B.times.push(dt * 1000);
+    const u = (B.d / B.len) % 1, p = B.curve.getPointAt(u), q = B.curve.getPointAt((u + 0.01) % 1);
+    this.debugCam.p = [p.x, p.y, p.z]; this.debugCam.t = [q.x, q.y - 4, q.z];
+    if (B.d >= B.len) {
+      const s = B.times.slice(5).sort((a, b) => a - b);
+      const avg = s.reduce((a, b) => a + b, 0) / s.length, p99 = s[Math.floor(s.length * 0.99)];
+      const res = { frames: s.length, avgMs: +avg.toFixed(2), p99Ms: +p99.toFixed(2), fps: +(1000 / avg).toFixed(1), quality: this.quality.level, gpu: this.pipe.timer ? this.pipe.timer.summary() : null };
+      console.log('BENCH', JSON.stringify(res));
+      this.benchResult = res; this.benchState = null; this.debugCam = null;
+    }
+  }
+
   // ---------------------------------------------------------------- per frame
   sim(seconds, step = 0.033) { for (let t = 0; t < seconds; t += step) this.frame(step, false); }
 
   frame(dtReal, render = true) {
     this.realTime += dtReal;
-    this.adaptQuality(dtReal);
+    if (this.benchState) this.benchStep(dtReal); else this.adaptQuality(dtReal);
     const playing = this.state === 'play';
     const inp = this.input.read();
     if (this.state === 'title' && !this.debugCam) this.titleFrame(dtReal);
@@ -264,9 +302,12 @@ export class Game {
     const focus = this.glider.pos.clone().addScaledVector(this.glider.fwd, 70);
     if (this.debugCam) focus.set(...this.debugCam.t);
     for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0);
+    this.renderer.info.reset();
+    if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
     if (this.shadow) this.shadow.render(this.scene, focus);
     this.pipe.render(this.scene, this.camera);
     if (this.capture) this.doCapture();
+    if (this.perf) this.perf.update(dtReal);
 
     // audio + HUD
     if (this.state === 'play' || this.state === 'paused' || this.state === 'journal') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);

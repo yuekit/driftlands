@@ -14,6 +14,7 @@ import { Game } from './game.js';
 import { SunShadow, markCaster } from './shadow.js';
 import { UI } from './ui.js';
 import { loadGliderModel } from './glidermodel.js';
+import { GpuTimer, PerfOverlay } from './perf.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -30,6 +31,7 @@ async function main() {
     return;
   }
   renderer.setPixelRatio(1);
+  renderer.info.autoReset = false;
   renderer.autoClear = true;
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
@@ -74,6 +76,8 @@ async function main() {
 
   const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, debug: DEBUG });
   window.__dl = game;
+  pipe.timer = new GpuTimer(renderer);
+  game.perf = new PerfOverlay(game);
   loadGliderModel().then((m) => { glider.useModel(m); renderer.compile(scene, camera); }).catch((e) => console.warn('Glider model unavailable, using the built-in one', e));
 
   function resize() {

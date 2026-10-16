@@ -1,0 +1,42 @@
+[
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(0)",
+  "wait": 6000,
+  "name": "verdigris-day"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(1)",
+  "wait": 6000,
+  "name": "verdigris-arch"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(2)",
+  "wait": 6000,
+  "name": "ochre-sunface"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(3)",
+  "wait": 6000,
+  "name": "into-sun"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(4)",
+  "wait": 6000,
+  "name": "coral-dusk"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(5)",
+  "wait": 6000,
+  "name": "verdigris-night"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(6)",
+  "wait": 6000,
+  "name": "cloud-sea"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(7)",
+  "wait": 6000,
+  "name": "stilt-close"
+ }
+]

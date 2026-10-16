@@ -438,6 +438,7 @@ export class Pipeline {
     this.qCam = new THREE.Camera();
     this.frame = 0;
     this.targets = null;
+    this.timer = null;
   }
 
   resize(w, h, pixelRatio) {
@@ -476,6 +477,7 @@ export class Pipeline {
 
   render(scene, camera) {
     const T = this.targets, r = this.renderer;
+    const tm = this.timer && this.timer.enabled ? (n) => this.timer.begin(n) : () => {};
     this.frame++;
     camera.updateMatrixWorld();
     // sub-pixel jitter for temporal accumulation
@@ -487,8 +489,10 @@ export class Pipeline {
       camera.projectionMatrix.elements[9] += (j[1] * 2) / T.H;
       camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     }
+    tm('scene');
     r.setRenderTarget(T.scene);
     r.render(scene, camera);
+    tm('clouds');
 
     const cu = this.cloudMat.uniforms;
     cu.tDepth.value = T.scene.depthTexture;
@@ -499,6 +503,7 @@ export class Pipeline {
     this.pass(this.cloudMat, T.cloud);
 
     if (this.ao > 0) {
+      tm('ssao');
       const au = this.aoMat.uniforms;
       au.tDepth.value = T.scene.depthTexture;
       au.uProj.value.copy(camera.projectionMatrix); au.uInvProj.value.copy(camera.projectionMatrixInverse);
@@ -509,6 +514,7 @@ export class Pipeline {
     pu.tAO.value = T.ao.texture; pu.uAOStr.value = this.ao;
     pu.tScene.value = T.scene.texture; pu.tDepth.value = T.scene.depthTexture; pu.tCloud.value = T.cloud.texture;
     pu.uNear.value = camera.near; pu.uFar.value = camera.far; pu.uInk.value = this.ink;
+    tm('composite');
     this.pass(this.compMat, T.comp);
 
     // temporal resolve
@@ -518,6 +524,7 @@ export class Pipeline {
     VP.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     VP0.multiplyMatrices(P0, camera.matrixWorldInverse);
     if (this.taa) {
+      tm('taa');
       const tu = this.taaMat.uniforms;
       const cur = T.hist[this.histIdx], prev = T.hist[1 - this.histIdx];
       const jumped = !this.hasPrev || this.prevCam.distanceTo(camera.position) > 40;
@@ -534,6 +541,7 @@ export class Pipeline {
     const sp = rayDir.clone().multiplyScalar(10000).add(camera.position).project(camera);
     const facing = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).dot(rayDir);
     let rayAmt = 0;
+    tm('rays');
     if (facing > 0.15) {
       rayAmt = Math.min(1, (facing - 0.15) * 3) * 0.45;
       this.maskMat.uniforms.tDepth.value = T.scene.depthTexture;
@@ -547,6 +555,7 @@ export class Pipeline {
     }
 
     // bloom
+    tm('bloom');
     this.threshMat.uniforms.tSrc.value = out.texture;
     this.threshMat.uniforms.uTexel.value.set(1 / T.W, 1 / T.H);
     this.pass(this.threshMat, T.bloom[0]);
@@ -566,8 +575,10 @@ export class Pipeline {
 
     const fu = this.finalMat.uniforms;
     fu.tSrc.value = out.texture; fu.tBloom.value = T.bloomUp[0].texture; fu.tRays.value = T.rays.texture;
+    tm('final');
     fu.uRayAmt.value = rayAmt; fu.uSharpen.value = this.taa ? 0.35 : 0;
     this.pass(this.finalMat, null);
+    if (this.timer && this.timer.enabled) { this.timer.end(); this.timer.poll(); }
     // restore the unjittered projection for gameplay maths
     camera.projectionMatrix.copy(P0);
     camera.projectionMatrixInverse.copy(P0).invert();

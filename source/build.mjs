@@ -1,6 +1,6 @@
 import * as esbuild from 'esbuild';
 import fs from 'fs';
-const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js';
+const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js';
 const minify = !process.argv.includes('--dev');
 const standalone = process.argv.includes('--standalone');   // bundle three.js in: runs offline from a local file
 const w = await esbuild.build({ entryPoints: ['src/worker.js'], bundle: true, format: 'iife', minify, write: false, target: 'es2020' });

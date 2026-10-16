@@ -11,7 +11,7 @@
  "license": "ISC",
  "dependencies": {
   "esbuild": "^0.24.0",
-  "three": "^0.170.0"
+  "three": "^0.186.1"
  },
  "type": "module"
 }
