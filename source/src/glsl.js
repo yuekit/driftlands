@@ -12,7 +12,9 @@ export const U = {
   uCloudTop: { value: 22 },
   uFlash: { value: 0 },
   uNight: { value: 0 },
-  uPxScale: { value: 1 },   // render height / 1080: keeps point sprites the same size at every quality level
+  uPxScale: { value: 1 },
+  uCloudShadow: { value: null }, uCloudShadowBox: { value: new THREE.Vector4(0, 0, 1600, 500) }, uCloudShadowOn: { value: 0 },
+  uCover: { value: 0.5 },   // high cumulus coverage   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
 export const COMMON = /* glsl */ `
@@ -27,6 +29,7 @@ uniform float uNight;
 uniform float uPxScale;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
+uniform sampler2D uCloudShadow; uniform vec4 uCloudShadowBox; uniform float uCloudShadowOn;
 uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;
 
 float hash13(vec3 p3){ p3 = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
@@ -162,8 +165,17 @@ vec3 envLight(vec3 R, float rough){
 }
 // rough: perceptual roughness 0..1; f0: reflectance at normal incidence (0.04 for most non-metals)
 // ambN: direction the sky light is gathered from (a bent normal where one is baked)
+// shadow of the high cumulus layer: project along the sun onto the shadow map's plane
+float cloudShadowAt(vec3 p){
+  if (uCloudShadowOn < 0.5) return 1.0;
+  vec4 B = uCloudShadowBox;
+  vec3 q = p + uSunDir * ((B.w - p.y) / max(uSunDir.y, 0.12));
+  vec2 uv = (q.xz - B.xy) / (2.0 * B.z) + 0.5;
+  float edge = smoothstep(0.5, 0.42, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
+  return mix(1.0, texture(uCloudShadow, uv).r, edge);
+}
 vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
-  sunVis *= dynShadow(wp, n);
+  sunVis *= dynShadow(wp, n) * cloudShadowAt(wp);
   vec3 V = normalize(uCamPos - wp);
   float ndl = dot(n, uSunDir);
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);

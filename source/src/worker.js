@@ -1,5 +1,4 @@
 import { buildIsland, buildRocklet } from './mesher.js';
-import { buildCloudTexture } from './cloudtex.js';
 self.onmessage = (e) => {
   const m = e.data;
   if (m.type === 'island') {
@@ -9,8 +8,7 @@ self.onmessage = (e) => {
     tr.push(r.height.data.buffer, r.height.shade.buffer, r.candidates.buffer);
     self.postMessage({ type: 'done', id: m.id, result: r }, tr);
   } else if (m.type === 'clouds') {
-    const data = buildCloudTexture(m.size, 11);
     const rocks = [buildRocklet(91, 1.0), buildRocklet(57, 1.0)];
-    self.postMessage({ type: 'done', id: m.id, result: { data, rocks } }, [data.buffer]);
+    self.postMessage({ type: 'done', id: m.id, result: { rocks } });
   }
 };

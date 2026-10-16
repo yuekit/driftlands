@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { U } from './glsl.js';
 import { generateWorld } from './boot.js';
+import { generateCloudNoise } from './cloudgen.js';
 import { Pipeline } from './post.js';
 import { makeSky, Island, Rocklets, RockletsKit, distantIslands, Thermals, setSurfaceTextures } from './world.js';
 import { loadKit } from './kit.js';
@@ -43,11 +44,7 @@ async function main() {
   await skinP;
   const kit = await kitP;
 
-  const noise = new THREE.Data3DTexture(data.clouds.data, 64, 64, 64);
-  noise.format = THREE.RGBAFormat; noise.type = THREE.UnsignedByteType;
-  noise.wrapS = noise.wrapT = noise.wrapR = THREE.RepeatWrapping;
-  noise.minFilter = THREE.LinearFilter; noise.magFilter = THREE.LinearFilter;
-  noise.unpackAlignment = 1; noise.needsUpdate = true;
+  const noise = generateCloudNoise(renderer);
 
   setSurfaceTextures(generateSurfaceTextures(renderer, 1024));
   const scene = new THREE.Scene();

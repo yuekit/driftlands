@@ -4,7 +4,7 @@ import workerSrc from 'worker-src';
 export function generateWorld(onProgress) {
   const url = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
   const jobs = [
-    { type: 'clouds', size: 64, weight: 0.15 },
+    { type: 'clouds', weight: 0.05 },
     { type: 'island', index: 0, cell: 1.8, lodCell: 4.2, weight: 1 },
     { type: 'island', index: 1, cell: 1.8, lodCell: 4.2, weight: 1 },
     { type: 'island', index: 2, cell: 1.8, lodCell: 4.2, weight: 1 },

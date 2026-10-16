@@ -19,23 +19,76 @@ function rt(w, h, opts = {}) {
   });
 }
 
+// High cumulus layer, shared by the cloud march and the cloud-shadow map.
+const HIGH_GLSL = /* glsl */ `
+const float HB = 380.0, HT = 620.0;
+uniform sampler3D tNoise; uniform sampler3D tDetail; uniform float uCover;
+float remap(float v, float a, float b, float c, float d){ return c + (v - a) / (b - a) * (d - c); }
+vec3 highWind(){ return vec3(uWind.x, 0.0, uWind.y) * uTime * 9.0; }
+float highCover(vec2 xz){
+  vec4 wt = texture(tNoise, vec3(xz.x * 0.00011, 0.23, xz.y * 0.00011));
+  float c = wt.a * 0.7 + wt.g * 0.3;
+  return smoothstep(0.66 - uCover * 0.3, 0.84 - uCover * 0.3, c);
+}
+float highDensity(vec3 p, float lod){
+  float h = (p.y - HB) / (HT - HB);
+  if (h < 0.0 || h > 1.0) return 0.0;
+  vec3 w = highWind();
+  float cov = highCover(p.xz + w.xz);
+  if (cov < 0.01) return 0.0;
+  float topH = mix(0.35, 1.0, cov);                     // dense patches build taller towers
+  float grad = smoothstep(0.0, 0.07, h) * smoothstep(topH, topH * 0.5, h);
+  vec4 n = texture(tNoise, (p + w) * 0.0016);
+  float fb = n.g * 0.625 + n.b * 0.25 + n.a * 0.125;
+  float base = clamp(remap(n.r, fb - 1.0, 1.0, 0.0, 1.0), 0.0, 1.0) * grad;
+  base = clamp(remap(base, 1.0 - cov, 1.0, 0.0, 1.0), 0.0, 1.0) * cov;
+  if (base <= 0.0) return 0.0;
+  if (lod < 0.5) {
+    vec4 d4 = texture(tDetail, (p + w * 1.3) * 0.0052 + vec3(0.0, uTime * 0.004, 0.0));
+    float dn = d4.r * 0.5 + d4.g * 0.32 + d4.b * 0.18;
+    float dm = mix(dn, 1.0 - dn, clamp(h * 4.0, 0.0, 1.0));   // wispy underside, billowy tops
+    base = clamp(remap(base, dm * 0.62, 1.0, 0.0, 1.0), 0.0, 1.0);
+  }
+  return base * 0.09;
+}`;
+
+// Cloud shadow map: transmittance through the high layer along the sun, on a camera-centred grid.
+const CLOUDSHADOW_FS = /* glsl */ `
+precision highp float; precision highp sampler3D;
+in vec2 vUv; out vec4 fragColor;
+${COMMON}
+${HIGH_GLSL}
+void main(){
+  vec4 B = uCloudShadowBox;
+  vec2 xz = B.xy + (vUv - 0.5) * 2.0 * B.z;
+  vec3 sd = uSunDir / max(uSunDir.y, 0.12);
+  float od = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float y = HB + (HT - HB) * (float(i) + 0.5) / 6.0;
+    vec3 p = vec3(xz, 0.0).xzy + sd * (y - B.w); p.y = y;
+    od += highDensity(p, 1.0);
+  }
+  od *= (HT - HB) / 6.0 * length(sd);
+  fragColor = vec4(exp(-od * 0.9), 0.0, 0.0, 1.0);
+}`;
+
 const CLOUD_FS = /* glsl */ `
 precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 fragColor;
 ${COMMON}
-uniform sampler2D tDepth; uniform sampler3D tNoise; uniform vec3 uCloudLo; uniform vec3 uCloudHi; uniform vec4 uIsl[3];
+${HIGH_GLSL}
+uniform sampler2D tDepth; uniform vec3 uCloudLo; uniform vec3 uCloudHi; uniform vec4 uIsl[3];
 uniform mat4 uInvProj; uniform mat4 uCamWorld; uniform float uNear; uniform float uFar;
-uniform vec2 uRes; uniform float uSteps; uniform float uFrame;
+uniform vec2 uRes; uniform float uSteps; uniform float uFrame; uniform float uHigh;
 
 float linDepth(float z){ float ndc = z * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - ndc * (uFar - uNear)); }
-float remap(float v, float a, float b, float c, float d){ return c + (v - a) / (b - a) * (d - c); }
 
 const float YB = -110.0;
 float cloudTop(vec2 xz, out float tower){
   vec4 c = texture(tNoise, vec3(xz.x * 0.00045, 0.31, xz.y * 0.00045));
-  tower = smoothstep(0.56, 0.86, c.a) * smoothstep(0.35, 0.7, c.g);
+  tower = smoothstep(0.56, 0.86, c.a) * smoothstep(0.35, 0.7, c.b);
   vec4 c2 = texture(tNoise, vec3(xz.x * 0.0016, 0.71, xz.y * 0.0016));
-  return uCloudTop + (c.g - 0.5) * 55.0 + (c2.a - 0.5) * 30.0 + tower * 110.0;
+  return uCloudTop + (c.b - 0.5) * 55.0 + (c2.a - 0.5) * 30.0 + tower * 110.0;
 }
 // mist skirts hanging beneath each island
 float mistAmt(vec3 p){
@@ -61,32 +114,80 @@ float islandShade(vec3 p){
   }
   return s;
 }
-float density(vec3 p, float lod){
+float seaDensity(vec3 p, float lod){
   float md = 0.0;
   float mist = mistAmt(p);
   if (mist > 0.01) {
     vec3 w2 = vec3(uWind.x, 0.2, uWind.y) * uTime * 3.5;
-    float n = texture(tNoise, (p + w2) * 0.0065).a * 0.6 + texture(tNoise, (p + w2 * 1.6) * 0.019).g * 0.4;
+    float n = texture(tNoise, (p + w2) * 0.0065).a * 0.6 + texture(tNoise, (p + w2 * 1.6) * 0.019).b * 0.4;
     md = clamp((n * mist - 0.3) * 1.8, 0.0, 1.0) * 0.024;
   }
   float tower; float top = cloudTop(p.xz, tower);
   float h = (p.y - YB) / (top - YB);
   if (h > 1.0 || h < 0.0) return md;
   vec3 w = vec3(uWind.x, 0.0, uWind.y) * uTime * 6.0;
-  vec3 q = (p + w) * 0.0042;
-  vec4 n = texture(tNoise, q);
-  float shape = n.a * 0.55 + n.g * 0.45;
+  vec4 n = texture(tNoise, (p + w) * 0.0042);
+  float shape = n.a * 0.55 + n.b * 0.45;
   float grad = smoothstep(1.0, mix(0.72, 0.55, tower), h) * smoothstep(0.0, 0.25, h);
   float base = clamp(remap(shape * grad, 0.12, 1.0, 0.0, 1.0), 0.0, 1.0);
   if (base <= 0.0) return md;
   if (lod < 0.5) {
-    vec4 dn = texture(tNoise, (p + w * 1.6) * 0.017 + vec3(0.0, uTime * 0.006, 0.0));
-    float det = dn.g * 0.6 + dn.b * 0.4;
-    base = clamp(remap(base, det * 0.42 * (1.0 - h * 0.4), 1.0, 0.0, 1.0), 0.0, 1.0);
+    float dn = texture(tDetail, (p + w * 1.6) * 0.034 + vec3(0.0, uTime * 0.012, 0.0)).a;
+    float dm = mix(dn, 1.0 - dn, clamp(h * 2.5, 0.0, 1.0));   // torn wisps low, cauliflower tops
+    base = clamp(remap(base, dm * 0.45 * (1.0 - h * 0.35), 1.0, 0.0, 1.0), 0.0, 1.0);
   }
   return base * (0.055 + 0.04 * (1.0 - h)) + md;
 }
+float dens(int L, vec3 p, float lod){ return L == 0 ? seaDensity(p, lod) : highDensity(p, lod); }
 float hg(float c, float g){ float g2 = g * g; return (1.0 - g2) / (4.0 * 3.14159 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
+// dual-lobe phase: a strong forward lobe gives silver linings around the sun
+float phaseF(float c, float k){ return mix(hg(c, 0.68 * k), hg(c, -0.22 * k), 0.38) * 3.0 + 0.22; }
+// one slab, front to back; returns its in-scattered light with aerial perspective applied
+void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitter, float cosT, inout vec3 S, inout float T){
+  float dt = L == 0 ? clamp((t1 - t0) / steps, 2.5, 90.0) : clamp((t1 - t0) / steps, 5.0, 260.0);
+  float t = t0 + dt * jitter;
+  float Tl = 1.0; vec3 Sl = vec3(0.0); float distAcc = 0.0, wAcc = 0.0;
+  vec3 sunC = uSunColor * 1.15;
+  float p0 = phaseF(cosT, 1.0), p1 = phaseF(cosT, 0.5), p2 = phaseF(cosT, 0.25);
+  float ls0 = L == 0 ? 6.0 : 12.0;
+  for (float i = 0.0; i < 128.0; i += 1.0) {
+    if (i >= steps * 1.5 || t > t1 || Tl * T < 0.015) break;
+    vec3 p = ro + rd * t;
+    float lod = t > (L == 0 ? 1600.0 : 7000.0) ? 1.0 : 0.0;
+    float d = dens(L, p, lod);
+    if (d > 0.0) {
+      float od = 0.0; float ls = ls0; vec3 lp = p;
+      for (int j = 0; j < 5; j++) { lp += uSunDir * ls; od += dens(L, lp, j == 0 ? lod : 1.0) * ls; ls *= 1.9; }
+      // multiple scattering: three octaves with weaker extinction and a broader phase
+      float ms = exp(-od * 1.5) * p0 + 0.5 * exp(-od * 0.75) * p1 + 0.25 * exp(-od * 0.375) * p2;
+      float powder = 1.0 - exp(-d * 60.0);
+      float hh;
+      if (L == 0) { float tower; float top = cloudTop(p.xz, tower); hh = clamp((p.y - YB) / (top - YB), 0.0, 1.0); }
+      else hh = clamp((p.y - HB) / (HT - HB), 0.0, 1.0);
+      vec3 amb = L == 0 ? mix(uCloudLo, uCloudHi, hh * hh) * (0.45 + 0.55 * hh)
+                        : mix(uCloudLo, uCloudHi, hh) * (0.95 + 0.4 * hh) + uCloudHi * 0.4 * (1.0 - hh);   // the bright cloud sea lights the undersides
+      float shade = L == 0 ? islandShade(p) * cloudShadowAt(p) : 1.0;
+      vec3 Ls = sunC * ms * 0.8 * mix(0.55, 1.0, powder) * shade + amb;
+      float tr = exp(-d * dt);
+      Sl += Tl * (Ls - Ls * tr);
+      distAcc += t * Tl * (1.0 - tr); wAcc += Tl * (1.0 - tr);
+      Tl *= tr;
+    }
+    t += dt * (d > 0.0 ? 1.0 : 1.35);
+  }
+  if (wAcc <= 0.0) return;
+  vec3 pp = ro + rd * (distAcc / wAcc);
+  vec3 dir; float f = fogAmount(pp, dir);
+  vec3 fc = skyColor(vec3(rd.x, max(rd.y, -0.05) * 0.4, rd.z)) + mieGlow(rd);
+  Sl = mix(Sl, fc * (1.0 - Tl), f * 0.92);
+  S += T * Sl; T *= Tl;
+}
+vec2 slab(vec3 ro, vec3 rd, float y0, float y1, float tMax){
+  float t0, t1;
+  if (abs(rd.y) < 1e-4) { t0 = 0.0; t1 = (ro.y > y0 && ro.y < y1) ? 9000.0 : -1.0; }
+  else { float ta = (y0 - ro.y) / rd.y, tb = (y1 - ro.y) / rd.y; t0 = max(min(ta, tb), 0.0); t1 = max(ta, tb); }
+  return vec2(t0, min(t1, tMax));
+}
 
 void main(){
   vec2 uv = vUv;
@@ -94,55 +195,23 @@ void main(){
   vec3 dv = normalize(v.xyz);
   vec3 rd = normalize((uCamWorld * vec4(dv, 0.0)).xyz);
   vec3 ro = uCamPos;
-  float sceneDist = linDepth(texture(tDepth, uv).r) / max(-dv.z, 1e-4);
-  if (texture(tDepth, uv).r >= 0.99999) sceneDist = 1e9;
+  float zr = texture(tDepth, uv).r;
+  float sceneDist = zr >= 0.99999 ? 1e9 : linDepth(zr) / max(-dv.z, 1e-4);
   float yTop = max(uCloudTop + 135.0, 196.0);
-  float t0, t1;
-  if (abs(rd.y) < 1e-4) { t0 = 0.0; t1 = (ro.y > YB && ro.y < yTop) ? 8000.0 : -1.0; }
-  else {
-    float ta = (YB - ro.y) / rd.y, tb = (yTop - ro.y) / rd.y;
-    t0 = max(min(ta, tb), 0.0); t1 = max(ta, tb);
-  }
-  t1 = min(t1, min(sceneDist, 9000.0));
-  if (t1 <= t0) { fragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  vec2 A = slab(ro, rd, YB, yTop, min(sceneDist, 9000.0));
+  vec2 Bh = uHigh > 0.5 ? slab(ro, rd, HB, HT, min(sceneDist, 12000.0)) : vec2(1.0, 0.0);
   float cosT = dot(rd, uSunDir);
-  float phase = mix(hg(cosT, 0.5), hg(cosT, -0.2), 0.4) * 3.0 + 0.3;
   float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + uFrame * 0.61803398875);
-  float steps = uSteps;
-  float dt = clamp((t1 - t0) / steps, 2.5, 90.0);
-  float t = t0 + dt * jitter;
   float T = 1.0; vec3 S = vec3(0.0);
-  float distAcc = 0.0, wAcc = 0.0;
-  vec3 sunC = uSunColor * 1.15;
-  for (float i = 0.0; i < 96.0; i += 1.0) {
-    if (i >= steps * 1.5 || t > t1 || T < 0.015) break;
-    vec3 p = ro + rd * t;
-    float lod = t > 1600.0 ? 1.0 : 0.0;
-    float d = density(p, lod);
-    if (d > 0.0) {
-      // light march toward the sun
-      float od = 0.0; float ls = 7.0; vec3 lp = p;
-      for (int j = 0; j < 4; j++) { lp += uSunDir * ls; od += density(lp, 1.0) * ls; ls *= 2.1; }
-      float beer = exp(-od * 1.5) + 0.16 * exp(-od * 0.3);
-      float powder = 1.0 - exp(-d * 60.0);
-      float tower; float top = cloudTop(p.xz, tower);
-      float hh = clamp((p.y - YB) / (top - YB), 0.0, 1.0);
-      vec3 amb = mix(uCloudLo, uCloudHi, hh * hh) * (0.45 + 0.55 * hh);
-      vec3 Ls = sunC * beer * phase * mix(0.55, 1.0, powder) * islandShade(p) + amb;
-      float sig = d * 1.0;
-      float tr = exp(-sig * dt);
-      S += T * (Ls - Ls * tr);
-      distAcc += t * T * (1.0 - tr); wAcc += T * (1.0 - tr);
-      T *= tr;
-    }
-    t += dt * (d > 0.0 ? 1.0 : 1.35);
+  float hs = max(16.0, uSteps * 0.5);
+  bool aOk = A.y > A.x, bOk = Bh.y > Bh.x;
+  if (aOk && bOk && Bh.x < A.x) {
+    march(1, ro, rd, Bh.x, Bh.y, hs, jitter, cosT, S, T);
+    march(0, ro, rd, A.x, A.y, uSteps, jitter, cosT, S, T);
+  } else {
+    if (aOk) march(0, ro, rd, A.x, A.y, uSteps, jitter, cosT, S, T);
+    if (bOk) march(1, ro, rd, Bh.x, Bh.y, hs, jitter, cosT, S, T);
   }
-  // aerial perspective on the cloud colour
-  float dist = wAcc > 0.0 ? distAcc / wAcc : t1;
-  vec3 pp = ro + rd * dist;
-  vec3 dir; float f = fogAmount(pp, dir);
-  vec3 fc = skyColor(vec3(rd.x, max(rd.y, -0.05) * 0.4, rd.z)) + mieGlow(rd);
-  S = mix(S, fc * (1.0 - T), f * 0.92);
   fragColor = vec4(S, T);
 }`;
 
@@ -470,7 +539,7 @@ void main(){
 }`;
 
 export class Pipeline {
-  constructor(renderer, noiseTex) {
+  constructor(renderer, noise) {
     this.renderer = renderer;
     this.scale = 1;
     this.cloudScale = 0.5;
@@ -483,10 +552,14 @@ export class Pipeline {
     for (let i = 1; i <= 8; i++) this.halton.push([hal(i, 2) - 0.5, hal(i, 3) - 0.5]);
     const mk = (fs, uniforms) => new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: fs, uniforms, glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false });
     this.cloudMat = mk(CLOUD_FS, {
-      ...U, tDepth: { value: null }, tNoise: { value: noiseTex }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
+      ...U, tDepth: { value: null }, tNoise: { value: noise.shape }, tDetail: { value: noise.detail }, uHigh: { value: 1 }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
       uNear: { value: 0.5 }, uFar: { value: 20000 }, uRes: { value: new THREE.Vector2() }, uSteps: { value: 48 }, uFrame: { value: 0 },
       uIsl: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
     });
+    this.csMat = mk(CLOUDSHADOW_FS, { ...U, tNoise: { value: noise.shape }, tDetail: { value: noise.detail } });
+    this.csRT = rt(256, 256);
+    this.highClouds = true;
+    U.uCloudShadow.value = this.csRT.texture;
     this.compMat = mk(COMPOSITE_FS, {
       tScene: { value: null }, tDepth: { value: null }, tCloud: { value: null }, tAO: { value: null }, uRes: { value: new THREE.Vector2() }, uCloudRes: { value: new THREE.Vector2() },
       uAORes: { value: new THREE.Vector2() }, uNear: { value: 0.5 }, uFar: { value: 20000 }, uInk: { value: this.ink }, uAOStr: { value: 0 },
@@ -574,6 +647,16 @@ export class Pipeline {
       camera.projectionMatrix.elements[8] += (j[0] * 2) / T.W;
       camera.projectionMatrix.elements[9] += (j[1] * 2) / T.H;
       camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    }
+    // cloud shadow map, centred on the camera and snapped to its texel grid
+    const B = U.uCloudShadowBox.value;
+    U.uCloudShadowOn.value = this.highClouds ? 1 : 0;
+    this.cloudMat.uniforms.uHigh.value = this.highClouds ? 1 : 0;
+    if (this.highClouds) {
+      tm('cloudshadow');
+      const texel = (2 * B.z) / 256;
+      B.x = Math.round(camera.position.x / texel) * texel; B.y = Math.round(camera.position.z / texel) * texel;
+      this.pass(this.csMat, this.csRT);
     }
     tm('scene');
     r.setRenderTarget(T.scene);
