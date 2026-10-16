@@ -354,7 +354,22 @@ in vec2 vUv; out vec4 fragColor;
 uniform sampler2D tSrc; uniform sampler2D tBloom; uniform sampler2D tRays;
 uniform float uTime; uniform float uExposure; uniform float uLens; uniform float uFlash; uniform vec3 uFlashColor;
 uniform vec2 uRes; uniform float uFade; uniform float uRayAmt; uniform float uShake; uniform float uSpeedFx; uniform float uSharpen;
+uniform sampler2D tAdapt; uniform float uAutoAmt; uniform float uAutoKey; uniform float uTone;
+uniform vec3 uLift; uniform vec3 uGain; uniform float uSat; uniform float uContrast;
 vec3 aces(vec3 x){ const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0); }
+const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
+const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
+vec3 agxCurve(vec3 x){ vec3 x2 = x * x; vec3 x4 = x2 * x2; return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232; }
+// AgX (Blender / Filament): hue-stable highlights, so saturated sunsets roll off to white instead of clipping to yellow
+vec3 agx(vec3 c){
+  const mat3 inset = mat3(vec3(0.856627153315983, 0.137318972929847, 0.11189821299995), vec3(0.0951212405381588, 0.761241990602591, 0.0767994186031903), vec3(0.0482516061458583, 0.101439036467562, 0.811302368396859));
+  const mat3 outset = mat3(vec3(1.1271005818144368, -0.1413297634984383, -0.14132976349843826), vec3(-0.11060664309660323, 1.157823702216272, -0.11060664309660294), vec3(-0.016493938717834573, -0.016493938717834257, 1.2519364065950405));
+  c = inset * (SRGB_TO_2020 * c);
+  c = clamp((log2(max(c, 1e-10)) + 12.47393) / 16.5, 0.0, 1.0);
+  c = outset * agxCurve(c);
+  c = pow(max(c, 0.0), vec3(2.2));
+  return clamp(REC2020_TO_SRGB * c, 0.0, 1.0);
+}
 void main(){
   vec2 uv = vUv;
   vec2 cc = uv - 0.5; cc.x *= uRes.x / uRes.y;
@@ -373,7 +388,10 @@ void main(){
   }
   col += texture(tBloom, uv).rgb * 0.085;
   col += texture(tRays, uv).rgb * uRayAmt;
-  col *= uExposure;
+  // auto-exposure: partial adaptation toward a key value, so the art-directed exposure still leads
+  float avgLog = texture(tAdapt, vec2(0.5)).r;
+  float autoX = clamp(pow(uAutoKey / exp(avgLog), uAutoAmt), 0.45, 2.2);
+  col *= uExposure * autoX;
   // naturalist's lens: desaturate and darken outside the aperture
   if (uLens > 0.0) {
     float ap = smoothstep(0.34, 0.27, r);
@@ -381,11 +399,12 @@ void main(){
     vec3 outside = mix(col, vec3(l) * vec3(0.95, 0.9, 1.0), 0.75) * 0.42;
     col = mix(col, mix(outside, col * 1.05, ap), uLens);
   }
-  col = aces(col);
-  // grade: saturation + gentle S-curve, cool violet lift in shadows, warm highlights
+  col = uTone > 0.5 ? agx(col * 1.25) : aces(col);
+  // grade: per-island lift and gain, saturation, gentle S-curve, cool violet lift in shadows, warm highlights
   float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-  col = max(mix(vec3(lum), col, 1.18), 0.0);
-  col = mix(col, col * col * (3.0 - 2.0 * col), 0.35);
+  col = col * uGain + uLift * (1.0 - col);
+  col = max(mix(vec3(lum), col, uSat), 0.0);
+  col = mix(col, col * col * (3.0 - 2.0 * col), uContrast);
   lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
   col += vec3(-0.010, 0.000, 0.028) * (1.0 - lum) * 0.9;
   col = mix(col, col * vec3(1.03, 1.0, 0.95), smoothstep(0.5, 1.0, lum));
@@ -397,6 +416,25 @@ void main(){
   col = mix(col, uFlashColor, uFlash);
   col *= uFade;
   fragColor = vec4(col, 1.0);
+}`;
+
+const LUM_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor; uniform sampler2D tSrc;
+void main(){
+  vec3 c = texture(tSrc, vUv).rgb;
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  vec2 d = vUv - 0.5; float w = 1.0 - smoothstep(0.1, 0.75, length(d * vec2(1.0, 1.6))) * 0.7; // centre-weighted metering
+  fragColor = vec4(log(max(l, 1e-4)) * w, w, 0.0, 1.0);
+}`;
+const ADAPT_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor; uniform sampler2D tLum; uniform sampler2D tPrev; uniform float uK; uniform float uLevels;
+void main(){
+  vec4 m = textureLod(tLum, vec2(0.5), uLevels);
+  float cur = m.x / max(m.y, 1e-4);
+  float prev = texture(tPrev, vec2(0.5)).r;
+  fragColor = vec4(uK >= 1.0 ? cur : mix(prev, cur, uK), 0.0, 0.0, 1.0);
 }`;
 
 export class Pipeline {
@@ -432,7 +470,14 @@ export class Pipeline {
       tSrc: { value: null }, tBloom: { value: null }, tRays: { value: null }, uTime: U.uTime, uExposure: { value: 0.92 }, uLens: { value: 0 },
       uFlash: { value: 0 }, uFlashColor: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2() }, uFade: { value: 1 },
       uRayAmt: { value: 0.6 }, uShake: { value: 0 }, uSpeedFx: { value: 0 }, uSharpen: { value: 0 },
+      tAdapt: { value: null }, uAutoAmt: { value: 0.55 }, uAutoKey: { value: 0.32 }, uTone: { value: 1 },
+      uLift: { value: new THREE.Vector3(0, 0, 0) }, uGain: { value: new THREE.Vector3(1, 1, 1) }, uSat: { value: 1.36 }, uContrast: { value: 0.5 },
     });
+    this.lumMat = mk(LUM_FS, { tSrc: { value: null } });
+    this.adaptMat = mk(ADAPT_FS, { tLum: { value: null }, tPrev: { value: null }, uK: { value: 1 }, uLevels: { value: 7 } });
+    const art = (o = {}) => new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, ...o });
+    this.adapt = [art(), art()]; this.adaptIdx = 0; this.adaptReset = true; this.dt = 1 / 60;
+    this.lum = new THREE.WebGLRenderTarget(128, 128, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: true });
     this.quad = fsQuad(this.cloudMat);
     this.qScene = new THREE.Scene(); this.qScene.add(this.quad);
     this.qCam = new THREE.Camera();
@@ -469,6 +514,11 @@ export class Pipeline {
     this.finalMat.uniforms.uRes.value.set(W, H);
   }
 
+  readAdapt() {
+    const b = new Float32Array(4);
+    this.renderer.readRenderTargetPixels(this.adapt[1 - this.adaptIdx], 0, 0, 1, 1, b);
+    return b[0];
+  }
   pass(mat, target) {
     this.quad.material = mat;
     this.renderer.setRenderTarget(target);
@@ -554,6 +604,17 @@ export class Pipeline {
       r.setRenderTarget(T.rays); r.setClearColor(0x000000, 1); r.clear();
     }
 
+    // exposure metering: log luminance, mip-averaged, eased over time
+    tm('exposure');
+    this.lumMat.uniforms.tSrc.value = out.texture;
+    this.pass(this.lumMat, this.lum);
+    const am = this.adaptMat.uniforms, aCur = this.adapt[this.adaptIdx], aPrev = this.adapt[1 - this.adaptIdx];
+    am.tLum.value = this.lum.texture; am.tPrev.value = aPrev.texture;
+    am.uK.value = this.adaptReset ? 1 : 1 - Math.exp(-this.dt * 1.6);
+    this.adaptReset = false;
+    this.pass(this.adaptMat, aCur);
+    this.adaptIdx = 1 - this.adaptIdx;
+    this.finalMat.uniforms.tAdapt.value = aCur.texture;
     // bloom
     tm('bloom');
     this.threshMat.uniforms.tSrc.value = out.texture;

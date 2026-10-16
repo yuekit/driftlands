@@ -198,6 +198,7 @@ export class Game {
       this.debugCam = { p: [p.x + v.off[0], y + v.off[1], p.z + v.off[2]], t: [p.x, y, p.z], fov: v.fov };
     } else this.debugCam = { p: v.p, t: v.t, fov: v.fov };
     this.sim(0.1);
+    this.pipe.adaptReset = true;
     return v.name;
   }
   // scripted flight through BENCH at a fixed speed; logs frame-time stats to the console when done
@@ -296,6 +297,8 @@ export class Game {
     fu.uFade.value = 1 - this.fade;
     fu.uFlash.value = Math.max(0, fu.uFlash.value - dtReal * 1.5);
     fu.uExposure.value = this.cycle.exposure();
+    fu.uAutoAmt.value = 0.55 * (1 - 0.8 * this.night);
+    this.grade(fu);
     
 
     if (!render) return;
@@ -305,6 +308,7 @@ export class Game {
     this.renderer.info.reset();
     if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
     if (this.shadow) this.shadow.render(this.scene, focus);
+    this.pipe.dt = dtReal;
     this.pipe.render(this.scene, this.camera);
     if (this.capture) this.doCapture();
     if (this.perf) this.perf.update(dtReal);
@@ -312,6 +316,29 @@ export class Game {
     // audio + HUD
     if (this.state === 'play' || this.state === 'paused' || this.state === 'journal') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);
     if (this.realTime - this.lastHud > 0.05) { this.lastHud = this.realTime; this.updateHUD(); }
+  }
+
+  // per-island grade: lift (shadow tint) and gain (highlight tint), blended by how close the camera is to each island
+  grade(fu) {
+    const G = [
+      { lift: [0.0, 0.012, 0.016], gain: [0.99, 1.02, 0.98] },   // Verdigris: teal shadows, fresh greens
+      { lift: [0.016, 0.0, 0.022], gain: [1.03, 0.99, 0.92] },   // Ochre: violet shadows, warm but tamed highlights
+      { lift: [0.02, 0.0, 0.014], gain: [1.02, 0.97, 1.0] },     // Coral: rose shadows
+    ];
+    const lift = fu.uLift.value.set(0, 0, 0), gain = fu.uGain.value.set(0, 0, 0);
+    let wsum = 0;
+    const cam = this.camera.position;
+    this.world.islands.forEach((I, i) => {
+      const g = G[i] || G[0];
+      const d = Math.hypot(cam.x - I.pos.x, cam.z - I.pos.z);
+      const w = Math.max(0, 1 - Math.max(0, d - I.spec.radius) / 360);
+      lift.x += g.lift[0] * w; lift.y += g.lift[1] * w; lift.z += g.lift[2] * w;
+      gain.x += g.gain[0] * w; gain.y += g.gain[1] * w; gain.z += g.gain[2] * w;
+      wsum += w;
+    });
+    const open = Math.max(0, 1 - wsum), total = wsum + open;
+    gain.addScalar(open).divideScalar(total);
+    lift.divideScalar(total);
   }
 
   titleFrame(dt) {
