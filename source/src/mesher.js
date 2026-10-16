@@ -108,11 +108,13 @@ export function surfaceNets(sdf, min, max, cell, progress) {
   return { positions: new Float32Array(pos), indices: new Uint32Array(idx) };
 }
 
-function bake(sdf, positions, withLight, progress) {
+function bake(sdf, positions, withLight, progress, rays = true) {
   const n = positions.length / 3;
   const normals = new Float32Array(n * 3);
   const ao = new Float32Array(n);
   const sun = new Float32Array(n);
+  const bent = new Float32Array(n * 3);   // average unoccluded direction (bent normal) for sky light
+  const bounce = new Float32Array(n);     // light bounced up from sunlit ground below overhangs and arches
   const L = SUN_DIR;
   for (let v = 0; v < n; v++) {
     let x = positions[v * 3], y = positions[v * 3 + 1], z = positions[v * 3 + 2];
@@ -125,7 +127,7 @@ function bake(sdf, positions, withLight, progress) {
     positions[v * 3] = x; positions[v * 3 + 1] = y; positions[v * 3 + 2] = z;
     const g = gradient(sdf, x, y, z, 0.7);
     normals[v * 3] = g[0]; normals[v * 3 + 1] = g[1]; normals[v * 3 + 2] = g[2];
-    if (!withLight) { ao[v] = 1; sun[v] = 1; continue; }
+    if (!withLight) { ao[v] = 1; sun[v] = 1; bent[v * 3] = g[0]; bent[v * 3 + 1] = g[1]; bent[v * 3 + 2] = g[2]; continue; }
     // ambient occlusion
     let occ = 0, sca = 1;
     for (let s = 1; s <= 5; s++) {
@@ -145,9 +147,36 @@ function bake(sdf, positions, withLight, progress) {
     }
     res = Math.max(0, Math.min(1, res));
     sun[v] = res * res * (3 - 2 * res);
+    // six rays around the hemisphere: which ways see sky, and how much sunlit ground they see below
+    // (odd vertices reuse their scan-order neighbour's result: they sit one grid cell apart)
+    if (!rays) { bent[v * 3] = g[0]; bent[v * 3 + 1] = g[1]; bent[v * 3 + 2] = g[2]; }
+    else if (v & 1) { bent[v * 3] = bent[v * 3 - 3]; bent[v * 3 + 1] = bent[v * 3 - 2]; bent[v * 3 + 2] = bent[v * 3 - 1]; bounce[v] = bounce[v - 1]; }
+    else {
+      let tx = Math.abs(g[1]) < 0.9 ? -g[2] : 0, ty = Math.abs(g[1]) < 0.9 ? 0 : g[2], tz = Math.abs(g[1]) < 0.9 ? g[0] : -g[1];
+      const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      const bx = g[1] * tz - g[2] * ty, by = g[2] * tx - g[0] * tz, bz = g[0] * ty - g[1] * tx;
+      let sx = g[0] * 0.6, sy = g[1] * 0.6, sz = g[2] * 0.6, bnc = 0;
+      for (let r = 0; r < 6; r++) {
+        const a = r * 1.0472 + (v % 7) * 0.13, ce = 0.64, se = 0.77;
+        const dx = g[0] * ce + (tx * Math.cos(a) + bx * Math.sin(a)) * se;
+        const dy = g[1] * ce + (ty * Math.cos(a) + by * Math.sin(a)) * se;
+        const dz = g[2] * ce + (tz * Math.cos(a) + bz * Math.sin(a)) * se;
+        let t = 1.5, hit = false;
+        for (let k = 0; k < 5 && t < 48; k++) {
+          const d = sdf(ox + dx * t, oy + dy * t, oz + dz * t);
+          if (d < 0.35) { hit = true; break; }
+          t += Math.max(3.0, d * 1.2);
+        }
+        if (hit) bnc += Math.max(0, -dy) * (1 - t / 48);
+        else { sx += dx; sy += dy; sz += dz; }
+      }
+      const sl = Math.hypot(sx, sy, sz) || 1;
+      bent[v * 3] = sx / sl; bent[v * 3 + 1] = sy / sl; bent[v * 3 + 2] = sz / sl;
+      bounce[v] = Math.min(1, bnc / 2.2);
+    }
     if (progress && (v & 4095) === 0) progress(0.5 + 0.45 * v / n);
   }
-  return { normals, ao, sun };
+  return { normals, ao, sun, bent, bounce };
 }
 
 function heightField(sdf, isl, cell) {
@@ -236,15 +265,15 @@ export function buildIsland(index, cell, lodCell, progress) {
   const hi = surfaceNets(sdf, min, max, cell, (p) => progress && progress(p * 0.6));
   const lit = bake(sdf, hi.positions, true, (p) => progress && progress(0.3 + p * 0.6));
   const lo = surfaceNets(sdf, min, max, lodCell);
-  const loLit = bake(sdf, lo.positions, true);
+  const loLit = bake(sdf, lo.positions, true, null, false);
   const hf = heightField(sdf, island, 2.5);
   const falls = findFalls(sdf, island);
   const cand = candidates(hi.positions, lit.normals, lit.sun, island, 14000);
   progress && progress(1);
   return {
     index,
-    hi: { positions: hi.positions, indices: hi.indices, normals: lit.normals, ao: lit.ao, sun: lit.sun },
-    lo: { positions: lo.positions, indices: lo.indices, normals: loLit.normals, ao: loLit.ao, sun: loLit.sun },
+    hi: { positions: hi.positions, indices: hi.indices, normals: lit.normals, ao: lit.ao, sun: lit.sun, bent: lit.bent, bounce: lit.bounce },
+    lo: { positions: lo.positions, indices: lo.indices, normals: loLit.normals, ao: loLit.ao, sun: loLit.sun, bent: loLit.bent, bounce: loLit.bounce },
     height: hf, falls, candidates: cand,
   };
 }

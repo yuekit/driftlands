@@ -1,0 +1,3 @@
+[{"js":"for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden'; __dl.setSetting('quality','low'); __dl.goldenView('verdigris-day')","wait":8000,"name":"low-verdigris-day"},
+ {"js":"__dl.goldenView('into-sun')","wait":8000,"name":"low-into-sun"},
+ {"js":"__dl.setSetting('quality','high'); __dl.goldenView('verdigris-arch')","wait":9000,"name":"high-verdigris-arch"}]

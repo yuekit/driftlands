@@ -93,8 +93,8 @@ export function makeSky() {
 
 // ------------------------------------------------------------------ island material
 const ISL_VS = /* glsl */ `
-attribute float aAo; attribute float aSun;
-varying vec3 vWorld; varying vec3 vLocal; varying vec3 vNormal; varying float vAo; varying float vSun;
+attribute float aAo; attribute float aSun; attribute vec3 aBent; attribute float aBounce;
+varying vec3 vWorld; varying vec3 vLocal; varying vec3 vNormal; varying float vAo; varying float vSun; varying vec3 vBent; varying float vBounce;
 uniform float uSunOverride;
 void main(){
   vec4 lp = vec4(position, 1.0);
@@ -105,10 +105,15 @@ void main(){
   vec4 wp = modelMatrix * lp;
   vWorld = wp.xyz; vLocal = position; vNormal = normalize(mat3(modelMatrix) * n);
   vAo = aAo; vSun = mix(aSun, 1.0, uSunOverride);
+  vec3 bn = aBent;
+#ifdef USE_INSTANCING
+  bn = mat3(instanceMatrix) * bn;
+#endif
+  vBent = normalize(mat3(modelMatrix) * bn); vBounce = aBounce;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 const ISL_FS = /* glsl */ `
-varying vec3 vWorld; varying vec3 vLocal; varying vec3 vNormal; varying float vAo; varying float vSun;
+varying vec3 vWorld; varying vec3 vLocal; varying vec3 vNormal; varying float vAo; varying float vSun; varying vec3 vBent; varying float vBounce;
 ${COMMON}
 uniform vec3 uRockA, uRockB, uRockC, uTop1, uTop2, uUnder;
 uniform vec4 uParams; // thickness, strataFreq, sandiness, seed
@@ -188,7 +193,11 @@ void main(){
   float cavAO = 1.0 - mix(rcav * 0.5, mcav * 0.35, mossAmt);
   float ao = vAo * cavAO * (0.8 + 0.2 * smoothstep(-0.2, 0.6, n.y));
   float rough = mix(mix(0.74, 0.52, smoothstep(0.55, 0.85, rcurv)), 0.93, mossAmt);
-  vec3 col = litSurfacePBR(alb, n, vWorld, vSun, ao, 0.12, rough, vec3(0.035));
+  // sky light arrives along the baked bent normal; overhangs pick up warm light bounced from the sunlit ground
+  vec3 ambN = normalize(mix(n, normalize(vBent + (n - n0)), 0.65));
+  vec3 col = litSurfacePBRx(alb, n, ambN, vWorld, vSun, ao, 0.12, rough, vec3(0.035));
+  vec3 groundCol = mix(uTop1, uTop2, 0.5) * 0.6 + mix(uRockA, uRockB, 0.5) * 0.4;
+  col += alb * groundCol * uSunColor * vBounce * 0.42 * ao;
   // Moebius-style hatching in the shade (fades in close so it never fights the texture)
   float light = clamp(dot(n0, uSunDir), 0.0, 1.0) * vSun;
   float hl = sin(dot(vLocal, vec3(0.9, 1.6, 0.5)) * 2.2);
@@ -234,6 +243,8 @@ function geomFrom(m) {
   g.setAttribute('normal', new THREE.BufferAttribute(m.normals, 3));
   g.setAttribute('aAo', new THREE.BufferAttribute(m.ao, 1));
   g.setAttribute('aSun', new THREE.BufferAttribute(m.sun, 1));
+  g.setAttribute('aBent', new THREE.BufferAttribute(m.bent || m.normals, 3));
+  g.setAttribute('aBounce', new THREE.BufferAttribute(m.bounce || new Float32Array(m.sun.length), 1));
   g.setIndex(new THREE.BufferAttribute(m.indices, 1));
   g.computeBoundingSphere();
   return g;
@@ -977,8 +988,11 @@ void main(){
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   gl_Position = projectionMatrix * mv;
   float dist = -mv.z;
-  gl_PointSize = clamp((0.5 + aSeed.w * 0.9) * 900.0 / dist, 1.0, 6.0);
-  vA = smoothstep(0.0, 40.0, y) * smoothstep(H, H - 120.0, y) * (1.0 - smoothstep(380.0, 850.0, dist)) * smoothstep(8.0, 60.0, dist) * th.y;
+  float ps = (0.5 + aSeed.w * 0.9) * 900.0 / dist * uPxScale;
+  // never draw a sprite smaller than 2.5 px (it would render as a square): fade it instead
+  float shrink = clamp(ps / 2.5, 0.0, 1.0);
+  gl_PointSize = clamp(ps, 2.5, 6.0 * max(uPxScale, 0.5));
+  vA = shrink * shrink * smoothstep(0.0, 40.0, y) * smoothstep(H, H - 120.0, y) * (1.0 - smoothstep(380.0, 850.0, dist)) * smoothstep(8.0, 60.0, dist) * th.y;
   vC = mix(vec3(1.0, 0.86, 0.62), vec3(0.85, 1.0, 0.9), aSeed.z);
 }`;
 const THERM_FS = /* glsl */ `

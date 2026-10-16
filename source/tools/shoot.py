@@ -19,7 +19,7 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: logs.append(f'[pageerror] {e}'))
     pg.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(path=os.path.join(THREE_DIR, r.request.url.split('/')[-1].replace('.min.js', '.js')), content_type='application/javascript'))
     pg.route('https://fonts.googleapis.com/**', lambda r: r.fulfill(body='', content_type='text/css'))
-    pg.goto('file://' + os.path.join(ROOT, 'dist/test.html') + QUERY, timeout=120000)
+    pg.goto('file://' + os.path.join(ROOT, os.environ.get('PAGE', 'dist/test.html')) + QUERY, timeout=120000)
     t = time.time()
     try:
         pg.wait_for_function('window.__dl && window.__dl.state==="title"', timeout=240000)

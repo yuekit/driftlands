@@ -12,6 +12,7 @@ export const U = {
   uCloudTop: { value: 22 },
   uFlash: { value: 0 },
   uNight: { value: 0 },
+  uPxScale: { value: 1 },   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
 export const COMMON = /* glsl */ `
@@ -23,6 +24,7 @@ uniform float uFogDensity;
 uniform vec2 uWind;
 uniform float uCloudTop;
 uniform float uNight;
+uniform float uPxScale;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
 uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;
@@ -159,7 +161,8 @@ vec3 envLight(vec3 R, float rough){
   return mix(sharp, ambientLight(R) * 1.1, smoothstep(0.15, 0.9, rough));
 }
 // rough: perceptual roughness 0..1; f0: reflectance at normal incidence (0.04 for most non-metals)
-vec3 litSurfacePBR(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
+// ambN: direction the sky light is gathered from (a bent normal where one is baked)
+vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   sunVis *= dynShadow(wp, n);
   vec3 V = normalize(uCamPos - wp);
   float ndl = dot(n, uSunDir);
@@ -174,12 +177,15 @@ vec3 litSurfacePBR(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float w
   vec3 Fenv = f0 * ab.x + ab.y;
   float specOcc = clamp(pow(NoV + ao, exp2(-16.0 * a - 1.0)) - 1.0 + ao, 0.0, 1.0);
   vec3 kd = 1.0 - Fenv;
-  vec3 col = albedo * kd * (uSunColor * diff * sunVis + ambientLight(n) * ao);
+  vec3 col = albedo * kd * (uSunColor * diff * sunVis + ambientLight(ambN) * ao);
   col += uSunColor * spec * sunVis;
   col += envLight(reflect(-V, n), rough) * Fenv * specOcc;
   float rim = pow(1.0 - NoV, 4.0);
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
   return col;
+}
+vec3 litSurfacePBR(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
+  return litSurfacePBRx(albedo, n, n, wp, sunVis, ao, wrap, rough, f0);
 }
 vec3 litSurface(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap){
   return litSurfacePBR(albedo, n, wp, sunVis, ao, wrap, 0.78, vec3(0.04));

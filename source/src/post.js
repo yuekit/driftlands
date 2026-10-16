@@ -540,6 +540,7 @@ export class Pipeline {
     const vel = rt(W, H, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
     this.targets = { W, H, cs: this.cloudScale, scene, cloud, comp, ao, hist, mask, rays, bloom, bloomUp, vel, list: [scene, cloud, comp, ao, ...hist, mask, rays, ...bloom, ...bloomUp, vel] };
     this.hasPrev = false;
+    U.uPxScale.value = H / 1080;
     this.aoMat.uniforms.uRes.value.set(W, H);
     this.compMat.uniforms.uAORes.value.set(ao.width, ao.height);
     this.taaMat.uniforms.uRes.value.set(W, H);

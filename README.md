@@ -36,9 +36,13 @@ node build.mjs --dev           # unminified
 | glider.js, glidermodel.js | Flight model, chase camera, Blender glider, scarf and trails |
 | creatures.js, tubes.js, skins.js, parts.js | Species, behaviours, tube bodies, eyes, skins, sculpted parts |
 | game.js, input.js, ui.js, audio.js, cycle.js | Game loop, lens and journal, convergence, controls, HUD, sound, day-night |
-| glsl.js, shadow.js, post.js, cloudtex.js | Shared lighting, sun shadows, render pipeline, cloud noise |
+| glsl.js, shadow.js, post.js, cloudtex.js | Shared lighting (GGX specular, sky environment, aerial perspective), cascaded soft shadows, render pipeline (AgX, auto-exposure, contact shadows, TAA), cloud noise |
+| velocity.js | Motion vectors for creatures and the glider, used by TAA |
+| perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
-Debug: `window.__dl` exposes the running game (`sim(seconds)`, `debugCam`, `cycle.setMode('night')`, `applyQuality(0-3)`). `shoot.py` is the headless Playwright screenshot harness used for testing (`python3 shoot.py steps.json [W H]`).
+Debug: press F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eight golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eight headless and `tools/sheet.py` makes a side-by-side contact sheet.
+
+`window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
 
 ## Blender pipeline
 
