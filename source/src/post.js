@@ -141,7 +141,7 @@ void main(){
   float dist = wAcc > 0.0 ? distAcc / wAcc : t1;
   vec3 pp = ro + rd * dist;
   vec3 dir; float f = fogAmount(pp, dir);
-  vec3 fc = skyColor(vec3(rd.x, max(rd.y, -0.05) * 0.4, rd.z));
+  vec3 fc = skyColor(vec3(rd.x, max(rd.y, -0.05) * 0.4, rd.z)) + mieGlow(rd);
   S = mix(S, fc * (1.0 - T), f * 0.92);
   fragColor = vec4(S, T);
 }`;
@@ -151,7 +151,31 @@ precision highp float;
 in vec2 vUv; out vec4 fragColor;
 uniform sampler2D tScene; uniform sampler2D tDepth; uniform sampler2D tCloud; uniform sampler2D tAO;
 uniform vec2 uRes; uniform vec2 uCloudRes; uniform vec2 uAORes; uniform float uNear; uniform float uFar; uniform float uInk; uniform float uAOStr;
+uniform mat4 uProj; uniform mat4 uInvProj; uniform vec3 uSunView; uniform float uContact; uniform float uFrame;
 float linDepth(float z){ float ndc = z * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - ndc * (uFar - uNear)); }
+vec3 viewAt(vec2 uv, float z){ vec4 p = uInvProj * vec4(uv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); return p.xyz / p.w; }
+// screen-space contact shadows: a short march toward the sun through the depth buffer grounds feet, stems and petals
+float contactShadow(vec2 uv, float z){
+  vec3 P = viewAt(uv, z);
+  float dist = -P.z;
+  if (dist > 90.0) return 0.0;
+  float len = clamp(dist * 0.035, 0.25, 2.2);
+  float jit = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + uFrame * 0.61803398875);
+  float occ = 0.0;
+  for (int i = 0; i < 10; i++) {
+    float t = (float(i) + jit) / 10.0;
+    vec3 S = P + uSunView * len * t + vec3(0.0, 0.0, 0.02 * dist * 0.01);
+    vec4 c = uProj * vec4(S, 1.0);
+    vec2 su = c.xy / c.w * 0.5 + 0.5;
+    if (su.x < 0.0 || su.y < 0.0 || su.x > 1.0 || su.y > 1.0) break;
+    float sz = texture(tDepth, su).r;
+    if (sz >= 0.99999) continue;
+    float dz = viewAt(su, sz).z - S.z;            // > 0: the depth buffer is in front of the ray
+    float thick = 0.05 + dist * 0.004;
+    if (dz > thick * 0.3 && dz < len * 1.5 + thick) { occ = 1.0 - t * 0.6; break; }
+  }
+  return occ * (1.0 - smoothstep(45.0, 90.0, dist));
+}
 void main(){
   vec2 px = 1.0 / uRes;
   vec3 col = texture(tScene, vUv).rgb;
@@ -172,6 +196,7 @@ void main(){
     float ao = aacc / aw;
     col *= mix(1.0, ao * ao, uAOStr);
   }
+  if (uContact > 0.0 && zr < 0.99999) col *= 1.0 - contactShadow(vUv, zr) * 0.5 * uContact;
   // ink outline (Moebius): depth discontinuities on the near side
   if (uInk > 0.0 && zr < 0.99999) {
     float e = 0.0;
@@ -444,7 +469,7 @@ export class Pipeline {
     this.cloudScale = 0.5;
     this.steps = 48;
     this.ink = 0.55;
-    this.ao = 0.75; this.taa = true;
+    this.ao = 0.75; this.taa = true; this.contact = 1;
     this.prevVP = new THREE.Matrix4(); this.hasPrev = false; this.prevCam = new THREE.Vector3(); this.histIdx = 0;
     this.halton = [];
     const hal = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
@@ -458,6 +483,7 @@ export class Pipeline {
     this.compMat = mk(COMPOSITE_FS, {
       tScene: { value: null }, tDepth: { value: null }, tCloud: { value: null }, tAO: { value: null }, uRes: { value: new THREE.Vector2() }, uCloudRes: { value: new THREE.Vector2() },
       uAORes: { value: new THREE.Vector2() }, uNear: { value: 0.5 }, uFar: { value: 20000 }, uInk: { value: this.ink }, uAOStr: { value: 0 },
+      uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uSunView: { value: new THREE.Vector3() }, uContact: { value: 1 }, uFrame: { value: 0 },
     });
     this.aoMat = mk(AO_FS, { tDepth: { value: null }, uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uFrame: { value: 0 }, uRadius: { value: 1 } });
     this.taaMat = mk(TAA_FS, { tCur: { value: null }, tHist: { value: null }, tDepth: { value: null }, uInvVP: { value: new THREE.Matrix4() }, uPrevVP: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uReset: { value: 1 }, uFeedback: { value: 0.9 }, uNF: { value: new THREE.Vector2(0.5, 20000) } });
@@ -564,6 +590,10 @@ export class Pipeline {
     pu.tAO.value = T.ao.texture; pu.uAOStr.value = this.ao;
     pu.tScene.value = T.scene.texture; pu.tDepth.value = T.scene.depthTexture; pu.tCloud.value = T.cloud.texture;
     pu.uNear.value = camera.near; pu.uFar.value = camera.far; pu.uInk.value = this.ink;
+    pu.uProj.value.copy(camera.projectionMatrix); pu.uInvProj.value.copy(camera.projectionMatrixInverse);
+    pu.uSunView.value.copy(U.uSunDir.value).transformDirection(camera.matrixWorldInverse);
+    pu.uContact.value = this.contact * U.uSunVis.value * (1 - U.uNight.value * 0.8);
+    pu.uFrame.value = this.frame % 64;
     tm('composite');
     this.pass(this.compMat, T.comp);
 

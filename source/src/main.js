@@ -64,7 +64,7 @@ async function main() {
   if (eco.D.pPetal) markCaster(eco.D.pPetal.mesh);
   const world = { islands, rocks, thermals, eco };
   const pipe = new Pipeline(renderer, noise);
-  const shadow = new SunShadow(renderer, 2048, 170);
+  const shadow = new SunShadow(renderer, 2048);
   markCaster(glider.root); markCaster(glider.scarfMesh);
   for (const m of [eco.D.pEll.mesh, eco.D.pLimb.mesh, eco.D.pFin.mesh, eco.D.tubes.mesh]) markCaster(m);
   for (const isl of islands) {

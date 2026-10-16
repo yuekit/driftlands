@@ -42,7 +42,7 @@ vec3 starField(vec3 d){
 }
 void main(){
   vec3 d = normalize(vDir);
-  vec3 col = skyColor(d);
+  vec3 col = skyColor(d) + mieGlow(d) * smoothstep(0.45, 0.0, abs(d.y));
   float sd = dot(d, uSunDisc);
   col += uSunColor * 7.0 * smoothstep(0.99955, 0.99985, sd) * uSunVis * smoothstep(-0.02, 0.01, d.y);
   // night: stars, moon, aurora

@@ -25,7 +25,7 @@ uniform float uCloudTop;
 uniform float uNight;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
-uniform sampler2D uShadowMap; uniform mat4 uShadowMat; uniform float uShadowOn; uniform float uShadowTexel;
+uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;
 
 float hash13(vec3 p3){ p3 = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -66,12 +66,24 @@ float fogAmount(vec3 wp, out vec3 dir){
   float x = dist * uFogDensity * hf;
   return 1.0 - exp(-x * sqrt(x));
 }
-vec3 applyFog(vec3 col, vec3 wp){
-  vec3 dir; float f = fogAmount(wp, dir);
-  vec3 fc = skyColor(vec3(dir.x, max(dir.y, -0.05) * 0.4, dir.z));
-  return mix(col, fc, f);
+// aerial perspective: wavelength-dependent extinction (blue scatters first, so distant rock turns violet-blue
+// and bright things redden) plus forward Mie scattering that makes haze glow on the sun side
+float hgPhase(float c, float g){ float g2 = g * g; return (1.0 - g2) / (12.566 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
+vec3 mieGlow(vec3 dir){
+  float cs = dot(dir, uSunDisc);
+  return uSunColor * (hgPhase(cs, 0.6) * 0.5 + hgPhase(cs, 0.25) * 0.15) * uSunVis * (0.6 + 0.4 * (1.0 - uNight));
 }
-
+vec3 applyFog(vec3 col, vec3 wp){
+  vec3 v = wp - uCamPos; float dist = length(v); vec3 dir = v / max(dist, 1e-3);
+  float avgH = 0.5 * (wp.y + uCamPos.y);
+  float hf = exp(-max(avgH - 20.0, 0.0) * 0.0055) + 0.22;
+  float x = dist * uFogDensity * hf;
+  vec3 xc = x * vec3(0.74, 0.95, 1.3);
+  vec3 T = exp(-xc * sqrt(xc));
+  vec3 fc = skyColor(vec3(dir.x, max(dir.y, -0.05) * 0.4, dir.z));
+  fc += mieGlow(dir);
+  return col * T + fc * (1.0 - T);
+}
 // lighting shared by every lit surface
 vec3 ambientLight(vec3 n){
   float up = n.y * 0.5 + 0.5;
@@ -83,26 +95,53 @@ vec3 ambientLight(vec3 n){
 }
 const vec2 POISSON[8] = vec2[8](vec2(-0.613, 0.617), vec2(0.170, -0.040), vec2(-0.299, -0.792), vec2(0.645, 0.493),
   vec2(-0.651, -0.071), vec2(0.421, -0.651), vec2(-0.019, 0.940), vec2(0.940, -0.090));
-float dynShadow(vec3 wp, vec3 n){
-  if (uShadowOn < 0.5) return 1.0;
+// one cascade with a blocker search (PCSS): penumbra grows with the distance between caster and receiver
+float cascadeShadow(int ci, vec3 wp, vec3 n, float ang){
+  float tw = ci == 0 ? uCascadeTexelWorld.x : ci == 1 ? uCascadeTexelWorld.y : uCascadeTexelWorld.z;
   float ndl = dot(n, uSunDir);
-  vec3 nb = n * (0.15 + 0.3 * (1.0 - abs(ndl)));
-  vec4 sc = uShadowMat * vec4(wp + nb, 1.0);
+  vec3 nb = n * tw * (1.2 + 2.0 * (1.0 - abs(ndl)));
+  vec4 sc = uShadowMats[ci] * vec4(wp + nb, 1.0);
   vec3 s = sc.xyz / sc.w;
-  vec2 e = min(s.xy, 1.0 - s.xy);
-  float fade = smoothstep(0.0, 0.06, min(e.x, e.y));
-  if (fade <= 0.0 || s.z >= 1.0) return 1.0;
-  float ang = hash13(floor(wp * 23.0) + fract(uTime * 7.0) * 61.0) * 6.2831853;
+  float ext = tw / uShadowTexel;              // cascade width in metres
+  float bias = 0.00004 + tw * 0.00012;
   float ca = cos(ang), sa = sin(ang);
-  float rad = 1.9 * uShadowTexel;
+  float u0 = float(ci) / 3.0;
+  // blocker search
+  float srch = clamp(2.5 / ext, 2.0 * uShadowTexel, 0.03);
+  float bsum = 0.0, bn = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec2 o = POISSON[i]; o = vec2(o.x * ca - o.y * sa, o.x * sa + o.y * ca) * srch;
+    vec2 uv = s.xy + o;
+    float d = texture(uShadowMap, vec2(u0 + clamp(uv.x, 0.0, 1.0) / 3.0, uv.y)).r;
+    if (d < s.z - bias) { bsum += d; bn += 1.0; }
+  }
+  if (bn < 0.5) return 1.0;
+  float dz = (s.z - bsum / bn) * 2400.0;      // caster to receiver, metres
+  float pen = clamp(dz * 0.02 / ext, 1.4 * uShadowTexel, srch);
   float sum = 0.0;
   for (int i = 0; i < 8; i++) {
-    vec2 o = POISSON[i];
-    o = vec2(o.x * ca - o.y * sa, o.x * sa + o.y * ca);
-    float d = texture(uShadowMap, s.xy + o * rad).r;
-    sum += step(s.z - 0.00035, d);
+    vec2 o = POISSON[i]; o = vec2(o.x * sa + o.y * ca, -o.x * ca + o.y * sa) * pen;
+    vec2 uv = s.xy + o;
+    float d = texture(uShadowMap, vec2(u0 + clamp(uv.x, 0.0, 1.0) / 3.0, uv.y)).r;
+    sum += step(s.z - bias, d);
   }
-  return mix(1.0, sum * 0.125, fade);
+  return sum * 0.125;
+}
+float cascadeFit(int ci, vec3 wp){
+  vec4 sc = uShadowMats[ci] * vec4(wp, 1.0);
+  vec2 e = min(sc.xy, 1.0 - sc.xy);
+  return sc.z >= 1.0 ? 0.0 : smoothstep(0.0, 0.08, min(e.x, e.y));
+}
+float dynShadow(vec3 wp, vec3 n){
+  if (uShadowOn < 0.5) return 1.0;
+  float ang = hash13(floor(wp * 23.0) + fract(uTime * 7.0) * 61.0) * 6.2831853;
+  float f0 = cascadeFit(0, wp), f1 = cascadeFit(1, wp), f2 = cascadeFit(2, wp);
+  if (f0 >= 1.0) return cascadeShadow(0, wp, n, ang);
+  if (f0 > 0.0) return mix(cascadeShadow(1, wp, n, ang), cascadeShadow(0, wp, n, ang), f0);
+  if (f1 >= 1.0) return cascadeShadow(1, wp, n, ang);
+  if (f1 > 0.0) return mix(cascadeShadow(2, wp, n, ang), cascadeShadow(1, wp, n, ang), f1);
+  if (f2 > 0.0) return mix(1.0, cascadeShadow(2, wp, n, ang), f2);
+  return 1.0;
 }
 // ---- physically based specular (GGX) with an analytic sky environment
 float D_GGX(float NoH, float a){ float a2 = a * a; float d = NoH * NoH * (a2 - 1.0) + 1.0; return a2 / (3.14159265 * d * d + 1e-7); }

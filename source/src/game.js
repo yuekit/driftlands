@@ -148,7 +148,7 @@ export class Game {
       { scale: 1.0, steps: 52, cloud: 0.5, ao: 0.75, shadow: 2048 },
     ];
     const p = presets[level];
-    this.pipe.scale = p.scale; this.pipe.steps = p.steps; this.pipe.cloudScale = p.cloud; this.pipe.ao = p.ao;
+    this.pipe.scale = p.scale; this.pipe.steps = p.steps; this.pipe.cloudScale = p.cloud; this.pipe.ao = p.ao; this.pipe.contact = level > 0 ? 1 : 0;
     for (const isl of this.world.islands) isl.groundDensity = [0.45, 0.7, 1, 1][level];
     if (this.shadow) { this.shadow.enabled = p.shadow > 0; if (p.shadow) this.shadow.setSize(p.shadow); }
     this.resize && this.resize();
@@ -307,7 +307,7 @@ export class Game {
     for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0);
     this.renderer.info.reset();
     if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
-    if (this.shadow) this.shadow.render(this.scene, focus);
+    if (this.shadow) this.shadow.render(this.scene, this.camera);
     this.pipe.dt = dtReal;
     this.pipe.render(this.scene, this.camera);
     if (this.capture) this.doCapture();
