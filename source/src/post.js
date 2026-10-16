@@ -79,7 +79,7 @@ ${COMMON}
 ${HIGH_GLSL}
 uniform sampler2D tDepth; uniform vec3 uCloudLo; uniform vec3 uCloudHi; uniform vec4 uIsl[3];
 uniform mat4 uInvProj; uniform mat4 uCamWorld; uniform float uNear; uniform float uFar;
-uniform vec2 uRes; uniform float uSteps; uniform float uFrame; uniform float uHigh;
+uniform vec2 uRes; uniform float uSteps; uniform float uFrame; uniform float uHigh; uniform float uShaft; uniform float uShaftSteps;
 
 float linDepth(float z){ float ndc = z * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - ndc * (uFar - uNear)); }
 
@@ -182,6 +182,34 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
   Sl = mix(Sl, fc * (1.0 - Tl), f * 0.92);
   S += T * Sl; T *= Tl;
 }
+// volumetric sun shafts: march the cascaded shadow map through a thin height-varying haze
+float volShadow(vec3 wp){
+  for (int ci = 0; ci < 3; ci++) {
+    vec4 sc = uShadowMats[ci] * vec4(wp, 1.0); vec3 q = sc.xyz / sc.w;
+    if (q.x > 0.01 && q.y > 0.01 && q.x < 0.99 && q.y < 0.99 && q.z < 1.0)
+      return step(q.z - 0.0005, texture(uShadowMap, vec2((float(ci) + q.x) / 3.0, q.y)).r);
+  }
+  return 1.0;
+}
+// returns (forward-scattered light in lit haze, fraction of the haze in shadow)
+vec4 shafts(vec3 ro, vec3 rd, float tMax, float cosT, float jitter){
+  float n = uShaftSteps;
+  float dt = tMax / n;
+  float t = dt * jitter;
+  float lit = 0.0, shd = 0.0, Th = 1.0;
+  for (float i = 0.0; i < 32.0; i += 1.0) {
+    if (i >= n) break;
+    vec3 p = ro + rd * t;
+    float sig = 0.0004 + 0.005 * exp(-max(p.y - uCloudTop, 0.0) / 60.0);
+    float vis = volShadow(p) * cloudShadowAt(p);
+    lit += Th * vis * sig * dt;
+    shd += Th * (1.0 - vis) * sig * dt;
+    Th *= exp(-sig * dt);
+    t += dt;
+  }
+  float ph = max(hgPhase(cosT, 0.6) - 0.05, 0.0);       // only the forward excess: the fog already holds the rest
+  return vec4(uSunColor * lit * ph * uSunVis * 0.35, shd);
+}
 vec2 slab(vec3 ro, vec3 rd, float y0, float y1, float tMax){
   float t0, t1;
   if (abs(rd.y) < 1e-4) { t0 = 0.0; t1 = (ro.y > y0 && ro.y < y1) ? 9000.0 : -1.0; }
@@ -211,6 +239,12 @@ void main(){
   } else {
     if (aOk) march(0, ro, rd, A.x, A.y, uSteps, jitter, cosT, S, T);
     if (bOk) march(1, ro, rd, Bh.x, Bh.y, hs, jitter, cosT, S, T);
+  }
+  if (uShadowOn > 0.5 && uShaft > 0.0) {
+    vec4 sh = shafts(ro, rd, min(min(sceneDist, A.y > A.x ? A.x + 40.0 : 1e9), 800.0), cosT, jitter);
+    float f = 1.0 - clamp(sh.a * 0.75 * uShaft * uSunVis, 0.0, 0.6);   // haze in shadow scatters no sunlight
+    S = S * f + sh.rgb * uShaft; T *= f;
+    if (uShaft > 5.0) { S = vec3(sh.a * 4.0, dot(sh.rgb, vec3(0.3)) * 4.0, 0.0); T = 0.0; }
   }
   fragColor = vec4(S, T);
 }`;
@@ -552,7 +586,7 @@ export class Pipeline {
     for (let i = 1; i <= 8; i++) this.halton.push([hal(i, 2) - 0.5, hal(i, 3) - 0.5]);
     const mk = (fs, uniforms) => new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: fs, uniforms, glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false });
     this.cloudMat = mk(CLOUD_FS, {
-      ...U, tDepth: { value: null }, tNoise: { value: noise.shape }, tDetail: { value: noise.detail }, uHigh: { value: 1 }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
+      ...U, tDepth: { value: null }, tNoise: { value: noise.shape }, tDetail: { value: noise.detail }, uHigh: { value: 1 }, uShaft: { value: 1 }, uShaftSteps: { value: 20 }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
       uNear: { value: 0.5 }, uFar: { value: 20000 }, uRes: { value: new THREE.Vector2() }, uSteps: { value: 48 }, uFrame: { value: 0 },
       uIsl: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
     });

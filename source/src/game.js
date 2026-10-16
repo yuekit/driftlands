@@ -149,6 +149,7 @@ export class Game {
     ];
     const p = presets[level];
     this.pipe.scale = p.scale; this.pipe.steps = p.steps; this.pipe.cloudScale = p.cloud; this.pipe.ao = p.ao; this.pipe.contact = level > 0 ? 1 : 0;
+    this.pipe.cloudMat.uniforms.uShaftSteps.value = level >= 3 ? 24 : 16;
     for (const isl of this.world.islands) isl.groundDensity = [0.45, 0.7, 1, 1][level];
     if (this.shadow) { this.shadow.enabled = p.shadow > 0; if (p.shadow) this.shadow.setSize(p.shadow); }
     this.resize && this.resize();
