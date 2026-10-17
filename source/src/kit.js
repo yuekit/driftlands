@@ -209,9 +209,7 @@ void main(){
   float capK = smoothstep(0.55, 0.9, tint);
   vec3 col = litSurface(alb, n, vWorld, vSun, ao, 0.45);
   vec3 V = normalize(uCamPos - vWorld);
-  float back = pow(max(dot(-V, uSunDir), 0.0), 4.0);
-  float thin = max(dot(-n, uSunDir), 0.0);
-  col += vCap * uSunColor * (back * 0.35 + thin * 0.12) * vSun * capK * ao;    // light through the caps
+  col += thinTransmission(vCap, n, V, vWorld, vSun, capK * 0.55) * ao;    // light through the caps and petals
   col += mix(tc, vCap, 0.5) * glow * (uGlow * (1.0 + uNight * 6.0) + uNight * 0.3) * (0.75 + 0.25 * sin(uTime * 0.8 + vWorld.x * 0.1));
   col *= 1.0 + vGust * 0.18 * capK * (1.0 - uNight);
   col = applyFog(col, vWorld);

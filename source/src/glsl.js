@@ -191,7 +191,7 @@ float cloudShadowAt(vec3 p){
   vec3 q = p + uSunDir * ((B.w - p.y) / max(uSunDir.y, 0.12));
   vec2 uv = (q.xz - B.xy) / (2.0 * B.z) + 0.5;
   float edge = smoothstep(0.5, 0.42, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
-  return mix(1.0, texture(uCloudShadow, uv).r, edge);
+  return mix(1.0, 0.25 + 0.75 * texture(uCloudShadow, uv).r, edge);   // skylight scattered under the cloud keeps a little sun
 }
 vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   sunVis *= dynShadow(wp, n) * cloudShadowAt(wp);
@@ -214,6 +214,16 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   float rim = pow(1.0 - NoV, 4.0);
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
   return col;
+}
+// sunlight passing through thin tissue (wings, fins, petals, sail cloth); n faces the viewer
+vec3 thinTransmission(vec3 alb, vec3 n, vec3 V, vec3 wp, float sunVis, float k){
+  float backFace = max(dot(-n, uSunDir), 0.0);
+  vec3 Ht = normalize(uSunDir + n * 0.35);
+  float fwd = pow(clamp(dot(V, -Ht), 0.0, 1.0), 6.0) * 1.6;
+  if (backFace + fwd < 1e-3 || k <= 0.0) return vec3(0.0);
+  float vis = sunVis * dynShadow(wp, -n) * cloudShadowAt(wp);
+  vec3 tint = alb * alb * 2.2 + alb * 0.3;      // light through tissue comes out more saturated
+  return tint * uSunColor * (backFace * 0.5 + fwd) * vis * k;
 }
 vec3 litSurfacePBR(vec3 albedo, vec3 n, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   return litSurfacePBRx(albedo, n, n, wp, sunVis, ao, wrap, rough, f0);

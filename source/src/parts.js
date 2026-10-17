@@ -84,8 +84,8 @@ void main(){
   }
   vec3 col = litSurface(alb, n, vWorld, vParams.w, occ, 0.4);
   if (skinAmt > 0.0) col += skinSpec(n, vWorld, vSkin.x, skinAmt, vParams.w);
-  float backLit = pow(max(dot(-V, uSunDir), 0.0), 3.0);
-  col += alb * uSunColor * backLit * (0.15 + uThin * 0.45) * (1.0 - abs(dot(n, V)));
+  col += alb * uSunColor * pow(max(dot(-V, uSunDir), 0.0), 3.0) * 0.15 * (1.0 - abs(dot(n, V)));
+  col += thinTransmission(alb, n, V, vWorld, vParams.w, uThin * 0.8);
   float glow = vParams.z * (0.03 + 1.8 * m2) * (1.0 + vParams.x) * (1.0 + uNight * 2.2);
   col += vColB * glow * 1.8;
   col = applyFog(col, vWorld);

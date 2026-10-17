@@ -38,12 +38,9 @@ void main(){
   float ao = mix(1.0, orm.r, 0.85), rough = clamp(orm.g, 0.05, 1.0), metal = orm.b;
   vec3 diffuseAlb = alb * (1.0 - metal * 0.85);
   vec3 col = litSurfacePBR(diffuseAlb, n, vWorld, 1.0, ao, 0.25, rough, mix(vec3(0.04), alb, metal));
-  float sh = dynShadow(vWorld, n);
   // sunlight glowing through the sail fabric
   if (uTrans > 0.0) {
-    float through = pow(max(dot(-V, uSunDir), 0.0), 2.0);
-    float back = max(dot(-n, uSunDir), 0.0);
-    col += alb * uSunColor * (through * 0.6 + back * 0.35) * uTrans * ao * (0.4 + 0.6 * sh);
+    col += thinTransmission(alb, n, V, vWorld, 1.0, uTrans * 1.1) * ao;
   }
   col += uEmit;
   col = applyFog(col, vWorld);

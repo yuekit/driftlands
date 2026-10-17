@@ -201,7 +201,7 @@ vec4 shafts(vec3 ro, vec3 rd, float tMax, float cosT, float jitter){
     if (i >= n) break;
     vec3 p = ro + rd * t;
     float sig = 0.0004 + 0.005 * exp(-max(p.y - uCloudTop, 0.0) / 60.0);
-    float vis = volShadow(p) * cloudShadowAt(p);
+    float vis = volShadow(p) * mix(1.0, cloudShadowAt(p), 0.35);
     lit += Th * vis * sig * dt;
     shd += Th * (1.0 - vis) * sig * dt;
     Th *= exp(-sig * dt);
@@ -242,7 +242,7 @@ void main(){
   }
   if (uShadowOn > 0.5 && uShaft > 0.0) {
     vec4 sh = shafts(ro, rd, min(min(sceneDist, A.y > A.x ? A.x + 40.0 : 1e9), 800.0), cosT, jitter);
-    float f = 1.0 - clamp(sh.a * 0.75 * uShaft * uSunVis, 0.0, 0.6);   // haze in shadow scatters no sunlight
+    float f = 1.0 - clamp(sh.a * 0.75 * uShaft * uSunVis, 0.0, 0.4);   // haze in shadow scatters no sunlight
     S = S * f + sh.rgb * uShaft; T *= f;
     if (uShaft > 5.0) { S = vec3(sh.a * 4.0, dot(sh.rgb, vec3(0.3)) * 4.0, 0.0); T = 0.0; }
   }

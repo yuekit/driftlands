@@ -157,9 +157,9 @@ void main(){
   }
   vec3 col = litSurface(alb, n, vWorld, vParams.w, occ, 0.45);
   if (skinAmt > 0.0) col += skinSpec(n, vWorld, vSkin.x, skinAmt, vParams.w);
-  // soft subsurface glow when back-lit
-  float back = pow(max(dot(-V, uSunDir), 0.0), 3.0);
-  col += alb * uSunColor * back * (uFinMode > 0.5 ? 0.55 : 0.3) * (1.0 - abs(dot(n, V)));
+  // fins and petals let the sun through; bodies keep a soft back-lit rim
+  if (uFinMode > 0.5) col += thinTransmission(alb, n, V, vWorld, vParams.w, 0.9);
+  else col += alb * uSunColor * pow(max(dot(-V, uSunDir), 0.0), 3.0) * 0.3 * (1.0 - abs(dot(n, V)));
   float glow = vParams.z * glowMask * (1.0 + vBoost) * (1.0 + uNight * 2.2);
   col += vColB * glow * 2.2;
   col = applyFog(col, vWorld);
