@@ -150,6 +150,7 @@ export class Game {
     const p = presets[level];
     this.pipe.scale = p.scale; this.pipe.steps = p.steps; this.pipe.cloudScale = p.cloud; this.pipe.ao = p.ao; this.pipe.contact = level > 0 ? 1 : 0;
     this.pipe.cloudMat.uniforms.uShaftSteps.value = level >= 3 ? 24 : 16;
+    if (this.mirror) { this.mirror.enabled = level >= 1; this.mirror.scale = [0.3, 0.3, 0.4, 0.5][level]; }
     for (const isl of this.world.islands) isl.groundDensity = [0.45, 0.7, 1, 1][level];
     if (this.shadow) { this.shadow.enabled = p.shadow > 0; if (p.shadow) this.shadow.setSize(p.shadow); }
     this.resize && this.resize();
@@ -309,6 +310,10 @@ export class Game {
     this.renderer.info.reset();
     if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
     if (this.shadow) this.shadow.render(this.scene, this.camera);
+    if (this.mirror && this.pipe.targets) {
+      if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('mirror');
+      this.mirror.render(this.scene, this.camera, this.pipe.targets.W, this.pipe.targets.H);
+    }
     this.pipe.dt = dtReal;
     this.pipe.render(this.scene, this.camera);
     if (this.capture) this.doCapture();

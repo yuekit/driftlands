@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { U } from './glsl.js';
 import { generateWorld } from './boot.js';
 import { generateCloudNoise } from './cloudgen.js';
+import { Mirror } from './water.js';
 import { Pipeline } from './post.js';
-import { makeSky, Island, Rocklets, RockletsKit, distantIslands, Thermals, setSurfaceTextures } from './world.js';
+import { makeSky, Island, Rocklets, RockletsKit, distantIslands, Thermals, setSurfaceTextures, setMirror } from './world.js';
 import { loadKit } from './kit.js';
 import { loadSkins } from './skins.js';
 import { loadParts } from './parts.js';
@@ -50,6 +51,8 @@ async function main() {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 20000);
   scene.add(makeSky());
+  const mirror = new Mirror(renderer);
+  setMirror(mirror);
   const islands = data.islands.map((d, i) => new Island(i, d, scene, kit));
   const rocks = kit ? new RockletsKit(scene, kit, islands) : new Rocklets(scene, data.clouds.rocks, islands);
   distantIslands(scene, islands);
@@ -80,6 +83,7 @@ async function main() {
   const input = new Input(canvas);
 
   const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, debug: DEBUG });
+  game.mirror = mirror; game.applyQuality(game.quality.level);
   window.__dl = game;
   pipe.timer = new GpuTimer(renderer);
   game.perf = new PerfOverlay(game);

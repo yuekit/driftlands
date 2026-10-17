@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { U, COMMON, srgb } from './glsl.js';
 import { ISLANDS, makeSDF } from './islands-sdf.js';
 import { mulberry32 } from './noise.js';
+import { waterMaterial } from './water.js';
 import { rockMaterial, rootMaterial, floraKitMaterial, groundGeometry } from './kit.js';
 
 // ------------------------------------------------------------------ palettes
@@ -250,32 +251,9 @@ function geomFrom(m) {
   return g;
 }
 
-// ------------------------------------------------------------------ water
-const WATER_VS = /* glsl */ `
-varying vec3 vWorld;
-void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vWorld = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`;
-const WATER_FS = /* glsl */ `
-varying vec3 vWorld;
-${COMMON}
-void main(){
-  vec2 q = vWorld.xz * 0.25;
-  float t = uTime;
-  float h0 = vnoise2(q + vec2(t * 0.3, t * 0.2)) + 0.5 * vnoise2(q * 2.3 - vec2(t * 0.5, -t * 0.1));
-  float hx = vnoise2(q + vec2(0.05, 0) + vec2(t * 0.3, t * 0.2)) + 0.5 * vnoise2((q + vec2(0.05, 0)) * 2.3 - vec2(t * 0.5, -t * 0.1));
-  float hz = vnoise2(q + vec2(0, 0.05) + vec2(t * 0.3, t * 0.2)) + 0.5 * vnoise2((q + vec2(0, 0.05)) * 2.3 - vec2(t * 0.5, -t * 0.1));
-  vec3 n = normalize(vec3((h0 - hx) * 2.5, 1.0, (h0 - hz) * 2.5));
-  vec3 V = normalize(uCamPos - vWorld);
-  vec3 R = reflect(-V, n);
-  float fr = 0.03 + 0.97 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
-  vec3 refl = skyColor(normalize(vec3(R.x, abs(R.y), R.z)));
-  vec3 deep = vec3(0.04, 0.22, 0.24) * (ambientLight(vec3(0, 1, 0)) + uSunColor * 0.25);
-  vec3 col = mix(deep, refl, fr);
-  col += uSunColor * pow(max(dot(R, uSunDir), 0.0), 220.0) * 6.0;
-  col += vec3(0.2, 0.9, 0.8) * uNight * 0.08 * (0.5 + 0.5 * sin(uTime + vWorld.x * 0.3));
-  col = applyFog(col, vWorld);
-  gl_FragColor = vec4(col, 1.0);
-}`;
-
+// ------------------------------------------------------------------ water (surfaces in water.js)
+let MIRROR = null;
+export function setMirror(m) { MIRROR = m; }
 const FALL_VS = /* glsl */ `
 attribute vec2 aUv; attribute float aFade;
 varying vec2 vUv2; varying float vFade; varying vec3 vWorld;
@@ -776,17 +754,24 @@ export class Island {
     // water pool + channel
     if (this.spec.pool) {
       const pl = this.spec.pool;
-      const wmat = new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: WATER_FS, uniforms: { ...U } });
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 48), wmat);
+      const wmat = waterMaterial(MIRROR);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64), wmat);
+      MIRROR.meshes.push(disc); MIRROR.anchor = disc; MIRROR.radius = Math.max(pl.r[0], pl.r[1]) + 40;
       disc.rotation.x = -Math.PI / 2; disc.scale.set(pl.r[0], pl.r[1], 1);
       disc.position.set(pl.c[0], pl.level, pl.c[2]);
       this.group.add(disc);
       const f = this.falls.find((ff) => ff.fromPool);
       if (f) {
-        const a = new THREE.Vector3(pl.c[0], pl.level, pl.c[2]);
         const b = new THREE.Vector3(...f.lip); b.y = pl.level;
+        const a = new THREE.Vector3(pl.c[0], pl.level, pl.c[2]);
+        const dd = b.clone().sub(a).normalize();
+        // start the channel just inside the pool's shore so the two surfaces barely overlap
+        const er = 1 / Math.hypot(dd.x / pl.r[0], dd.z / pl.r[1]);
+        a.addScaledVector(dd, er - 2); a.y += 0.02;
         const len = a.distanceTo(b);
-        const ch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wmat);
+        const fd = b.clone().sub(a).normalize();
+        const ch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), waterMaterial(MIRROR, true, [fd.x * 2.4, fd.z * 2.4]));
+        MIRROR.meshes.push(ch);
         ch.rotation.order = 'YXZ';
         ch.rotation.y = Math.atan2(b.x - a.x, b.z - a.z); ch.rotation.x = -Math.PI / 2;
         ch.scale.set(f.width * 1.1, len, 1);

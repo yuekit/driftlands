@@ -38,5 +38,15 @@
   "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(7)",
   "wait": 6000,
   "name": "stilt-close"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(8)",
+  "wait": 6000,
+  "name": "verdigris-pool"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(9)",
+  "wait": 6000,
+  "name": "under-verdigris"
  }
 ]
