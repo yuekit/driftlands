@@ -138,6 +138,19 @@ export class Game {
     if (k === 'sound') this.audio.setEnabled(v);
     if (k === 'quality') { this.quality.lastChange = 0; this.applyQuality(v === 'low' ? 0 : v === 'high' ? 3 : 2); }
   }
+  // glider downwash for the grass: the live position plus three fading points left behind it
+  updateWake(dt) {
+    const P = U.uPush.value, g = this.debugPush ? { pos: new THREE.Vector3(...this.debugPush), speed: 15 } : this.glider;
+    const str = g.perched ? 0.5 : Math.min(1, g.speed / 14);
+    this.wakeT = (this.wakeT || 0) + dt;
+    if (this.wakeT > 0.18) {
+      this.wakeT = 0;
+      for (let i = 3; i > 1; i--) P[i].copy(P[i - 1]);
+      P[1].set(g.pos.x, g.pos.y, g.pos.z, str);
+    }
+    for (let i = 1; i < 4; i++) P[i].w *= Math.exp(-dt * 2.2);
+    P[0].set(g.pos.x, g.pos.y, g.pos.z, str);
+  }
   applyQuality(level) {
     level = Math.max(0, Math.min(3, level));
     this.quality.level = level;
@@ -286,6 +299,7 @@ export class Game {
     else if (this.state !== 'title') this.chase.update(this.glider, dtReal, inp);
     if (this.glider.impact > 0.2) this.chase.shake = Math.max(this.chase.shake, this.glider.impact * 0.8);
     U.uCamPos.value.copy(this.camera.position);
+    this.updateWake(dt);
     this.eco.draw(ctx);
 
     // lens study

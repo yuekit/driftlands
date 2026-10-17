@@ -14,7 +14,8 @@ export const U = {
   uNight: { value: 0 },
   uPxScale: { value: 1 },
   uCloudShadow: { value: null }, uCloudShadowBox: { value: new THREE.Vector4(0, 0, 1600, 500) }, uCloudShadowOn: { value: 0 },
-  uCover: { value: 0.5 },   // high cumulus coverage   // render height / 1080: keeps point sprites the same size at every quality level
+  uCover: { value: 0.5 },   // high cumulus coverage
+  uPush: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, -1e4, 0, 0)) },   // glider wake: xyz, strength   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
 export const COMMON = /* glsl */ `
@@ -29,6 +30,7 @@ uniform float uNight;
 uniform float uPxScale;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
+uniform vec4 uPush[4];
 uniform sampler2D uCloudShadow; uniform vec4 uCloudShadowBox; uniform float uCloudShadowOn;
 uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;
 
@@ -165,6 +167,23 @@ vec3 envLight(vec3 R, float rough){
 }
 // rough: perceptual roughness 0..1; f0: reflectance at normal incidence (0.04 for most non-metals)
 // ambN: direction the sky light is gathered from (a bent normal where one is baked)
+// plants bend away from the glider's downwash as it skims over them; hgt = 0..1 up the plant, size in metres
+vec3 pushOffset(vec3 root, float hgt, float size){
+  vec3 o = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec4 P = uPush[i];
+    vec2 d = root.xz - P.xz;
+    float r = length(d);
+    float above = P.y - root.y;
+    float s = P.w * smoothstep(12.0, 1.0, r) * smoothstep(18.0, 3.0, above) * step(-2.0, above);
+    if (s <= 0.0) continue;
+    float ripple = 0.75 + 0.25 * sin(r * 1.3 - uTime * 9.0);
+    vec2 dir = d / max(r, 0.3);
+    o.xz += dir * s * ripple * hgt * hgt * size * 1.0;
+    o.y -= s * hgt * size * 0.35;
+  }
+  return o;
+}
 // shadow of the high cumulus layer: project along the sun onto the shadow map's plane
 float cloudShadowAt(vec3 p){
   if (uCloudShadowOn < 0.5) return 1.0;

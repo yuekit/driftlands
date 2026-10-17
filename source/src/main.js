@@ -84,7 +84,7 @@ async function main() {
 
   const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, debug: DEBUG });
   game.mirror = mirror; game.applyQuality(game.quality.level);
-  window.__dl = game;
+  window.__dl = game; window.__U = U;
   pipe.timer = new GpuTimer(renderer);
   game.perf = new PerfOverlay(game);
   loadGliderModel().then((m) => { glider.useModel(m); vel.register(glider.root, 'rigid'); renderer.compile(scene, camera); }).catch((e) => console.warn('Glider model unavailable, using the built-in one', e));

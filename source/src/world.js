@@ -332,6 +332,7 @@ void main(){
   float sway = ((sin(uTime * 1.3 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.3) * (0.5 + 0.5 * gust) + gust * 1.1) * aInst.y;
   vGust = gust;
   w.xz += vec2(uWind.x, uWind.y) * sway * aH * aH;
+  w.xyz += pushOffset(wp.xyz, aH, length(instanceMatrix[1].xyz));
   vWorld = w.xyz;
   vNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
   vCol = instanceColor; vH = aH; vSun = aInst.x;
