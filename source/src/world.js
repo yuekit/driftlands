@@ -4,6 +4,7 @@ import { U, COMMON, srgb } from './glsl.js';
 import { ISLANDS, makeSDF } from './islands-sdf.js';
 import { mulberry32 } from './noise.js';
 import { waterMaterial } from './water.js';
+import { makeSpray } from './particles.js';
 import { rockMaterial, rootMaterial, floraKitMaterial, groundGeometry } from './kit.js';
 
 // ------------------------------------------------------------------ palettes
@@ -791,6 +792,7 @@ export class Island {
       mesh.renderOrder = 2;
       this.group.add(mesh);
       this.fallMeshes.push(mesh);
+      this.group.add(makeSpray(f));
     }
     this.flora = kit ? buildFloraKit(this, data.candidates, kit) : buildFlora(this, data.candidates);
     this.group.add(this.flora);
