@@ -323,6 +323,7 @@ export class Game {
     for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0);
     this.renderer.info.reset();
     if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
+    if (this.glow) this.glow.update(this.camera.position, this.world.islands, this.eco, this.night || 0);
     if (this.shadow) this.shadow.render(this.scene, this.camera);
     if (this.mirror && this.pipe.targets) {
       if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('mirror');

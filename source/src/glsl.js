@@ -15,6 +15,7 @@ export const U = {
   uPxScale: { value: 1 },
   uCloudShadow: { value: null }, uCloudShadowBox: { value: new THREE.Vector4(0, 0, 1600, 500) }, uCloudShadowOn: { value: 0 },
   uCover: { value: 0.5 },   // high cumulus coverage
+  uGlowMap: { value: null }, uGlowH: { value: null }, uGlowBox: { value: new THREE.Vector4(0, 0, 220, 0) },   // bioluminescent light, see glow.js
   uPush: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, -1e4, 0, 0)) },   // glider wake: xyz, strength   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
@@ -31,6 +32,7 @@ uniform float uPxScale;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
 uniform vec4 uPush[4];
+uniform sampler2D uGlowMap; uniform sampler2D uGlowH; uniform vec4 uGlowBox;
 uniform sampler2D uCloudShadow; uniform vec4 uCloudShadowBox; uniform float uCloudShadowOn;
 uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;
 
@@ -184,6 +186,16 @@ vec3 pushOffset(vec3 root, float hgt, float size){
   }
   return o;
 }
+// light pooled around glowing caps and creatures at night
+vec3 glowLight(vec3 wp, vec3 n){
+  if (uGlowBox.w < 0.5) return vec3(0.0);
+  vec2 uv = (wp.xz - uGlowBox.xy) / (2.0 * uGlowBox.z) + 0.5;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
+  vec2 hw = texture(uGlowH, uv).rg;
+  float dy = wp.y - hw.x * 100.0 / max(hw.y, 1e-4);
+  float hf = dy < 0.0 ? 1.0 / (1.0 + dy * dy * 0.08) : 1.0 / (1.0 + dy * dy * 0.006);   // below the lights falls off fast
+  return texture(uGlowMap, uv).rgb * hf * (0.35 + 0.65 * max(n.y, 0.0));
+}
 // shadow of the high cumulus layer: project along the sun onto the shadow map's plane
 float cloudShadowAt(vec3 p){
   if (uCloudShadowOn < 0.5) return 1.0;
@@ -210,6 +222,7 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   vec3 kd = 1.0 - Fenv;
   vec3 col = albedo * kd * (uSunColor * diff * sunVis + ambientLight(ambN) * ao);
   col += uSunColor * spec * sunVis;
+  col += albedo * glowLight(wp, ambN) * ao;
   col += envLight(reflect(-V, n), rough) * Fenv * specOcc;
   float rim = pow(1.0 - NoV, 4.0);
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);

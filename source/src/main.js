@@ -3,6 +3,7 @@ import { U } from './glsl.js';
 import { generateWorld } from './boot.js';
 import { generateCloudNoise } from './cloudgen.js';
 import { Mirror } from './water.js';
+import { GlowMap } from './glow.js';
 import { Pipeline } from './post.js';
 import { makeSky, Island, Rocklets, RockletsKit, distantIslands, Thermals, setSurfaceTextures, setMirror } from './world.js';
 import { loadKit } from './kit.js';
@@ -83,7 +84,7 @@ async function main() {
   const input = new Input(canvas);
 
   const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, debug: DEBUG });
-  game.mirror = mirror; game.applyQuality(game.quality.level);
+  game.mirror = mirror; game.glow = new GlowMap(renderer); game.applyQuality(game.quality.level);
   window.__dl = game; window.__U = U;
   pipe.timer = new GpuTimer(renderer);
   game.perf = new PerfOverlay(game);

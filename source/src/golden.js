@@ -10,6 +10,7 @@ export const GOLDEN = [
   { name: 'cloud-sea', p: [120, 48, 120], t: [450, 20, 520], fov: 65, time: 150 },
   { name: 'stilt-close', creature: 'stilt', off: [18, 9, 14], fov: 50, time: 100 },
   { name: 'verdigris-pool', p: [-2, 162, 52], t: [-36, 146, 14], fov: 60, time: 140 },
+  { name: 'night-glade', p: [60, 166, 40], t: [10, 150, 0], fov: 60, time: 430 },
   { name: 'under-verdigris', p: [150, 95, -170], t: [0, 120, 0], fov: 60, time: 150 },
 ];
 

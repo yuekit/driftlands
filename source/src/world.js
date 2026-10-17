@@ -619,6 +619,7 @@ function buildFloraKit(island, cand, kit) {
         m4.compose(pos, q, sc.set(s * (0.92 + rnd() * 0.16), s, s * (0.92 + rnd() * 0.16)));
         mesh.setMatrixAt(n, m4);
         mesh.setColorAt(n, col.set(c.cap));
+        (island.glowSpots || (island.glowSpots = [])).push([c.x, c.y + geo.boundingBox.max.y * s * 0.75, c.z, col.r, col.g, col.b, (t.glow || 0) + 0.05, 9 + s * 2]);
         inst[n * 2] = c.sun; inst[n * 2 + 1] = ks.sway;
       });
       mesh.geometry = geo.clone();
@@ -662,6 +663,7 @@ function buildFloraKit(island, cand, kit) {
         m4.compose(pos.set(x, y - 0.1, z), q, sc.setScalar(s));
         mesh.setMatrixAt(n, m4);
         mesh.setColorAt(n, col.set(capCols[Math.floor(rnd() * capCols.length)]));
+        (island.glowSpots || (island.glowSpots = [])).push([x, y + s * 0.8, z, col.r, col.g, col.b, ((spec.trees.glow || 0) + 0.05) * 0.6, 5 + s * 1.5]);
         inst[n * 2] = island.shadeAt(x + p.x, z + p.z) * 0.8; inst[n * 2 + 1] = 0.02;
       });
       geo.setAttribute('aInst', new THREE.InstancedBufferAttribute(inst, 2));
