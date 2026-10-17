@@ -36,7 +36,11 @@ node build.mjs --dev           # unminified
 | glider.js, glidermodel.js | Flight model, chase camera, Blender glider, scarf and trails |
 | creatures.js, tubes.js, skins.js, parts.js | Species, behaviours, tube bodies, eyes, skins, sculpted parts |
 | game.js, input.js, ui.js, audio.js, cycle.js | Game loop, lens and journal, convergence, controls, HUD, sound, day-night |
-| glsl.js, shadow.js, post.js, cloudtex.js | Shared lighting (GGX specular, sky environment, aerial perspective), cascaded soft shadows, render pipeline (AgX, auto-exposure, contact shadows, TAA), cloud noise |
+| glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA) |
+| cloudgen.js | Tileable 3D cloud noise generated on the GPU at startup |
+| water.js | Pool and channel water: planar mirror reflection, caustics, foam |
+| glow.js | Night light pooled around glowing caps and creatures |
+| particles.js | Stateless GPU particles: pollen, night spores, waterfall spray |
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
