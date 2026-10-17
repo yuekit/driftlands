@@ -162,7 +162,7 @@ export class Game {
     ];
     const p = presets[level];
     this.pipe.scale = p.scale; this.pipe.steps = p.steps; this.pipe.cloudScale = p.cloud; this.pipe.ao = p.ao; this.pipe.contact = level > 0 ? 1 : 0;
-    this.pipe.cloudMat.uniforms.uShaftSteps.value = level >= 3 ? 24 : 16;
+    this.pipe.cloudMat.uniforms.uShaftSteps.value = level >= 3 ? 20 : 12;
     if (this.motes) this.motes.setDensity([0.35, 0.6, 1, 1][level]);
     if (this.mirror) { this.mirror.enabled = level >= 1; this.mirror.scale = [0.3, 0.3, 0.4, 0.5][level]; }
     for (const isl of this.world.islands) isl.groundDensity = [0.45, 0.7, 1, 1][level];

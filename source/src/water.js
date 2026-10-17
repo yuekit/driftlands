@@ -109,6 +109,7 @@ export class Mirror {
     this._frustum = new THREE.Frustum(); this._m = new THREE.Matrix4(); this._s = new THREE.Sphere();
   }
   render(scene, camera, W, H) {
+    const was = this.uOn.value;
     this.uOn.value = 0;
     if (!this.enabled || !this.anchor) return;
     const P = this.anchor.getWorldPosition(this._p);
@@ -117,6 +118,9 @@ export class Mirror {
     this._m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(this._m);
     if (!this._frustum.intersectsSphere(this._s.set(P, this.radius))) return;
+    // refresh every other frame: the last one stays valid (its own matrix projects it) and ripples hide the lag
+    this.tick = (this.tick || 0) + 1;
+    if (was === 1 && this.tick % 2) { this.uOn.value = 1; return; }
     const w = Math.max(2, Math.round(W * this.scale)), h = Math.max(2, Math.round(H * this.scale));
     if (this.rt.width !== w || this.rt.height !== h) this.rt.setSize(w, h);
 
@@ -127,7 +131,7 @@ export class Mirror {
     this._t.copy(cp).add(fwd); this._t.y = 2 * P.y - this._t.y;
     c.up.set(0, 1, 0).transformDirection(camera.matrixWorld); c.up.y = -c.up.y;
     c.lookAt(this._t);
-    c.near = camera.near; c.far = 2500;
+    c.near = camera.near; c.far = 1500;
     c.updateMatrixWorld();
     c.projectionMatrix.copy(camera.projectionMatrix);
     // oblique near plane (Lengyel)

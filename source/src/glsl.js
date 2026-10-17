@@ -228,13 +228,23 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
   return col;
 }
+// one hard tap of the cascades: cheap shadow for secondary effects (transmission, shafts)
+float hardShadow(vec3 wp){
+  if (uShadowOn < 0.5) return 1.0;
+  for (int ci = 0; ci < 3; ci++) {
+    vec4 sc = uShadowMats[ci] * vec4(wp, 1.0); vec3 q = sc.xyz / sc.w;
+    if (q.x > 0.01 && q.y > 0.01 && q.x < 0.99 && q.y < 0.99 && q.z < 1.0)
+      return step(q.z - 0.0005, texture(uShadowMap, vec2((float(ci) + q.x) / 3.0, q.y)).r);
+  }
+  return 1.0;
+}
 // sunlight passing through thin tissue (wings, fins, petals, sail cloth); n faces the viewer
 vec3 thinTransmission(vec3 alb, vec3 n, vec3 V, vec3 wp, float sunVis, float k){
   float backFace = max(dot(-n, uSunDir), 0.0);
   vec3 Ht = normalize(uSunDir + n * 0.35);
   float fwd = pow(clamp(dot(V, -Ht), 0.0, 1.0), 6.0) * 1.6;
   if (backFace + fwd < 1e-3 || k <= 0.0) return vec3(0.0);
-  float vis = sunVis * dynShadow(wp, -n) * cloudShadowAt(wp);
+  float vis = sunVis * hardShadow(wp - n * 0.15) * cloudShadowAt(wp);
   vec3 tint = alb * alb * 2.2 + alb * 0.3;      // light through tissue comes out more saturated
   return tint * uSunColor * (backFace * 0.5 + fwd) * vis * k;
 }

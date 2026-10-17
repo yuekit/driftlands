@@ -157,7 +157,8 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
     float d = dens(L, p, lod);
     if (d > 0.0) {
       float od = 0.0; float ls = ls0; vec3 lp = p;
-      for (int j = 0; j < 5; j++) { lp += uSunDir * ls; od += dens(L, lp, j == 0 ? lod : 1.0) * ls; ls *= 1.9; }
+      int nl = L == 1 && lod > 0.5 ? 3 : 4;
+      for (int j = 0; j < 4; j++) { if (j >= nl) break; lp += uSunDir * ls; od += dens(L, lp, j == 0 ? lod : 1.0) * ls; ls *= 2.3; }
       // multiple scattering: three octaves with weaker extinction and a broader phase
       float ms = exp(-od * 1.5) * p0 + 0.5 * exp(-od * 0.75) * p1 + 0.25 * exp(-od * 0.375) * p2;
       float powder = 1.0 - exp(-d * 60.0);
@@ -183,14 +184,6 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
   S += T * Sl; T *= Tl;
 }
 // volumetric sun shafts: march the cascaded shadow map through a thin height-varying haze
-float volShadow(vec3 wp){
-  for (int ci = 0; ci < 3; ci++) {
-    vec4 sc = uShadowMats[ci] * vec4(wp, 1.0); vec3 q = sc.xyz / sc.w;
-    if (q.x > 0.01 && q.y > 0.01 && q.x < 0.99 && q.y < 0.99 && q.z < 1.0)
-      return step(q.z - 0.0005, texture(uShadowMap, vec2((float(ci) + q.x) / 3.0, q.y)).r);
-  }
-  return 1.0;
-}
 // returns (forward-scattered light in lit haze, fraction of the haze in shadow)
 vec4 shafts(vec3 ro, vec3 rd, float tMax, float cosT, float jitter){
   float n = uShaftSteps;
@@ -201,7 +194,7 @@ vec4 shafts(vec3 ro, vec3 rd, float tMax, float cosT, float jitter){
     if (i >= n) break;
     vec3 p = ro + rd * t;
     float sig = 0.0004 + 0.005 * exp(-max(p.y - uCloudTop, 0.0) / 60.0);
-    float vis = volShadow(p) * mix(1.0, cloudShadowAt(p), 0.35);
+    float vis = hardShadow(p) * mix(1.0, cloudShadowAt(p), 0.35);
     lit += Th * vis * sig * dt;
     shd += Th * (1.0 - vis) * sig * dt;
     Th *= exp(-sig * dt);
