@@ -57,7 +57,11 @@ export class PerfOverlay {
     this.el.hidden = true;
     document.body.appendChild(this.el);
     this.t = 0; this.frames = 0; this.acc = 0; this.worst = 0;
-    window.addEventListener('keydown', (e) => { if (e.key === 'F3' || (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey)) { e.preventDefault(); this.toggle(); } });
+    window.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey) return;
+      if (e.key === 'F3' || e.code === 'KeyP') { e.preventDefault(); this.toggle(); }
+      else if (e.code === 'KeyB' && !this.el.hidden) { e.preventDefault(); this.game.benchSuite(); }
+    });
     if (new URLSearchParams(location.search).has('perf')) this.toggle(true);
   }
   toggle(on = this.el.hidden) {
@@ -82,6 +86,7 @@ export class PerfOverlay {
       for (const k in s) if (k !== 'total') lines.push(`  ${k.padEnd(10)} ${s[k].toFixed(2).padStart(6)}`);
       lines.push(`  ${'total'.padEnd(10)} ${s.total.toFixed(2).padStart(6)}`);
     } else lines.push('gpu timers unavailable in this browser');
+    lines.push(g.suiteText || 'press B to run the benchmark (about 2 minutes)');
     this.el.textContent = lines.join('\n');
     this.t = 0; this.frames = 0; this.acc = 0; this.worst = 0;
   }

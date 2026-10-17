@@ -237,7 +237,42 @@ export class Game {
       const res = { frames: s.length, avgMs: +avg.toFixed(2), p99Ms: +p99.toFixed(2), fps: +(1000 / avg).toFixed(1), quality: this.quality.level, gpu: this.pipe.timer ? this.pipe.timer.summary() : null };
       console.log('BENCH', JSON.stringify(res));
       this.benchResult = res; this.benchState = null; this.debugCam = null;
+      if (this.suite) this.suiteNext(res);
     }
+  }
+  // B key: fly the benchmark once per configuration, each new effect switched off in turn, and show the table
+  benchSuite() {
+    if (this.suite) return;
+    const p = this.pipe, cu = p.cloudMat.uniforms;
+    const saved = { cycle: this.cycle.mode, high: p.highClouds, shaft: cu.uShaft.value, mirror: this.mirror && this.mirror.enabled, motes: this.motes && this.motes.points.visible, shadow: this.shadow && this.shadow.enabled };
+    const reset = () => { p.highClouds = saved.high; cu.uShaft.value = saved.shaft; if (this.mirror) this.mirror.enabled = saved.mirror; if (this.motes) this.motes.points.visible = saved.motes; if (this.shadow) this.shadow.enabled = saved.shadow; };
+    this.suite = { reset, saved, i: -1, rows: [], configs: [
+      ['everything on', () => {}],
+      ['no high clouds', () => { p.highClouds = false; }],
+      ['no light shafts', () => { cu.uShaft.value = 0; }],
+      ['no reflection', () => { if (this.mirror) this.mirror.enabled = false; }],
+      ['no particles', () => { if (this.motes) this.motes.points.visible = false; }],
+      ['no sun shadows', () => { if (this.shadow) this.shadow.enabled = false; }],
+    ] };
+    if (this.perf) this.perf.toggle(true);
+    this.suiteNext(null);
+  }
+  suiteNext(res) {
+    const S = this.suite;
+    if (res) S.rows.push([S.configs[S.i][0], res.fps, res.p99Ms]);
+    S.reset();
+    S.i++;
+    if (S.i >= S.configs.length) {
+      const base = S.rows[0][1];
+      const lines = ['benchmark (quality ' + this.quality.level + ')', ...S.rows.map(([n, f, p]) => `  ${n.padEnd(16)} ${f.toFixed(1).padStart(5)} fps  ${n === 'everything on' ? '      ' : ((f - base >= 0 ? '+' : '') + (f - base).toFixed(1)).padStart(6)}  1% low ${(1000 / p).toFixed(0)} fps`)];
+      this.suiteText = lines.join('\n');
+      console.log(this.suiteText);
+      this.suite = null; this.cycle.mode = S.saved.cycle;
+      return;
+    }
+    S.configs[S.i][1]();
+    this.suiteText = `benchmark ${S.i + 1}/${S.configs.length}: ${S.configs[S.i][0]}...`;
+    this.bench(160);
   }
 
   // ---------------------------------------------------------------- per frame
