@@ -77,7 +77,7 @@ precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 fragColor;
 ${COMMON}
 ${HIGH_GLSL}
-uniform sampler2D tDepth; uniform vec3 uCloudLo; uniform vec3 uCloudHi; uniform vec4 uIsl[3];
+uniform sampler2D tDepth; uniform vec3 uCloudLo; uniform vec3 uCloudHi; uniform vec4 uIsl[4];
 uniform mat4 uInvProj; uniform mat4 uCamWorld; uniform float uNear; uniform float uFar;
 uniform vec2 uRes; uniform float uSteps; uniform float uFrame; uniform float uHigh; uniform float uShaft; uniform float uShaftSteps;
 
@@ -93,7 +93,7 @@ float cloudTop(vec2 xz, out float tower){
 // mist skirts hanging beneath each island
 float mistAmt(vec3 p){
   float m = 0.0;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
     vec4 I = uIsl[i];
     float dxz = length(p.xz - I.xz);
     float ring = smoothstep(I.w * 1.9, I.w * 0.7, dxz);
@@ -105,7 +105,7 @@ float mistAmt(vec3 p){
 // islands shade the clouds and mist below them
 float islandShade(vec3 p){
   float s = 1.0;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
     vec4 I = uIsl[i];
     if (p.y > I.y - 8.0) continue;
     vec3 q = p + uSunDir * ((I.y - 20.0 - p.y) / max(uSunDir.y, 0.05));
@@ -699,7 +699,7 @@ export class Pipeline {
     this.cloudMat = mk(CLOUD_FS, {
       ...U, tDepth: { value: null }, tNoise: { value: noise.shape }, tDetail: { value: noise.detail }, uHigh: { value: 1 }, uShaft: { value: 1 }, uShaftSteps: { value: 20 }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
       uNear: { value: 0.5 }, uFar: { value: 20000 }, uRes: { value: new THREE.Vector2() }, uSteps: { value: 48 }, uFrame: { value: 0 },
-      uIsl: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
+      uIsl: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(0, -1e5, 0, 1)] },   // the four islands nearest the camera
     });
     this.csMat = mk(CLOUDSHADOW_FS, { ...U, tNoise: { value: noise.shape }, tDetail: { value: noise.detail } });
     this.csRT = rt(256, 256);

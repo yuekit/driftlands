@@ -66,7 +66,7 @@ export class Motes {
     this.islands = islands;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: MOTE_VS, fragmentShader: MOTE_FS,
-      uniforms: { ...U, uBox: { value: 110 }, uIslA: { value: islands.map(() => new THREE.Vector4()) } },
+      uniforms: { ...U, uBox: { value: 110 }, uIslA: { value: [0, 1, 2].map(() => new THREE.Vector4()) } },
       blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
     });
     this.points = new THREE.Points(g, this.mat);
@@ -76,7 +76,9 @@ export class Motes {
   }
   setDensity(k) { this.points.geometry.setDrawRange(0, Math.round(this.count * k)); }
   update() {
-    this.islands.forEach((I, i) => this.mat.uniforms.uIslA.value[i].set(I.pos.x, I.pos.y, I.pos.z, I.spec.radius));
+    const cp = U.uCamPos.value, A = this.mat.uniforms.uIslA.value;
+    const near = this.islands.slice().sort((a, b) => a.pos.distanceToSquared(cp) - b.pos.distanceToSquared(cp));
+    A.forEach((v, i) => { const I = near[i]; if (I) v.set(I.pos.x, I.pos.y, I.pos.z, I.spec.radius); else v.set(0, -1e5, 0, 1); });
   }
 }
 

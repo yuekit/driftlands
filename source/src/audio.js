@@ -246,7 +246,7 @@ export class Audio {
   whoosh() { if (!this.ctx) return; const f = this.noiseHit(1.6, 300, 0.25, 'bandpass'); f.frequency.exponentialRampToValueAtTime(3000, this.ctx.currentTime + 1.5); }
   footstep(pos, id) {
     if (!this.ctx || Math.random() < 0.4) return;
-    this.thump(id === 'hybrid' ? 55 : 48, 0.22, 0.25, pos);
+    this.thump(id === 'hybrid' || id === 'strider' ? 55 : id === 'wader' ? 70 : 48, id === 'wader' ? 0.12 : 0.22, 0.25, pos);
   }
   polypClose(pos) { if (!this.ctx) return; this.thump(320, 0.2, 0.12, pos); this.noiseHit(0.12, 1400, 0.12, 'bandpass', pos); }
   chirp(pos) {
@@ -258,15 +258,15 @@ export class Audio {
     const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.22);
     o.connect(g).connect(this.out(pos, 0.4)); o.start(t); o.stop(t + 0.25);
   }
-  whaleSong(pos) {
+  whaleSong(pos, pitch = 1) {
     if (!this.ctx) return;
     const ctx = this.ctx, t = ctx.currentTime;
     const { g: dg } = this.pan(pos);
     if (dg < 0.04) return;
     const o = ctx.createOscillator(); o.type = 'sawtooth';
-    const f0 = 62 + Math.random() * 10;
+    const f0 = (62 + Math.random() * 10) * pitch;
     o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.7, t + 1.6); o.frequency.linearRampToValueAtTime(f0 * 1.25, t + 3.2); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + 5);
-    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.setValueAtTime(320, t); f1.frequency.linearRampToValueAtTime(700, t + 2.5); f1.frequency.linearRampToValueAtTime(400, t + 5); f1.Q.value = 6;
+    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.setValueAtTime(320 * pitch, t); f1.frequency.linearRampToValueAtTime(700 * pitch, t + 2.5); f1.frequency.linearRampToValueAtTime(400 * pitch, t + 5); f1.Q.value = 6;
     const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1100; f2.Q.value = 8;
     const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 1.0); g.gain.setValueAtTime(0.5, t + 3.6); g.gain.linearRampToValueAtTime(0, t + 5.2);
     const out = this.out(pos, 1.2);

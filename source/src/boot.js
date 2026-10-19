@@ -1,13 +1,12 @@
 // Off-thread world generation.
 import workerSrc from 'worker-src';
+import { ISLANDS } from './islands-sdf.js';
 
 export function generateWorld(onProgress) {
   const url = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
   const jobs = [
     { type: 'clouds', weight: 0.05 },
-    { type: 'island', index: 0, cell: 1.8, lodCell: 4.2, weight: 1 },
-    { type: 'island', index: 1, cell: 1.8, lodCell: 4.2, weight: 1 },
-    { type: 'island', index: 2, cell: 1.8, lodCell: 4.2, weight: 1 },
+    ...ISLANDS.map((_, index) => ({ type: 'island', index, cell: 1.8, lodCell: 4.2, weight: 1 })),
   ];
   const prog = jobs.map(() => 0);
   const total = jobs.reduce((a, j) => a + j.weight, 0);

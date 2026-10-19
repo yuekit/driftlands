@@ -13,6 +13,11 @@ const PAL = [
   ['#c9a27e', '#9a5a46', '#ead7b8', '#5f9a74', '#a9c07a', '#463656'],
   ['#cf9a62', '#a65a42', '#e8cfa4', '#dcb585', '#cfa071', '#563a4c'],
   ['#e89c9e', '#b66b8f', '#f7d4c6', '#f1b4a6', '#93d0c2', '#4b3d66'],
+  ['#c7b8c9', '#8e7a95', '#efe4ea', '#c9a95a', '#e3cf86', '#4a3a5c'],   // Windgate: lilac stone, gold grass
+  ['#a3c2cd', '#6a8ea3', '#e4f1f1', '#a9d6c8', '#dcece4', '#34405e'],   // Glasswing: salt glass
+  ['#4a3e42', '#6e3a2e', '#8e8076', '#6a625e', '#a8603a', '#261c24'],   // Ember: basalt and ash
+  ['#8f9a7a', '#5d6b58', '#c9c8a4', '#3f7f58', '#86b27a', '#2f3a48'],   // Mire: peat and reed
+  ['#b07c56', '#7a4a36', '#dcc2a0', '#3f7a4a', '#7aa85a', '#4a2e2a'],   // Rootfall: loam and moss
 ];
 
 // ------------------------------------------------------------------ sky
@@ -431,6 +436,26 @@ const FLORA_SPEC = [
     tufts: { count: 5200, colors: ['#f08aa0', '#8fd6c2', '#f6c7a6', '#c3a0e6'], base: '#7a3b5a', scale: [1.4, 3.0], fade: 400 },
     trees: { count: 52, trunk: '#c98488', caps: ['#9fe2cf', '#fff1d8', '#ffc0b0'], cap: 'puff', h: [7, 20], capR: [3, 6.5], bend: 0.4, glow: 0.06 },
   },
+  { // Windgate
+    tufts: { count: 4200, colors: ['#d8bd6a', '#c7a65a', '#e6d394', '#a9a06a'], base: '#5a4a3a', scale: [1.4, 2.8], fade: 380 },
+    trees: { count: 22, trunk: '#b9a7b8', caps: ['#f0d7a0', '#e8a96a', '#d9c4e8'], cap: 'umbrella', h: [10, 22], capR: [4, 7], bend: 0.3, avoid: [0, 6, 30] },
+  },
+  { // Glasswing
+    tufts: { count: 2600, colors: ['#bfe3d6', '#e4f1ea', '#9fcfc4', '#d9d4ef'], base: '#3f5a66', scale: [1.0, 2.2], fade: 360 },
+    trees: { count: 30, trunk: '#d8eef2', caps: ['#e6fbff', '#c5ecf4', '#e9ddff'], cap: 'puff', h: [6, 14], capR: [2.5, 5], bend: 0.2, glow: 0.14 },
+  },
+  { // Ember
+    tufts: { count: 3000, colors: ['#8c7a6c', '#a5683e', '#6e625a', '#b89a6a'], base: '#2e2224', scale: [1.0, 2.2], fade: 360 },
+    trees: { count: 38, trunk: '#4a3a3a', caps: ['#ff8a3d', '#ffb347', '#ff6a4a'], cap: 'puff', h: [5, 12], capR: [2, 3], bend: 0.12, capStretch: 1.6, glow: 0.3, thick: 2.4, avoid: [0, 0, 74] },
+  },
+  { // Mire
+    tufts: { count: 10000, colors: ['#5d9a6a', '#86b27a', '#4f8a7a', '#a8b46a'], base: '#24382e', scale: [1.8, 3.6], fade: 360 },
+    trees: { count: 48, trunk: '#7d7a5e', caps: ['#9ad1c4', '#b9a6e8', '#e8e0a6', '#7fb7d8'], cap: 'umbrella', h: [8, 18], capR: [4, 7.5], bend: 0.42 },
+  },
+  { // Rootfall
+    tufts: { count: 7000, colors: ['#5e9a5a', '#86b06a', '#4f7f4a', '#c9b45a'], base: '#2a3a26', scale: [1.6, 3.2], fade: 340 },
+    trees: { count: 46, trunk: '#8a5a3e', caps: ['#f2a24a', '#e86a4a', '#f2d06a', '#a6d47a'], cap: 'umbrella', h: [10, 26], capR: [4.5, 9], bend: 0.3 },
+  },
 ];
 
 function buildFlora(island, cand) {
@@ -523,9 +548,14 @@ const KIT_TREES = [
   { variants: [['Parasol_A', 16], ['Parasol_B', 12], ['Parasol_C', 20]], sway: 0.05, smin: 0.6, smax: 1.3 },
   { variants: [['Lantern_A', 6.5], ['Lantern_B', 7.5]], sway: 0.03, smin: 1.0, smax: 1.8 },
   { variants: [['Coral_A', 12], ['Coral_B', 14]], sway: 0.06, smin: 0.8, smax: 1.6 },
+  { variants: [['Parasol_A', 16], ['Parasol_C', 20]], sway: 0.06, smin: 0.6, smax: 1.2 },
+  { variants: [['Coral_A', 12], ['Coral_B', 14]], sway: 0.03, smin: 0.6, smax: 1.1 },
+  { variants: [['Lantern_A', 6.5], ['Lantern_B', 7.5]], sway: 0.02, smin: 0.9, smax: 1.6 },
+  { variants: [['Parasol_B', 12], ['Parasol_A', 16]], sway: 0.07, smin: 0.6, smax: 1.2 },
+  { variants: [['Parasol_A', 16], ['Parasol_B', 12], ['Parasol_C', 20], ['Coral_B', 14]], sway: 0.05, smin: 0.7, smax: 1.4 },
 ];
 const KIT_GROUND = [['Grass_A', 0.55], ['Grass_B', 0.33], ['Fern_A', 0.12]];
-const STEM = ['#e4d6bd', '#d9c39a', '#eed3c8'];
+const STEM = ['#e4d6bd', '#d9c39a', '#eed3c8', '#e6dccb', '#eef6f4', '#6a5a52', '#d8d2b0', '#e2cdb0'];
 
 function islandNormalAt(island, x, z) {
   const p = island.group.position, e = 1.2;
@@ -599,7 +629,7 @@ function buildFloraKit(island, cand, kit) {
     for (let i = nC - 1; i >= 0 && chosen.length < t.count; i--) {
       if (cand[i * 8 + 4] < 0.86) continue;
       const x = cand[i * 8], y = cand[i * 8 + 1], z = cand[i * 8 + 2];
-      if (pool && Math.hypot(x - pool.c[0], z - pool.c[2]) < 34) continue;
+      if (pool && (Math.hypot(x - pool.c[0], z - pool.c[2]) < 34 || (pool.r[0] > 34 && inPool(x, z, 6)))) continue;
       if (placed.some((p) => (p[0] - x) ** 2 + (p[1] - z) ** 2 < 120)) continue;
       if (t.avoid && (x - t.avoid[0]) ** 2 + (z - t.avoid[1]) ** 2 < t.avoid[2] ** 2) continue;
       if (rnd() > 0.35 + cand[i * 8 + 6] * 0.5) continue;
@@ -748,7 +778,8 @@ export class Island {
     this.offset = new THREE.Vector3(); // drift offset (convergence)
     this.bob = 0;
     const mat = islandMaterial(this.spec.palette, this.spec);
-    this.mesh = new THREE.Mesh(geomFrom(data.hi), mat);
+    this.hiGeo = geomFrom(data.hi);
+    this.mesh = new THREE.Mesh(this.hiGeo, mat);
     this.group.add(this.mesh);
     this.loGeo = geomFrom(data.lo);
     this.height = data.height;
@@ -758,9 +789,10 @@ export class Island {
     // water pool + channel
     if (this.spec.pool) {
       const pl = this.spec.pool;
-      const wmat = waterMaterial(MIRROR);
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64), wmat);
-      MIRROR.meshes.push(disc); MIRROR.anchor = disc; MIRROR.radius = Math.max(pl.r[0], pl.r[1]) + 40;
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64));
+      const mOn = MIRROR.addPool(disc, Math.max(pl.r[0], pl.r[1]) + 40);
+      disc.material = waterMaterial(MIRROR, false, [0, 0], mOn);
+      MIRROR.meshes.push(disc);
       disc.rotation.x = -Math.PI / 2; disc.scale.set(pl.r[0], pl.r[1], 1);
       disc.position.set(pl.c[0], pl.level, pl.c[2]);
       this.group.add(disc);
@@ -774,7 +806,7 @@ export class Island {
         a.addScaledVector(dd, er - 2); a.y += 0.02;
         const len = a.distanceTo(b);
         const fd = b.clone().sub(a).normalize();
-        const ch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), waterMaterial(MIRROR, true, [fd.x * 2.4, fd.z * 2.4]));
+        const ch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), waterMaterial(MIRROR, true, [fd.x * 2.4, fd.z * 2.4], mOn));
         MIRROR.meshes.push(ch);
         ch.rotation.order = 'YXZ';
         ch.rotation.y = Math.atan2(b.x - a.x, b.z - a.z); ch.rotation.x = -Math.PI / 2;
@@ -800,16 +832,26 @@ export class Island {
   }
   get pos() { return this.group.position; }
   // per-island culling for the kit: ground cover only when near, shadows only near the shadow focus
-  lod(cam, focus, extent) {
+  lod(cam, focus, extent, frustum) {
     const ud = this.flora.userData;
-    if (!ud.casters) return;
     const R = this.spec.radius || 150;
     const dc = Math.hypot(cam.x - this.pos.x, cam.z - this.pos.z) - R;
+    // far islands swap to the coarse mesh; islands out of view and away from the shadow focus skip their flora
+    const far = dc > 1100;
+    if (far !== this.isFar) { this.isFar = far; this.mesh.geometry = far ? this.loGeo : this.hiGeo; }
+    const df = Math.hypot(focus.x - this.pos.x, focus.z - this.pos.z) - R;
+    if (frustum) {
+      const b = this.spec.bounds, sph = this._sph || (this._sph = new THREE.Sphere());
+      sph.center.set(this.pos.x, this.pos.y + (b.min[1] + b.max[1]) / 2, this.pos.z);
+      sph.radius = Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]) / 2;
+      this.inView = frustum.intersectsSphere(sph);
+      this.flora.visible = this.inView || df < extent * 1.2;
+    }
+    if (!ud.casters) return;
     const near = dc < 430;
     const gd = this.groundDensity ?? 1;
     for (const m of ud.ground) { m.visible = near; m.count = Math.floor(m.userData.n * gd); }
     if (ud.small) for (const m of ud.small) m.visible = dc < 470;
-    const df = Math.hypot(focus.x - this.pos.x, focus.z - this.pos.z) - R;
     const cast = df < extent * 1.2;
     if (cast !== ud.casting) {
       ud.casting = cast;
@@ -850,8 +892,8 @@ export class Rocklets {
     this.items = [];
     this.meshes = [];
     for (let v = 0; v < rockData.length; v++) {
-      for (let pi = 0; pi < 3; pi++) {
-        const mat = islandMaterial(pi, ISLANDS[pi], false);
+      for (let pi = 0; pi < islands.length; pi++) {
+        const mat = islandMaterial(ISLANDS[pi].palette, ISLANDS[pi], false);
         mat.uniforms.uSunOverride.value = 0.65;
         const geo = geomFrom(rockData[v]);
         const count = 6;
@@ -948,8 +990,8 @@ export function distantIslands(scene, islands) {
     const mat = islandMaterial(isl.spec.palette, isl.spec, false);
     const mesh = new THREE.InstancedMesh(isl.loGeo, mat, per);
     for (let i = 0; i < per; i++) {
-      const ang = (isl.index * per + i) / (per * 3) * Math.PI * 2 + rnd() * 0.3;
-      const r = 3200 + rnd() * 2400;
+      const ang = (isl.index * per + i) / (per * islands.length) * Math.PI * 2 + rnd() * 0.3;
+      const r = 3600 + rnd() * 2600;
       p.set(Math.cos(ang) * r + 150, 60 + rnd() * 380, Math.sin(ang) * r + 200);
       q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 0.6 - 0.3);
       s.setScalar(0.9 + rnd() * 2.2);
@@ -964,7 +1006,7 @@ export function distantIslands(scene, islands) {
 // ------------------------------------------------------------------ thermals (rising spore columns)
 const THERM_VS = /* glsl */ `
 attribute vec4 aSeed; // thermal index, phase, radius frac, size
-uniform vec4 uTherm[12];
+uniform vec4 uTherm[32];
 varying float vA; varying vec3 vC;
 ${COMMON}
 void main(){
@@ -1015,6 +1057,16 @@ export class Thermals {
       [1, -130, 95, 48, 6.6], [1, 60, -160, 44, 6.0],
       [2, 150, -40, 48, 6.6], [2, -120, -120, 44, 6.2],
       [-1, 330, -140, 52, 7.0], [-1, -150, 400, 52, 7.0], [-1, 210, 380, 46, 6.4],
+      // the outer islands: two each, and the warm column over the Ember crater
+      [3, 120, 70, 46, 6.6], [3, -115, -60, 44, 6.2],
+      [4, -135, 50, 46, 6.6], [4, 105, -115, 44, 6.2],
+      [5, 0, 0, 40, 7.6], [5, 168, 60, 46, 6.4],
+      [6, 170, -70, 50, 6.6], [6, -150, 100, 46, 6.2],
+      [7, 140, 60, 46, 6.6], [7, -120, -110, 44, 6.4],
+      // stepping stones along the long crossings
+      [-1, 330, -630, 50, 7.0], [-1, 860, -10, 50, 7.0], [-1, 900, 700, 50, 7.0], [-1, 190, 930, 50, 7.0],
+      [-1, -560, 470, 50, 7.0], [-1, -770, -240, 50, 7.0], [-1, -290, -790, 50, 7.0],
+      [-1, -420, 80, 48, 6.6], [-1, -320, -330, 48, 6.6], [-1, 60, -470, 48, 6.6],
     ];
     this.islands = islands;
     this.list = this.defs.map((d) => ({ x: 0, z: 0, r: d[3], w: d[4], vis: 1 }));
@@ -1026,7 +1078,7 @@ export class Thermals {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
     g.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 4));
-    this.uTherm = { value: Array.from({ length: 12 }, () => new THREE.Vector4()) };
+    this.uTherm = { value: Array.from({ length: 32 }, () => new THREE.Vector4()) };
     const m = new THREE.Points(g, new THREE.ShaderMaterial({
       vertexShader: THERM_VS, fragmentShader: THERM_FS, uniforms: { ...U, uTherm: this.uTherm },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,

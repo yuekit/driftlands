@@ -53,5 +53,40 @@
   "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(10)",
   "wait": 6000,
   "name": "under-verdigris"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(11)",
+  "wait": 6000,
+  "name": "windgate-ring"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(12)",
+  "wait": 6000,
+  "name": "glasswing-spires"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(13)",
+  "wait": 6000,
+  "name": "ember-dusk"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(14)",
+  "wait": 6000,
+  "name": "ember-night"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(15)",
+  "wait": 6000,
+  "name": "mire-lake"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(16)",
+  "wait": 6000,
+  "name": "under-rootfall"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(17)",
+  "wait": 6000,
+  "name": "glasswing-night"
  }
 ]

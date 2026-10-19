@@ -23,6 +23,18 @@ const TAG_TEXT = {
   'polyp:nightglow': 'open at night, glowing from the core', 'kite:nightglow': 'flying after dark with a glowing ribbon',
   'crawler:nightglow': 'spots glowing as it crawls in the dark', nightrise: 'rising high in a glowing swarm at night',
   nightsong: 'singing at night, flank lights blazing',
+  gate: 'threading the stone ring', spire: 'climbing a glass spire', root: 'coiled around a hanging root',
+  wade: 'wading through the lake shallows',
+  'swift:flock': 'racing laps through the stone ring', 'swift:nightglow': 'tracing the ring after dark, ribbon glowing',
+  'ray:circle': 'gliding wide loops around the gate', 'ray:song': 'humming, flank lights pulsing', 'ray:close': 'banking past within a wingspan',
+  'glassworm:crawl': 'sliding over the crystal', 'glassworm:nightglow': 'lit from inside like a lamp in glass',
+  'moth:flock': 'drifting in a loose cloud between the spires', 'moth:nightglow': 'glowing faintly as it wanders the spires',
+  'strider:graze': 'licking minerals from the warm ash', 'strider:walk': 'picking its way across the cinders', 'strider:alert': 'freezing, antennae raised toward the glider',
+  'cinderbell:drift': 'riding the warm air above the crater', 'cinderbell:flare': 'flashing like a spark and dropping away', 'cinderbell:nightrise': 'rising out of the crater like embers',
+  'wader:graze': 'probing the shallows with its bill', 'wader:walk': 'stepping carefully along the shore', 'wader:alert': 'craning its neck at the glider',
+  'lily:open': 'floating open on the still water', 'lily:closing': 'folding shut and dipping under', 'lily:nightglow': 'glowing on the dark lake',
+  'veil:open': 'hanging open beneath the roots', 'veil:closing': 'drawing up its fringe as the glider passed', 'veil:nightglow': 'glowing like a lantern under the island',
+  'rootworm:crawl': 'winding down a hanging root', 'rootworm:nightglow': 'spots glowing among the dark roots',
 };
 export const tagText = (id, t) => TAG_TEXT[id + ':' + t] || TAG_TEXT[t] || t;
 
@@ -330,7 +342,10 @@ export class Game {
     this.updateConvergence(dt);
     this.world.thermals.update();
     this.world.rocks.update(this.time);
-    this.world.islands.forEach((I, i) => this.pipe.cloudMat.uniforms.uIsl.value[i].set(I.pos.x, I.pos.y, I.pos.z, I.spec.radius));
+    // the cloud pass shades and mists only around the islands nearest the camera
+    const cp = this.camera.position, uI = this.pipe.cloudMat.uniforms.uIsl.value;
+    const near = this.world.islands.slice().sort((a, b) => a.pos.distanceToSquared(cp) - b.pos.distanceToSquared(cp));
+    uI.forEach((v, i) => { const I = near[i]; if (I) v.set(I.pos.x, I.pos.y, I.pos.z, I.spec.radius); else v.set(0, -1e5, 0, 1); });
     const ctx = { time: this.time, glider: this.glider, camPos: this.camera.position, camera: this.camera, night: this.night || 0, audio: this.state === 'play' ? this.audio : null };
     if (dt > 0) this.eco.update(dt, ctx);
     this.debris.update(dt);
@@ -369,7 +384,10 @@ export class Game {
     if (!render) return;
     const focus = this.glider.pos.clone().addScaledVector(this.glider.fwd, 70);
     if (this.debugCam) focus.set(...this.debugCam.t);
-    for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0);
+    const fr = this._frustum || (this._frustum = new THREE.Frustum()), pm = this._pm || (this._pm = new THREE.Matrix4());
+    this.camera.updateMatrixWorld();
+    fr.setFromProjectionMatrix(pm.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
+    for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0, fr);
     this.renderer.info.reset();
     if (this.pipe.timer && this.pipe.timer.enabled) this.pipe.timer.begin('shadow');
     if (this.motes) this.motes.update();
@@ -396,6 +414,11 @@ export class Game {
       { lift: [0.0, 0.012, 0.016], gain: [0.99, 1.02, 0.98] },   // Verdigris: teal shadows, fresh greens
       { lift: [0.016, 0.0, 0.022], gain: [1.03, 0.99, 0.92] },   // Ochre: violet shadows, warm but tamed highlights
       { lift: [0.02, 0.0, 0.014], gain: [1.02, 0.97, 1.0] },     // Coral: rose shadows
+      { lift: [0.012, 0.006, 0.018], gain: [1.03, 1.0, 0.95] },  // Windgate: lilac shadows, gold light
+      { lift: [0.0, 0.01, 0.022], gain: [0.97, 1.0, 1.04] },     // Glasswing: cool and clear
+      { lift: [0.022, 0.004, 0.0], gain: [1.04, 0.97, 0.92] },   // Ember: smoky warmth
+      { lift: [0.004, 0.014, 0.01], gain: [0.98, 1.02, 0.99] },  // Mire: damp greens
+      { lift: [0.01, 0.012, 0.004], gain: [1.02, 1.01, 0.95] },  // Rootfall: mossy, warm
     ];
     const lift = fu.uLift.value.set(0, 0, 0), gain = fu.uGain.value.set(0, 0, 0);
     let wsum = 0;

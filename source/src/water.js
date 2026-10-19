@@ -83,10 +83,10 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-export function waterMaterial(mirror, channel = false, flow = [0, 0]) {
+export function waterMaterial(mirror, channel = false, flow = [0, 0], on = mirror.uOn) {
   return new THREE.ShaderMaterial({
     vertexShader: WATER_VS, fragmentShader: WATER_FS,
-    uniforms: { ...U, tMirror: mirror.uTex, uMirrorMat: mirror.uMat, uMirrorOn: mirror.uOn, uChannel: { value: channel ? 1 : 0 }, uFlow: { value: new THREE.Vector2(...flow) } },
+    uniforms: { ...U, tMirror: mirror.uTex, uMirrorMat: mirror.uMat, uMirrorOn: on, uChannel: { value: channel ? 1 : 0 }, uFlow: { value: new THREE.Vector2(...flow) } },
   });
 }
 
@@ -102,25 +102,40 @@ export class Mirror {
     this.uMat = { value: new THREE.Matrix4() };
     this.uOn = { value: 0 };
     this.meshes = [];   // the water surfaces, hidden while rendering the reflection
-    this.anchor = null; // an object whose world position sits on the water plane
-    this.radius = 40;
+    // one entry per pool: an object whose world position sits on the water plane, and the switch its materials read;
+    // only the nearest visible pool gets the reflection each frame (the others fall back to the sky)
+    this.pools = [];
+    this.active = null;
     this._v = new THREE.Vector3(); this._p = new THREE.Vector3(); this._t = new THREE.Vector3();
     this._plane = new THREE.Plane(); this._clip = new THREE.Vector4(); this._q = new THREE.Vector4();
     this._frustum = new THREE.Frustum(); this._m = new THREE.Matrix4(); this._s = new THREE.Sphere();
   }
+  addPool(anchor, radius) {
+    const on = { value: 0 };
+    this.pools.push({ anchor, radius, on });
+    return on;
+  }
   render(scene, camera, W, H) {
-    const was = this.uOn.value;
-    this.uOn.value = 0;
-    if (!this.enabled || !this.anchor) return;
-    const P = this.anchor.getWorldPosition(this._p);
+    const prev = this.active, was = prev ? prev.on.value : 0;
+    for (const p of this.pools) p.on.value = 0;
+    this.active = null;
+    if (!this.enabled || !this.pools.length) return;
     const cp = camera.position;
-    if (cp.y < P.y + 0.2 || cp.distanceTo(P) > 650) return;
     this._m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(this._m);
-    if (!this._frustum.intersectsSphere(this._s.set(P, this.radius))) return;
+    let best = null, bd = 650;
+    for (const pool of this.pools) {
+      const P = pool.anchor.getWorldPosition(this._p);
+      const d = cp.distanceTo(P);
+      if (cp.y < P.y + 0.2 || d > bd || !this._frustum.intersectsSphere(this._s.set(P, pool.radius))) continue;
+      best = pool; bd = d;
+    }
+    if (!best) return;
+    this.active = best;
+    const P = best.anchor.getWorldPosition(this._p);
     // refresh every other frame: the last one stays valid (its own matrix projects it) and ripples hide the lag
     this.tick = (this.tick || 0) + 1;
-    if (was === 1 && this.tick % 2) { this.uOn.value = 1; return; }
+    if (best === prev && was === 1 && this.tick % 2) { best.on.value = 1; return; }
     const w = Math.max(2, Math.round(W * this.scale)), h = Math.max(2, Math.round(H * this.scale));
     if (this.rt.width !== w || this.rt.height !== h) this.rt.setSize(w, h);
 
@@ -145,14 +160,14 @@ export class Mirror {
     this.uMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
       .multiply(camera.projectionMatrix).multiply(c.matrixWorldInverse);
 
-    const r = this.renderer, prev = r.getRenderTarget();
+    const r = this.renderer, prevRT = r.getRenderTarget();
     for (const m of this.meshes) m.visible = false;
     U.uCamPos.value.copy(c.position);
     r.setRenderTarget(this.rt);
     r.render(scene, c);
     U.uCamPos.value.copy(cp);
     for (const m of this.meshes) m.visible = true;
-    r.setRenderTarget(prev);
-    this.uOn.value = 1;
+    r.setRenderTarget(prevRT);
+    best.on.value = 1;
   }
 }

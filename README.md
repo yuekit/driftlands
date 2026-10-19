@@ -2,6 +2,8 @@
 
 Ride the warm air between floating islands and record the strange life on each one in your field journal, before the islands collide.
 
+The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Coral Rookery in the middle, and five outer islands, each with its own life: Windgate (a stone ring that swifts and sky rays fly through), the Glasswing Spires (glass centipedes and spire moths), the Ember Caldera (ash striders and cinderbells over a warm crater), Mirewater Shoal (waders and floating lilies on a still lake) and Rootfall Hollow (veil blooms and root worms beneath a curtain of hanging roots). The journal holds seventeen species.
+
 ## Play
 
 Open `Driftlands.html` in a recent desktop Chrome, Edge, Safari or Firefox (WebGL 2). It is fully self-contained and runs offline; with a connection it also loads its web fonts. Progress is saved in the browser's local storage.
@@ -32,10 +34,10 @@ node build.mjs --dev           # unminified
 | Module | Role |
 | --- | --- |
 | main.js, boot.js, worker.js | Startup, asset loading, island worker |
-| islands-sdf.js, mesher.js, noise.js | Island SDFs, surface-nets meshing, baked AO and sun |
+| islands-sdf.js, mesher.js, noise.js | The eight island SDFs, surface-nets meshing, baked AO and sun |
 | world.js, kit.js, texgen.js | Islands, sky, water, falls, flora, boulders, floating rocks, thermals, GPU textures |
 | glider.js, glidermodel.js | Flight model, chase camera, Blender glider, scarf and trails |
-| creatures.js, tubes.js, skins.js, parts.js | Species, behaviours, tube bodies, eyes, skins, sculpted parts |
+| creatures.js, tubes.js, skins.js, parts.js | Seventeen species on six body plans (walker, sessile, flyer, crawler, drifter, leviathan), behaviours, tube bodies, eyes, skins, sculpted parts |
 | game.js, input.js, ui.js, audio.js, cycle.js | Game loop, lens and journal, convergence, controls, HUD, sound, day-night |
 | glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA, lens depth of field, grading) |
 | cloudgen.js | Tileable 3D cloud noise generated on the GPU at startup |
@@ -46,7 +48,7 @@ node build.mjs --dev           # unminified
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
-Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eight golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eight headless and `tools/sheet.py` makes a side-by-side contact sheet.
+Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eighteen golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eighteen headless and `tools/sheet.py` makes a side-by-side contact sheet.
 
 `window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
 

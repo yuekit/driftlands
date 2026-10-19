@@ -1,4 +1,4 @@
-// Procedural creatures: one genome schema, an instanced part renderer, and seven species behaviours.
+// Procedural creatures: one genome schema, an instanced part renderer, and six body plans shared by seventeen species.
 import * as THREE from 'three';
 import { U, COMMON } from './glsl.js';
 import { mulberry32 } from './noise.js';
@@ -60,6 +60,62 @@ export const SPECIES = [
     genome: { segs: 14, length: 64, girth: 10.5, fin: 26, colA: [0.42, 0.07, 250], colB: [0.80, 0.06, 45], pattern: 3, pscale: 1, glow: 0.0, speed: 10, count: 1 },
     size: 'about 64 m long', hint: 'Something enormous circles above the Coral Rookery.',
   },
+  // ---- the outer islands
+  {
+    id: 'swift', behaviours: ['flock', 'gate', 'escort', 'nightglow'], plan: 'flyer', island: 3, common: 'Gate swift', latin: 'Vexillum portae',
+    genome: { span: 2.6, body: 1.2, tail: 4.5, flap: 5.5, colA: [0.32, 0.05, 290], colB: [0.92, 0.09, 85], pattern: 1, pscale: 1, glow: 0.05, speed: 21, count: 12,
+      orbitR: [55, 95], orbitY: [-8, 8], gate: true, ribbon: [[0.96, 0.82, 0.42], [1.0, 0.95, 0.75]] },
+    size: 'wingspan about 5 m', hint: 'Small dark fliers thread the great stone ring of Windgate, over and over.',
+  },
+  {
+    id: 'ray', behaviours: ['circle', 'gate', 'close', 'song'], plan: 'leviathan', island: 3, common: 'Windgate sky ray', latin: 'Aeroraja anulata',
+    genome: { segs: 10, length: 26, girth: 4.4, fin: 15, colA: [0.46, 0.06, 300], colB: [0.86, 0.05, 70], pattern: 3, pscale: 1, glow: 0.1, speed: 12, count: 3, R: 170, gate: true },
+    size: 'about 26 m long, fins 30 m across', hint: 'Three broad shapes glide through the Windgate ring in turn.',
+  },
+  {
+    id: 'glassworm', behaviours: ['crawl', 'spire', 'inverted', 'nightglow'], plan: 'crawler', island: 4, common: 'Glass centipede', latin: 'Lithoscolex vitreus',
+    genome: { segs: 11, segLen: 1.8, segR: 1.05, leg: 1.9, antenna: 2.6, colA: [0.86, 0.05, 205], colB: [0.76, 0.12, 175], pattern: 2, pscale: 1.2, glow: 0.3, speed: 2.0, count: 5, zone: 'spires', glass: true },
+    size: 'about 20 m long, nearly transparent', hint: 'Something clear as glass climbs the Glasswing Spires.',
+  },
+  {
+    id: 'moth', behaviours: ['flock', 'escort', 'nightglow'], plan: 'flyer', island: 4, common: 'Prism moth', latin: 'Taeniopteryx iridescens',
+    genome: { span: 1.9, body: 0.9, tail: 2.2, flap: 7, colA: [0.78, 0.10, 250], colB: [0.90, 0.12, 160], pattern: 3, pscale: 1, glow: 0.4, speed: 10, count: 16,
+      orbitR: [30, 80], orbitY: [15, 95], ribbon: [[0.55, 0.85, 1.0], [0.95, 0.75, 1.0]] },
+    size: 'wingspan about 4 m', hint: 'Bright flecks of colour flutter between the Glasswing Spires.',
+  },
+  {
+    id: 'strider', behaviours: ['walk', 'graze', 'alert', 'sleep'], plan: 'walker', island: 5, common: 'Cinder strider', latin: 'Gressor cinereus',
+    genome: { legs: 6, upper: 3.6, lower: 4.4, segs: 4, segR: 1.25, neck: 2.8, head: 0.85, tail: 3.2,
+      colA: [0.34, 0.03, 30], colB: [0.72, 0.17, 45], pattern: 1, pscale: 1.2, glow: 0.45, speed: 1.8, count: 5, segmented: true, antenna: 2.2, iris: [1.0, 0.45, 0.1] },
+    size: 'about 7 m tall, 10 m long', hint: 'Dark six-legged walkers patrol the rim of the Ember Caldera.',
+  },
+  {
+    id: 'cinderbell', behaviours: ['drift', 'flare', 'nightrise'], plan: 'drifter', island: 5, common: 'Cinder bell', latin: 'Pharomedusa ignea',
+    genome: { bell: 1.7, tentacles: 5, tentLen: 4.5, colA: [0.66, 0.13, 45], colB: [0.78, 0.18, 28], pattern: 3, pscale: 1, glow: 0.6, count: 16,
+      shell: [0, 52], yr: [6, 90, 150], core: [1.0, 0.55, 0.15] },
+    size: 'bell about 3 m across', hint: 'Small warm lights ride the hot air rising from the Ember Caldera.',
+  },
+  {
+    id: 'wader', behaviours: ['walk', 'wade', 'graze', 'alert', 'sleep'], plan: 'walker', island: 6, common: 'Reed wader', latin: 'Stelocaulis limicola',
+    genome: { legs: 4, upper: 5.0, lower: 6.8, segs: 2, segR: 0.8, neck: 5.6, head: 0.6, tail: 1.2,
+      colA: [0.91, 0.04, 20], colB: [0.64, 0.13, 15], pattern: 3, pscale: 1, glow: 0, speed: 1.4, count: 8, legR: 0.55, iris: [0.98, 0.85, 0.2] },
+    size: 'about 9 m tall on very thin legs', hint: 'Pale long-legged shapes wade in the lake on Mirewater Shoal.',
+  },
+  {
+    id: 'lily', behaviours: ['open', 'closing', 'nightglow'], plan: 'sessile', island: 6, common: 'Mire lily', latin: 'Calyx paludosa',
+    genome: { stalk: 1.4, petals: 10, petalLen: 3.6, head: 0.9, colA: [0.92, 0.05, 330], colB: [0.80, 0.12, 350], pattern: 3, pscale: 1, glow: 0.45, count: 20, place: 'water' },
+    size: 'crown about 6 m across', hint: 'Flowers float on the lake at Mirewater Shoal and fold shut when something passes.',
+  },
+  {
+    id: 'veil', behaviours: ['open', 'closing', 'nightglow'], plan: 'sessile', island: 7, common: 'Veil bloom', latin: 'Florimedusa pendula',
+    genome: { stalk: 7, petals: 6, petalLen: 4.2, head: 1.1, colA: [0.86, 0.07, 95], colB: [0.78, 0.14, 150], pattern: 3, pscale: 1, glow: 0.55, count: 18, place: 'under' },
+    size: 'hangs about 9 m', hint: 'Something blooms upside down beneath Rootfall Hollow. Fly under the island.',
+  },
+  {
+    id: 'rootworm', behaviours: ['crawl', 'inverted', 'root', 'nightglow'], plan: 'crawler', island: 7, common: 'Root centipede', latin: 'Fornicipes radicicola',
+    genome: { segs: 13, segLen: 2.0, segR: 1.3, leg: 2.2, antenna: 3.0, colA: [0.42, 0.08, 60], colB: [0.80, 0.13, 95], pattern: 2, pscale: 1.3, glow: 0.2, speed: 2.2, count: 5, zone: 'under' },
+    size: 'about 26 m long', hint: 'Long bodies coil around the hanging roots under Rootfall Hollow.',
+  },
   {
     id: 'hybrid', behaviours: ['walk', 'graze', 'alert', 'seam', 'sleep'],  plan: 'walker', island: -1, common: 'Seam strider', hybrid: ['stilt', 'crawler'],
     genome: null,
@@ -79,13 +135,17 @@ export function crossover(a, b, seed) {
     glow: 0.15, speed: 1.9, count: 4, antenna: gb.antenna,
   };
 }
-SPECIES[6].genome = crossover(SPECIES[0], SPECIES[3], 77);
+SPECIES.find((s) => s.id === 'hybrid').genome = crossover(SPECIES[0], SPECIES[3], 77);
 
 // latin binomial from genome traits
 const ROOTS = { walker: ['Altipes', 'Gressor', 'Stelocaulis'], sessile: ['Anthopolyp', 'Florimedusa', 'Calyx'], flyer: ['Taeniopteryx', 'Aeroraja', 'Vexillum'],
   crawler: ['Arcuscolex', 'Fornicipes', 'Lithoscolex'], drifter: ['Lucernula', 'Nubimedusa', 'Pharomedusa'], leviathan: ['Nubicetus', 'Aerobalaena', 'Caelocetus'] };
 const EPITHETS = ['verdigris', 'ochracea', 'corallina', 'pellucida', 'longipes', 'vagans', 'serena', 'aurantia', 'caerulea', 'pulsans', 'migrans', 'hybrida'];
 for (const sp of SPECIES) {
+  sp.colA = oklchToLinear(...sp.genome.colA);
+  sp.colB = oklchToLinear(...sp.genome.colB);
+  if (sp.genome.iris) sp.iris = new THREE.Vector3(...sp.genome.iris);
+  if (sp.latin) continue;
   const r = mulberry32(sp.id.length * 131 + sp.id.charCodeAt(0));
   const roots = ROOTS[sp.plan];
   const genus = roots[Math.floor(r() * roots.length)];
@@ -98,8 +158,6 @@ for (const sp of SPECIES) {
   else if (sp.id === 'whale') ep = 'serena';
   else ep = 'pellucida';
   sp.latin = `${genus} ${ep}`;
-  sp.colA = oklchToLinear(...sp.genome.colA);
-  sp.colB = oklchToLinear(...sp.genome.colB);
 }
 // skins from the Blender library: [layer, tile size in metres, strength]
 const SKINS = {
@@ -110,6 +168,16 @@ const SKINS = {
   crawler: { skin: [SKIN.chitin, 1.9, 1.0], legs: [SKIN.chitin, 0.8, 0.8] },
   lantern: { skin: [SKIN.jelly, 3.2, 0.9] },
   whale: { skin: [SKIN.hide, 5.5, 1.0], fin: [SKIN.hide, 3.0, 0.9] },
+  swift: { skin: [SKIN.hide, 0.8, 0.6], wing: [SKIN.membrane, 1.2, 0.7] },
+  ray: { skin: [SKIN.hide, 3.0, 0.9], fin: [SKIN.membrane, 2.6, 0.8] },
+  glassworm: { skin: [SKIN.jelly, 1.6, 0.8], legs: [SKIN.jelly, 0.8, 0.6] },
+  moth: { skin: [SKIN.hide, 0.6, 0.5], wing: [SKIN.membrane, 0.9, 0.8] },
+  strider: { skin: [SKIN.chitin, 1.8, 1.0], legs: [SKIN.chitin, 1.0, 0.9], fin: [SKIN.membrane, 1.2, 0.8] },
+  cinderbell: { skin: [SKIN.jelly, 2.0, 0.9] },
+  wader: { skin: [SKIN.pebble, 1.2, 0.7], legs: [SKIN.hide, 0.8, 0.8], fin: [SKIN.membrane, 1.0, 0.8] },
+  lily: { skin: [SKIN.plant, 1.2, 0.9], fin: [SKIN.membrane, 1.4, 0.9] },
+  veil: { skin: [SKIN.plant, 1.4, 0.9], fin: [SKIN.membrane, 1.6, 0.9] },
+  rootworm: { skin: [SKIN.chitin, 1.7, 1.0], legs: [SKIN.chitin, 0.8, 0.8] },
 };
 for (const sp of SPECIES) { const k = SKINS[sp.id]; if (k) { sp.skin = k.skin; sp.partSkin = k.fin || null; sp.skins = k; } }
 
@@ -270,7 +338,7 @@ class Draw {
     if (!parts) return;
     const G = parts.geos, T = parts.tex;
     this.parts = {};
-    for (const [name, max, thin] of [['StiltHead', 12, 0], ['HybridHead', 8, 0], ['CrawlerHead', 10, 0], ['WhaleHead', 2, 0], ['WhaleFin', 8, 1], ['WhaleFluke', 2, 1]])
+    for (const [name, max, thin] of [['StiltHead', 24, 0], ['HybridHead', 16, 0], ['CrawlerHead', 24, 0], ['WhaleHead', 6, 0], ['WhaleFin', 24, 1], ['WhaleFluke', 6, 1]])
       if (G[name]) this.parts[name] = new MeshPool(this.scene, G[name], T, max, { thin: !!thin });
     if (G.PolypPetal) this.pPetal = new PartPool(G.PolypPetal.clone(), 1200, this.scene, 1, 'fin');
   }
@@ -588,6 +656,12 @@ class Walker {
     this.sun = this.home.island.shadeAt(this.pos.x, this.pos.z) * 0.85 + 0.15;
     // behaviour tags for the journal
     this.tag = dg < 70 ? 'alert' : this.state === 'sleep' ? 'sleep' : this.state === 'graze' ? 'graze' : speed > 0.5 ? 'walk' : 'rest';
+    // waders: walking in the lake
+    const pool = this.home.island.spec.pool;
+    if (this.tag === 'walk' && pool && this.sp.behaviours.includes('wade')) {
+      const lx = this.pos.x - this.home.island.pos.x - pool.c[0], lz = this.pos.z - this.home.island.pos.z - pool.c[2];
+      if ((lx / pool.r[0]) ** 2 + (lz / pool.r[1]) ** 2 < 0.85) this.tag = 'wade';
+    }
     if (this.sp.id === 'hybrid') {
       const hw = this.homeWorld();
       if (Math.hypot(this.pos.x - hw.x, this.pos.z - hw.z) < 32 && this.tag !== 'alert' && this.tag !== 'sleep') this.tag = 'seam';
@@ -597,12 +671,13 @@ class Walker {
   draw(D, ctx) {
     if (!this.fw) return;
     const g = this.g, sp = this.sp, sun = this.sun;
-    const lsp = this.legSp || (this.legSp = { ...sp, patOverride: sp.id === 'hybrid' ? 2 : 0, skin: sp.skins.legs });
+    const segd = sp.id === 'hybrid' || !!g.segmented;   // segmented, insect-like body and the hybrid head
+    const lsp = this.legSp || (this.legSp = { ...sp, patOverride: segd ? 2 : 0, skin: sp.skins.legs });
     const far = ctx.camPos.distanceTo(this.pos);
     if (far > 1500 || !ctx.visible(this.pos, this.radius * 1.6)) return;
     const lod = far < 160 ? 1 : far < 400 ? 0.55 : 0.3;
     const fw = this.fw, rt = this.rt;
-    const hybrid = this.sp.id === 'hybrid';
+    const hybrid = segd;
     // head target
     const base = this.pos.clone().addScaledVector(fw, this.bodyLen * 0.5 + g.segR * 0.3); base.y += g.segR * 0.35;
     let head;
@@ -666,7 +741,8 @@ class Walker {
       const ankle = l.foot.clone().lerp(knee, 0.14);
       const thigh = hip.clone().lerp(knee, 0.45), shin = knee.clone().lerp(ankle, 0.5);
       const toe = l.foot.clone().addScaledVector(fw, 0.25);
-      D.tube([hip, thigh, knee, shin, ankle, toe], [g.segR * 0.4, g.segR * 0.24, 0.36, 0.2, 0.27, 0.3],
+      const lr = g.legR || 1;
+      D.tube([hip, thigh, knee, shin, ankle, toe], [g.segR * 0.4, g.segR * 0.24, 0.36 * lr, 0.2 * lr, 0.27 * lr, 0.3 * lr],
         { rings: Math.max(6, Math.round(20 * lod)), sp: lsp, sun, up: fw });
       if (far < 300) D.ellipsoid(toe.clone().addScaledVector(UP, 0.05), _q.setFromAxisAngle(UP, this.heading), 0.38, 0.22, 0.45, hybrid ? lsp : SP_HOOF, sun);
     }
@@ -682,7 +758,7 @@ class Walker {
         let ep, eq, er;
         if (hq2) { const A = ANCHORS[headName]; ep = anchorW(head, hq2, A.eye, g.head, s); eq = splayQ(hq2, s * 0.95); er = A.eyeR * g.head * 1.04; }
         else { ep = head.clone().addScaledVector(ex, s * g.head * 0.46).addScaledVector(eu, g.head * 0.18).addScaledVector(hd, g.head * 0.12); eq = splayQ(hq, s * 0.85); er = 0.27 * g.head; }
-        D.eye(ep, eq, er, { lid: sp.colA, iris: hybrid ? IRIS.hybrid : IRIS.stilt, pupil: hybrid ? 1 : 2, blink, gaze: this.gz.look(ep, eq, tgt), glow: hybrid ? 0.25 : 0, sun: this.sun, irisR: 0.66 });
+        D.eye(ep, eq, er, { lid: sp.colA, iris: sp.iris || (hybrid ? IRIS.hybrid : IRIS.stilt), pupil: hybrid ? 1 : 2, blink, gaze: this.gz.look(ep, eq, tgt), glow: hybrid ? 0.25 : 0, sun: this.sun, irisR: 0.66 });
       }
       // crest
       if (!hq2) D.finAt(head.clone().addScaledVector(eu, g.head * 0.35).addScaledVector(hd, -g.head * 0.3), hq.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, Math.PI / 2 - 0.35))), g.head * 2.4, g.head * 1.3, sp, sun);
@@ -723,7 +799,7 @@ class Polyp {
     if (want === 0 && this.open > 0.6 && ctx.audio && dg < 120) ctx.audio.polypClose(this.top);
     this.open += (want - this.open) * Math.min(1, dt * (want ? 0.5 : 5));
     this.tag = this.open < 0.5 ? 'closing' : (ctx.night || 0) > 0.6 ? 'nightglow' : 'open';
-    this.sun = this.island.shadeAt(this.top.x, this.top.z) * 0.8 + 0.2;
+    this.sun = this.normal.y < -0.3 ? 0.3 : this.island.shadeAt(this.top.x, this.top.z) * 0.8 + 0.2;
   }
   draw(D, ctx) {
     if (!this.top || ctx.camPos.distanceTo(this.top) > 1300 || !ctx.visible(this.top, 14)) return;
@@ -768,9 +844,13 @@ const SP_CORE = { colA: new THREE.Vector3(1.0, 0.62, 0.22), colB: new THREE.Vect
 class Kite {
   constructor(sp, island, rnd, idx) {
     this.sp = sp; this.g = sp.genome; this.island = island; this.rnd = rnd; this.idx = idx;
-    const a = rnd() * 6.28;
-    this.orbitR = 120 + rnd() * 70; this.orbitY = 25 + rnd() * 50; this.dir = 1;
-    this.pos = new THREE.Vector3(Math.cos(a) * this.orbitR, this.orbitY, Math.sin(a) * this.orbitR).add(island.pos);
+    const a = rnd() * 6.28, g = this.g, oR = g.orbitR || [120, 190], oY = g.orbitY || [25, 75];
+    this.orbitR = oR[0] + rnd() * (oR[1] - oR[0]); this.orbitY = oY[0] + rnd() * (oY[1] - oY[0]); this.dir = 1;
+    // gate fliers orbit a centre beside the ring, so every lap passes straight through it
+    const gate = g.gate && island.spec.gate;
+    this.orbitC = gate ? new THREE.Vector3(...gate.c).add(new THREE.Vector3(this.orbitR, 0, 0)) : new THREE.Vector3();
+    this.gateT = 0;
+    this.pos = new THREE.Vector3(Math.cos(a) * this.orbitR, this.orbitY, Math.sin(a) * this.orbitR).add(this.orbitC).add(island.pos);
     this.vel = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a)).multiplyScalar(this.g.speed);
     this.trail = Array.from({ length: 14 }, () => this.pos.clone());
     this.flapPhase = rnd() * 6; this.flapAmt = 0;
@@ -781,7 +861,7 @@ class Kite {
   }
   update(dt, ctx, flock) {
     const g = this.g, gl = ctx.glider;
-    const c = this.island.pos;
+    const c = this.island.pos.clone().add(this.orbitC);
     const rel = this.pos.clone().sub(c);
     const dg = gl.pos.distanceTo(this.pos);
     if (this.curious && dg < 140 && !gl.perched && this.escort <= 0 && Math.random() < dt * 0.6) this.escort = 14 + Math.random() * 12;
@@ -802,6 +882,12 @@ class Kite {
       desired = tangent;
       this.tag = (ctx.night || 0) > 0.6 ? 'nightglow' : 'flock';
     }
+    if (g.gate && this.island.spec.gate) {
+      const gc = this.island.spec.gate.c, ip = this.island.pos;
+      if (Math.hypot(this.pos.x - ip.x - gc[0], this.pos.y - ip.y - gc[1], this.pos.z - ip.z - gc[2]) < 26) this.gateT = 1.5;
+      this.gateT -= dt;
+      if (this.gateT > 0 && this.escort <= 0) this.tag = 'gate';
+    }
     // separation
     for (const o of flock) if (o !== this) {
       const d = this.pos.distanceTo(o.pos);
@@ -810,7 +896,8 @@ class Kite {
     if (dg < 10) desired.addScaledVector(this.pos.clone().sub(gl.pos).normalize(), (10 - dg) * 3);
     // avoid rock
     const d = this.island.sdfWorld(this.pos.x, this.pos.y, this.pos.z);
-    if (d < 14) desired.y += (14 - d) * 2;
+    const clear = g.gate ? 6 : 14;
+    if (d < clear) desired.y += (clear - d) * 2;
     const maxSp = this.escort > 0 ? 70 : g.speed * 1.4;
     if (desired.length() > maxSp) desired.setLength(maxSp);
     const prevY = this.vel.y;
@@ -834,9 +921,9 @@ class Kite {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
     const lod = far < 200 ? 1 : 0.5;
     // manta body
-    const P = this.pos;
+    const P = this.pos, bk = g.body / 2.5;
     D.tube([P.clone().addScaledVector(fw, g.body * 1.05), P.clone().addScaledVector(fw, g.body * 0.45), P.clone().addScaledVector(fw, -g.body * 0.3), P.clone().addScaledVector(fw, -g.body * 1.0)],
-      [0.25, 1.15, 0.9, 0.2], { rings: Math.round(14 * lod) + 4, sp, squash: 0.45, up, pattern: 3 });
+      [0.25 * bk, 1.15 * bk, 0.9 * bk, 0.2 * bk], { rings: Math.round(14 * lod) + 4, sp, squash: 0.45, up, pattern: 3 });
     // flexible membrane wings: flattened tubes whose outer half lags the flap
     const flap = Math.sin(this.flapPhase) * (0.12 + 0.6 * this.flapAmt);
     const flap2 = Math.sin(this.flapPhase - 0.9) * (0.12 + 0.75 * this.flapAmt);
@@ -844,7 +931,7 @@ class Kite {
     for (const s of [-1, 1]) {
       const out1 = side.clone().multiplyScalar(s).applyAxisAngle(fw, -flap * s);
       const out2 = side.clone().multiplyScalar(s).applyAxisAngle(fw, -flap2 * s);
-      const root = P.clone().addScaledVector(side, s * 0.6).addScaledVector(fw, -0.2);
+      const root = P.clone().addScaledVector(side, s * 0.6 * bk).addScaledVector(fw, -0.2 * bk);
       const mid = root.clone().addScaledVector(out1, g.span * 0.5).addScaledVector(fw, -g.span * 0.12);
       const tip = mid.clone().addScaledVector(out2, g.span * 0.55).addScaledVector(fw, -g.span * 0.42);
       D.tube([root, mid, tip], [g.span * 0.42, g.span * 0.36, g.span * 0.05], { rings: Math.round(12 * lod) + 4, sp, squash: 0.07, up, pattern: 5, skin: sp.skins.wing });
@@ -854,23 +941,24 @@ class Kite {
       this.gz = this.gz || new Gaze(this.rnd, 1.4); this.gz.tick(ctx.time);
       const tgt = this.escort > 0 || ctx.glider.pos.distanceTo(P) < 80 ? ctx.glider.pos : null;
       for (const s of [-1, 1]) {
-        const ep = P.clone().addScaledVector(fw, g.body * 0.72).addScaledVector(ex, s * 0.48).addScaledVector(up, 0.14);
+        const ep = P.clone().addScaledVector(fw, g.body * 0.72).addScaledVector(ex, s * 0.48 * bk).addScaledVector(up, 0.14 * bk);
         const eq = splayQ(q, s * 1.05);
-        D.eye(ep, eq, 0.21, { lid: sp.colA, iris: IRIS.kite, pupil: 0, blink: this.gz.blink, gaze: this.gz.look(ep, eq, tgt, 0.7), glow: 0.15, sun: 1, irisR: 0.7 });
+        D.eye(ep, eq, 0.21 * Math.max(0.6, bk), { lid: sp.colA, iris: IRIS.kite, pupil: 0, blink: this.gz.blink, gaze: this.gz.look(ep, eq, tgt, 0.7), glow: 0.15, sun: 1, irisR: 0.7 });
       }
     }
     // ribbon tail
     if (far < 900) {
-      const pts = [P.clone().addScaledVector(fw, -g.body * 0.9)], rad = [0.35];
+      const pts = [P.clone().addScaledVector(fw, -g.body * 0.9)], rad = [0.35 * Math.sqrt(bk)];
       const sd = new THREE.Vector3().crossVectors(fw, UP).normalize();
       for (let i = 1; i < this.trail.length; i++) {
         const p = this.trail[i].clone();
         const k = i / this.trail.length;
         p.y += Math.sin(ctx.time * 6 - i * 0.7) * 0.6 * k;
         p.addScaledVector(sd, Math.sin(ctx.time * 4.3 - i * 0.55) * 1.2 * k);
-        pts.push(p); rad.push(0.42 * (1 - k) + 0.08);
+        pts.push(p); rad.push((0.42 * (1 - k) + 0.08) * Math.sqrt(bk));
       }
-      D.tube(pts, rad, { rings: Math.round(40 * lod), sp: SP_RIBBON, squash: 0.12, up: UP, pattern: 5, glow: 0.25 });
+      if (g.ribbon && !sp.ribbonSp) sp.ribbonSp = { ...SP_RIBBON, colA: new THREE.Vector3(...g.ribbon[0]), colB: new THREE.Vector3(...g.ribbon[1]) };
+      D.tube(pts, rad, { rings: Math.round(40 * lod), sp: sp.ribbonSp || SP_RIBBON, squash: 0.12, up: UP, pattern: 5, glow: 0.25 });
     }
   }
 }
@@ -887,7 +975,15 @@ class Crawler {
     this.center = new THREE.Vector3(); this.radius = 8;
     this.turn = 0; this.phase = 0; this.tag = 'crawl';
     this.settle();
-    for (let i = 0; i < 80; i++) this.hist.push({ p: this.local.clone(), n: this.normal.clone() });
+    this.heading.addScaledVector(this.normal, -this.heading.dot(this.normal)).normalize();
+    // lay down a trail behind the start so the body is whole before it has crawled a length
+    const head = this.local.clone(), hn = this.normal.clone();
+    for (let i = 0; i < 80; i++) {
+      this.hist.push({ p: this.local.clone(), n: this.normal.clone() });
+      this.local.addScaledVector(this.heading, -0.45); this.settle();
+      this.heading.addScaledVector(this.normal, -this.heading.dot(this.normal)).normalize();
+    }
+    this.local.copy(head); this.normal.copy(hn);
   }
   sdf(p) { return this.island.sdfFns.sdf(p.x, p.y, p.z); }
   grad(p) {
@@ -908,8 +1004,10 @@ class Crawler {
     this.turn += (this.rnd() - 0.5) * dt * 3; this.turn *= 0.98;
     const n = this.normal;
     this.heading.applyAxisAngle(n, this.turn * dt);
-    // bias: stay on the upper half of the island where it can be seen
-    if (this.local.y < -25) this.heading.addScaledVector(UP, 0.05);
+    // bias: stay where it can be seen: the upper half, the spires, or the hanging roots underneath
+    if (g.zone === 'under') { if (this.local.y > -34) this.heading.addScaledVector(UP, -0.06); }
+    else if (g.zone === 'spires') { if (this.local.y < 14) this.heading.addScaledVector(UP, 0.07); if (this.local.y > 110) this.heading.addScaledVector(UP, -0.05); }
+    else if (this.local.y < -25) this.heading.addScaledVector(UP, 0.05);
     if (Math.hypot(this.local.x, this.local.z) > this.island.spec.radius + 70) this.heading.addScaledVector(this.local.clone().setY(0).normalize(), -0.08);
     this.heading.addScaledVector(n, -this.heading.dot(n)).normalize();
     this.local.addScaledVector(this.heading, g.speed * dt);
@@ -918,7 +1016,11 @@ class Crawler {
     const last = this.hist[0];
     if (last.p.distanceTo(this.local) > 0.4) { this.hist.unshift({ p: this.local.clone(), n: this.normal.clone() }); if (this.hist.length > 120) this.hist.pop(); }
     this.center.copy(this.local).add(this.island.pos);
-    this.tag = (ctx.night || 0) > 0.6 ? 'nightglow' : this.normal.y < -0.3 ? 'inverted' : this.local.y > 8 ? 'arch' : 'crawl';
+    const zone = g.zone;
+    this.tag = (ctx.night || 0) > 0.6 ? 'nightglow' : this.normal.y < -0.3 ? 'inverted'
+      : zone === 'under' ? (this.local.y < -70 ? 'root' : 'crawl')
+      : zone === 'spires' ? (this.local.y > 18 ? 'spire' : 'crawl')
+      : this.local.y > 8 ? 'arch' : 'crawl';
   }
   draw(D, ctx) {
     const ip = this.island.pos, g = this.g, sp = this.sp;
@@ -955,8 +1057,8 @@ class Crawler {
       // sculpted head plate rides the first segment; the body tube starts behind it
       cq = basisQ(pts[0].clone().sub(pts[1]), this.normal);
       D.part('CrawlerHead', pts[1], cq, cs, sp, 1, 0, -1);
-      D.tube(pts.slice(1), rad.slice(1), { rings: far < 300 ? pts.length * 4 : pts.length * 2, sp, squash: 0.68, up: this.normal });
-    } else D.tube(pts, rad, { rings: far < 300 ? pts.length * 4 : pts.length * 2, sp, squash: 0.68, up: this.normal });
+      D.tube(pts.slice(1), rad.slice(1), { rings: far < 300 ? pts.length * 4 : pts.length * 2, sp, squash: 0.68, up: this.normal, glass: !!g.glass, boost: g.glass ? 0.3 + (ctx.night || 0) : 0 });
+    } else D.tube(pts, rad, { rings: far < 300 ? pts.length * 4 : pts.length * 2, sp, squash: 0.68, up: this.normal, glass: !!g.glass });
     if (far > 450) return;
     // legs on every segment
     for (let i = 1; i < pts.length - 1; i += 2) {
@@ -993,8 +1095,10 @@ class Crawler {
 class Lantern {
   constructor(sp, island, rnd, idx) {
     this.sp = sp; this.g = sp.genome; this.island = island; this.rnd = rnd;
-    const a = rnd() * 6.28, r = 110 + rnd() * 90;
-    this.local = new THREE.Vector3(Math.cos(a) * r, -50 + rnd() * 110, Math.sin(a) * r);
+    const g = sp.genome, sh = g.shell || [110, 200], yr = g.yr || [-50, 60, 130];
+    this.shell = sh; this.yr = yr;
+    const a = rnd() * 6.28, r = sh[0] + rnd() * (sh[1] - sh[0]);
+    this.local = new THREE.Vector3(Math.cos(a) * r, yr[0] + rnd() * (yr[1] - yr[0]), Math.sin(a) * r);
     this.vel = new THREE.Vector3();
     this.phase = rnd() * 6.28; this.period = 2.6 + rnd() * 1.4;
     this.axis = new THREE.Vector3(0, 1, 0);
@@ -1014,17 +1118,17 @@ class Lantern {
     this.flare = Math.max(0, this.flare - dt * 0.4);
     const nightL = (ctx.night || 0) > 0.6;
     this.tag = this.flare > 0.3 ? 'flare' : nightL ? 'nightrise' : 'drift';
-    if (nightL && this.local.y < 130) this.vel.y += dt * 0.9;
+    if (nightL && this.local.y < this.yr[2]) this.vel.y += dt * 0.9;
     // jet upward along axis during contraction
     this.vel.addScaledVector(this.axis, pulse * pulse * dt * 3.2);
     this.vel.y -= dt * 0.5;
     this.vel.addScaledVector(this.drift, dt * 0.3);
     // keep in their shell around the island
-    const rr = Math.hypot(this.local.x, this.local.z);
-    if (rr < 110) { this.vel.x += this.local.x / rr * dt * 2; this.vel.z += this.local.z / rr * dt * 2; }
-    if (rr > 220) { this.vel.x -= this.local.x / rr * dt * 2; this.vel.z -= this.local.z / rr * dt * 2; }
-    if (this.local.y < -70) this.vel.y += dt * 2;
-    if (this.local.y > ((ctx.night || 0) > 0.6 ? 140 : 80)) this.vel.y -= dt * 2;
+    const rr = Math.max(0.01, Math.hypot(this.local.x, this.local.z)), sh = this.shell;
+    if (rr < sh[0]) { this.vel.x += this.local.x / rr * dt * 2; this.vel.z += this.local.z / rr * dt * 2; }
+    if (rr > sh[1] + 20) { this.vel.x -= this.local.x / rr * dt * 2; this.vel.z -= this.local.z / rr * dt * 2; }
+    if (this.local.y < this.yr[0] - 20) this.vel.y += dt * 2;
+    if (this.local.y > ((ctx.night || 0) > 0.6 ? this.yr[2] + 10 : this.yr[1] + 20)) this.vel.y -= dt * 2;
     this.vel.multiplyScalar(1 - dt * 0.6);
     this.local.addScaledVector(this.vel, dt);
     this.axis.lerp(new THREE.Vector3(this.vel.x * 0.1, 1, this.vel.z * 0.1).normalize(), dt);
@@ -1067,7 +1171,8 @@ class Lantern {
       { rings: far < 300 ? 26 : 12, sp, boost, pattern: 5, up: side, glass: true, lobes: { k: 8, amp: 0.13, from: 0.45, to: 1.0, phase: this.phase * 0.2 } });
     // glowing core and mouth stalk hang inside the clear bell
     const core = C.clone().addScaledVector(A, b * 0.08);
-    D.sphere(core, b * 0.26 * (1 + pl * 0.15), SP_LCORE, 1, boost, 1.0);
+    if (g.core && !sp.coreSp) { sp.coreSp = { ...SP_LCORE, colA: new THREE.Vector3(...g.core), colB: new THREE.Vector3(...g.core) }; sp.gonadSp = { ...SP_GONAD, colA: new THREE.Vector3(...g.core), colB: new THREE.Vector3(...g.core).multiplyScalar(0.8) }; }
+    D.sphere(core, b * 0.26 * (1 + pl * 0.15), sp.coreSp || SP_LCORE, 1, boost, 1.0);
     D.tube([C.clone().addScaledVector(A, b * 0.05), C.clone().addScaledVector(A, -b * 0.45), C.clone().addScaledVector(A, -b * 0.95)], [b * 0.16, b * 0.12, b * 0.05],
       { rings: far < 300 ? 10 : 5, sp, boost: boost * 0.7, glow: 0.8, pattern: 5, up: side, lobes: { k: 4, amp: 0.35, from: 0.3, to: 1, phase: this.phase * 0.1 } });
     // four horseshoe gonads glowing inside the clear bell
@@ -1076,7 +1181,7 @@ class Lantern {
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2 + 0.4;
       const gp = C.clone().addScaledVector(A, b * 0.2).addScaledVector(s1, Math.cos(a) * b * 0.42).addScaledVector(s2, Math.sin(a) * b * 0.42);
-      D.ellipsoid(gp, gq, b * 0.24, b * 0.07, b * 0.24, SP_GONAD, 1, boost * 0.6, 0.7);
+      D.ellipsoid(gp, gq, b * 0.24, b * 0.07, b * 0.24, sp.gonadSp || SP_GONAD, 1, boost * 0.6, 0.7);
     }
     // frilled oral arms + fine tentacles
     for (let k = 0; k < this.tent.length; k++) {
@@ -1095,9 +1200,10 @@ const SP_LCORE = { colA: new THREE.Vector3(1.0, 0.62, 0.3), colB: new THREE.Vect
 
 // ------------------------------------------------------------------ sky whale
 class Whale {
-  constructor(sp, island) {
+  constructor(sp, island, idx = 0) {
     this.sp = sp; this.g = sp.genome; this.island = island;
-    this.ang = 0.6; this.R = 300;
+    this.R = (this.g.R || 300) + idx * 22; this.ang = 0.6 + idx * 2.094;
+    this.gate = this.g.gate ? island.spec.gate : null; this.gateT = 0;
     this.hist = [];
     this.center = new THREE.Vector3(); this.radius = 30;
     this.tag = 'circle'; this.songT = 6;
@@ -1107,6 +1213,11 @@ class Whale {
   }
   path(a, t) {
     const c = this.island.pos;
+    if (this.gate) {
+      // a level circle whose western point is the centre of the ring, crossed at right angles to it
+      const G = this.gate.c;
+      return new THREE.Vector3(c.x + G[0] + this.R + Math.cos(a) * this.R, c.y + G[1] + Math.sin(a * 2) * 10 + Math.sin(t * 0.1) * 2, c.z + G[2] + Math.sin(a) * this.R);
+    }
     return new THREE.Vector3(c.x + Math.cos(a) * this.R * (1 + 0.15 * Math.sin(a * 2)), c.y + 95 + Math.sin(a * 3) * 30 + Math.sin(t * 0.1) * 8, c.z + Math.sin(a) * this.R);
   }
   step(dt, t = 0) {
@@ -1119,7 +1230,13 @@ class Whale {
     this.center.copy(this.hist[Math.min(40, this.hist.length - 1)]);
     this.songT -= dt;
     this.tag = ctx.glider.pos.distanceTo(this.center) < 90 ? 'close' : 'circle';
-    if (this.songT < 0) { this.songT = ((ctx.night || 0) > 0.6 ? 7 : 14) + Math.random() * 12; this.singing = 4; if (ctx.audio) ctx.audio.whaleSong(this.center); }
+    if (this.gate) {
+      const ip = this.island.pos, G = this.gate.c;
+      if (Math.hypot(this.center.x - ip.x - G[0], this.center.y - ip.y - G[1], this.center.z - ip.z - G[2]) < 30) this.gateT = 2;
+      this.gateT -= dt;
+      if (this.gateT > 0) this.tag = 'gate';
+    }
+    if (this.songT < 0) { this.songT = ((ctx.night || 0) > 0.6 ? 7 : 14) + Math.random() * 12; this.singing = 4; if (ctx.audio) ctx.audio.whaleSong(this.center, this.g.length < 40 ? 2.4 : 1); }
     this.singing = Math.max(0, (this.singing || 0) - dt);
     if (this.singing > 0) this.tag = (ctx.night || 0) > 0.6 ? 'nightsong' : 'song';
   }
@@ -1206,6 +1323,10 @@ class Whale {
 const SP_WEYE = { colA: new THREE.Vector3(0.05, 0.04, 0.06), colB: new THREE.Vector3(0.6, 0.9, 1.0), genome: { pattern: 0, pscale: 1, glow: 0.4 } };
 const SP_DOTS = { colA: new THREE.Vector3(0.5, 0.9, 1.0), colB: new THREE.Vector3(0.55, 0.95, 1.0), genome: { pattern: 0, pscale: 1, glow: 0.8 } };
 
+function gradientOf(f, x, y, z, e = 0.6) {
+  return new THREE.Vector3(f(x + e, y, z) - f(x - e, y, z), f(x, y + e, z) - f(x, y - e, z), f(x, y, z + e) - f(x, y, z - e)).normalize();
+}
+
 // ------------------------------------------------------------------ manager
 export class Ecosystem {
   constructor(scene, islands, islandData) {
@@ -1242,6 +1363,63 @@ export class Ecosystem {
     // lanterns + whale at Coral
     for (let i = 0; i < S.lantern.genome.count; i++) add(new Lantern(S.lantern, I2, rnd, i));
     add(new Whale(S.whale, I2));
+
+    // ---- the outer islands
+    const K = Object.fromEntries(islands.map((I, i) => [I.spec.key, i]));
+    const IW = islands[K.windgate], IG = islands[K.glasswing], IE = islands[K.ember], IM = islands[K.mire], IR = islands[K.rootfall];
+    const flock = (id) => { for (const k of this.bySpecies[id]) k.flock = this.bySpecies[id]; };
+    // starting points on the island's own tapers: up the spires, or down the hanging roots
+    const onTapers = (isl, test, at) => isl.spec.features.filter((f) => f.t === 'taper' && test(f)).map((f) => new THREE.Vector3(...f.a).lerp(new THREE.Vector3(...f.b), at).add(new THREE.Vector3(f.ra + f.rb, 0, 0)));
+    if (IW) {
+      for (let i = 0; i < S.swift.genome.count; i++) add(new Kite(S.swift, IW, rnd, i));
+      for (let i = 0; i < S.ray.genome.count; i++) add(new Whale(S.ray, IW, i));
+      flock('swift');
+    }
+    if (IG) {
+      const st = onTapers(IG, (f) => f.b[1] > 30, 0.3);
+      for (let i = 0; i < S.glassworm.genome.count; i++) add(new Crawler(S.glassworm, IG, rnd, st[i % st.length].clone().add(new THREE.Vector3(0, i * 3, 0))));
+      for (let i = 0; i < S.moth.genome.count; i++) add(new Kite(S.moth, IG, rnd, i));
+      flock('moth');
+    }
+    if (IE) {
+      for (let i = 0; i < S.strider.genome.count; i++) add(new Walker(S.strider, { x: -10, z: -96, island: IE }, rnd, { islands: [IE] }));
+      for (const w of this.bySpecies.strider) w.herd = this.bySpecies.strider;
+      for (let i = 0; i < S.cinderbell.genome.count; i++) add(new Lantern(S.cinderbell, IE, rnd, i));
+    }
+    if (IM) {
+      const pl = IM.spec.pool;
+      for (let i = 0; i < S.wader.genome.count; i++) add(new Walker(S.wader, { x: pl.c[0] - 20, z: pl.c[2] + 30, island: IM }, rnd, { islands: [IM] }));
+      for (const w of this.bySpecies.wader) w.herd = this.bySpecies.wader;
+      // lilies float on the lake, rooted in the silt below
+      let n = 0;
+      for (let tries = 0; tries < 400 && n < S.lily.genome.count; tries++) {
+        const a = rnd() * 6.283, r = Math.sqrt(0.04 + rnd() * 0.56);
+        const x = pl.c[0] + Math.cos(a) * r * pl.r[0], z = pl.c[2] + Math.sin(a) * r * pl.r[1];
+        const at = new THREE.Vector3(x, pl.level - 0.9, z);
+        if (this.bySpecies.lily.some((p) => p.local.distanceTo(at) < 9)) continue;
+        add(new Polyp(S.lily, IM, at, UP.clone(), rnd));
+        n++;
+      }
+    }
+    if (IR) {
+      // veil blooms hang from the underside: march up from below until we meet rock facing down
+      const f = IR.sdfFns.sdf, Rr = IR.spec.radius;
+      let n = 0;
+      for (let tries = 0; tries < 400 && n < S.veil.genome.count; tries++) {
+        const a = rnd() * 6.28, r = Math.sqrt(rnd()) * Rr * 0.85, x = Math.cos(a) * r, z = Math.sin(a) * r;
+        let y = -270, hit = false;
+        for (let k = 0; k < 200 && y < 0; k++) { const d = f(x, y, z); if (d < 0.15) { hit = true; break; } y += Math.max(d, 0.3); }
+        if (!hit) continue;
+        const nr = gradientOf(f, x, y, z);
+        if (nr.y > -0.55 || y > -24) continue;
+        const p = new THREE.Vector3(x, y, z);
+        if (this.bySpecies.veil.some((o) => o.local.distanceTo(p) < 12)) continue;
+        add(new Polyp(S.veil, IR, p.addScaledVector(nr, -0.3), nr.lerp(new THREE.Vector3(0, -1, 0), 0.5).normalize(), rnd));
+        n++;
+      }
+      const st = onTapers(IR, (f2) => f2.b[1] < -100, 0.25);
+      for (let i = 0; i < S.rootworm.genome.count; i++) add(new Crawler(S.rootworm, IR, rnd, st[(i * 3) % st.length].clone()));
+    }
     this.hybridsSpawned = false;
   }
   setParts(parts) { this.D.setParts(parts); }
@@ -1249,7 +1427,7 @@ export class Ecosystem {
     if (this.hybridsSpawned) return;
     this.hybridsSpawned = true;
     const rnd = mulberry32(99);
-    const S = SPECIES[6];
+    const S = SPECIES.find((s) => s.id === 'hybrid');
     for (let i = 0; i < S.genome.count; i++) {
       const w = new Walker(S, { x: seamLocal.x, z: seamLocal.z, island: this.islands[0] }, rnd, { islands: [this.islands[0], this.islands[1]] });
       w.herd = this.bySpecies.hybrid;
@@ -1257,8 +1435,18 @@ export class Ecosystem {
     }
   }
   update(dt, ctx) {
+    // creatures around islands far from the camera think at a quarter of the rate
+    const cam = ctx.camPos;
+    this.tick = (this.tick || 0) + 1;
     for (const c of this.list) {
-      if (c instanceof Kite) c.update(dt, ctx, this.flock); else c.update(dt, ctx);
+      const isl = c.island || (c.home && c.home.island);
+      let step = dt;
+      if (isl && Math.hypot(isl.pos.x - cam.x, isl.pos.z - cam.z) > 1150) {
+        c.lag = (c.lag || 0) + dt;
+        if ((this.tick + (c.uid || 0)) & 3) continue;
+        step = Math.min(c.lag, 0.2); c.lag = 0;
+      } else if (c.lag) { step += Math.min(c.lag, 0.2); c.lag = 0; }
+      if (c instanceof Kite) c.update(step, ctx, c.flock || this.flock); else c.update(step, ctx);
     }
   }
   draw(ctx) {

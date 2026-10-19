@@ -1,5 +1,6 @@
 // DOM overlay: title, HUD, lens, journal, pause, ecologist notes.
-import { oklchCss, NIGHT_TAGS } from './creatures.js';
+import { oklchCss, NIGHT_TAGS, SPECIES } from './creatures.js';
+import { ISLANDS } from './islands-sdf.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -35,7 +36,7 @@ export class UI {
     $('t-load').hidden = true;
     $('t-actions').hidden = false;
     const n = Object.keys(game.j.recorded).length;
-    if (game.j.started && n > 0) { $('t-start').textContent = `Continue journal · ${n} of 7`; $('t-new').hidden = false; }
+    if (game.j.started && n > 0) { $('t-start').textContent = `Continue journal · ${n} of ${SPECIES.length}`; $('t-new').hidden = false; }
     $('t-start').focus({ preventScroll: true });
     $('t-start').onclick = () => this.startGame();
     $('t-new').onclick = () => { game.newJournal(); $('t-start').textContent = 'Begin flight'; $('t-new').hidden = true; };
@@ -58,7 +59,7 @@ export class UI {
       if (game.state === 'title' && (k === 'enter')) { this.startGame(); return; }
       if (k === 'j' || k === 'tab') { e.preventDefault(); if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.openJournal(true); }
       if (k === 'escape') { if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.pause(true); else if (game.state === 'paused') game.pause(false); }
-      if (game.state === 'journal' && (k === 'arrowdown' || k === 'arrowup')) { e.preventDefault(); this.select((this.sel + (k === 'arrowdown' ? 1 : 6)) % 7); }
+      if (game.state === 'journal' && (k === 'arrowdown' || k === 'arrowup')) { e.preventDefault(); this.select((this.sel + (k === 'arrowdown' ? 1 : SPECIES.length - 1)) % SPECIES.length); }
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'play') game.pause(true); });
     // touch lens button
@@ -71,7 +72,7 @@ export class UI {
   bindNew() {
     const wrap = $('p-newwrap');
     $('p-new').onclick = () => {
-      wrap.innerHTML = '<span>Erase all seven entries and start over?</span><button class="btn small" type="button" id="p-new-yes">Erase and restart</button><button class="linkish" type="button" id="p-new-no">Keep my journal</button>';
+      wrap.innerHTML = '<span>Erase every entry and start over?</span><button class="btn small" type="button" id="p-new-yes">Erase and restart</button><button class="linkish" type="button" id="p-new-no">Keep my journal</button>';
       $('p-new-yes').onclick = () => { this.game.newJournal(); this.restoreNew(); this.toast('A fresh journal. The islands are back where they started.'); this.game.pause(false); };
       $('p-new-no').onclick = () => this.restoreNew();
     };
@@ -126,13 +127,13 @@ export class UI {
   }
   complete() {
     $('event-k').textContent = 'Survey complete';
-    $('event-h').textContent = 'All seven recorded';
+    $('event-h').textContent = `All ${SPECIES.length} recorded`;
     $('event-b').textContent = 'Your field journal is full. The air is still warm — fly on for as long as you like.';
     const e = $('event'); e.classList.add('on');
     clearTimeout(this.eventT); this.eventT = setTimeout(() => e.classList.remove('on'), 9000);
   }
   updateJournalBadge(j) {
-    const ids = ['stilt', 'polyp', 'kite', 'crawler', 'lantern', 'whale', 'hybrid'];
+    const ids = SPECIES.map((s) => s.id);
     $('pips').innerHTML = ids.map((id) => `<i class="${j.recorded[id] ? (this.newPip === id ? 'new' : 'on') : ''}"></i>`).join('');
   }
 
@@ -354,7 +355,7 @@ Write only the paragraph.`;
   }
 }
 
-function islandName(i) { return ['Verdigris Reach', 'Ochre Table', 'Coral Rookery'][i]; }
+function islandName(i) { return ISLANDS[i] ? ISLANDS[i].name : 'the open air'; }
 
 function templateNote(s, rec, tags) {
   const seen = tags.length ? ` Observed ${tags.slice(0, 3).join(', then ')}.` : '';

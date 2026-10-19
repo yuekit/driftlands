@@ -12,6 +12,13 @@ export const GOLDEN = [
   { name: 'verdigris-pool', p: [-2, 162, 52], t: [-36, 146, 14], fov: 60, time: 140 },
   { name: 'night-glade', p: [60, 166, 40], t: [10, 150, 0], fov: 60, time: 430 },
   { name: 'under-verdigris', p: [150, 95, -170], t: [0, 120, 0], fov: 60, time: 150 },
+  { name: 'windgate-ring', p: [360, 275, -690], t: [100, 225, -920], fov: 55, time: 120 },
+  { name: 'glasswing-spires', p: [1410, 220, 530], t: [1160, 200, 330], fov: 55, time: 160 },
+  { name: 'ember-dusk', p: [890, 270, 860], t: [640, 120, 1080], fov: 55, time: 322 },
+  { name: 'ember-night', p: [890, 270, 860], t: [640, 120, 1080], fov: 55, time: 430 },
+  { name: 'mire-lake', p: [-600, 210, -10], t: [-860, 110, 170], fov: 55, time: 110 },
+  { name: 'under-rootfall', p: [-440, 70, -460], t: [-660, 110, -640], fov: 60, time: 140 },
+  { name: 'glasswing-night', p: [1300, 190, 450], t: [1160, 180, 330], fov: 60, time: 440 },
 ];
 
 // waypoints for the benchmark: a loop around all three islands, about 60 s at 1x
