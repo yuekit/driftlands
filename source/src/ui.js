@@ -43,6 +43,7 @@ export class UI {
     $('j-close').onclick = () => game.openJournal(false);
     $('p-resume').onclick = () => game.pause(false);
     $('p-journal').onclick = () => { game.pause(false); game.openJournal(true); };
+    $('p-photo').onclick = () => game.photo.enter();
     this.bindNew();
     document.querySelectorAll('.seg').forEach((seg) => {
       const key = seg.dataset.set;

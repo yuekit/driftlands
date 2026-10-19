@@ -13,6 +13,7 @@ Open `Driftlands.html` in a recent desktop Chrome, Edge, Safari or Firefox (WebG
 | Shutter | Click with the lens up | F with the lens up | Tap |
 | Launch after landing | Click | W or Enter | Tap |
 | Journal | | J | Journal badge |
+| Photo mode | Drag to look, scroll to zoom, click to focus | O (or the pause menu); WASD move, Q/E down and up, H hides the panel, Enter saves | Pause menu, drag to look |
 
 Pause menu: invert, ink outlines, sound, time of day (cycle, day, night) and quality (Low, Auto, High). The "Ask the ecologist" notes need the claude.ai artifact runtime; elsewhere the journal shows its built-in notes.
 
@@ -36,11 +37,12 @@ node build.mjs --dev           # unminified
 | glider.js, glidermodel.js | Flight model, chase camera, Blender glider, scarf and trails |
 | creatures.js, tubes.js, skins.js, parts.js | Species, behaviours, tube bodies, eyes, skins, sculpted parts |
 | game.js, input.js, ui.js, audio.js, cycle.js | Game loop, lens and journal, convergence, controls, HUD, sound, day-night |
-| glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA) |
+| glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA, lens depth of field, grading) |
 | cloudgen.js | Tileable 3D cloud noise generated on the GPU at startup |
 | water.js | Pool and channel water: planar mirror reflection, caustics, foam |
 | glow.js | Night light pooled around glowing caps and creatures |
 | particles.js | Stateless GPU particles: pollen, night spores, waterfall spray |
+| photo.js | Photo mode: free camera with time stopped, focal length, aperture and focus, exposure, white balance, time of day, grade presets, crop frames, PNG export |
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 

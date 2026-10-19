@@ -111,6 +111,45 @@ button { font: inherit; color: inherit; }
 #lens-btn.on { background: rgba(255,173,122,0.3); border-color: var(--sun); }
 .touch #lens-btn { display: flex; }
 
+/* ---------- photo mode */
+#photo { opacity: 0; transition: opacity 0.3s; }
+#photo.on { opacity: 1; }
+#photo.flash::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.35); animation: ph-flash 0.35s ease-out forwards; pointer-events: none; }
+@keyframes ph-flash { to { opacity: 0; } }
+.ph-panel { position: absolute; top: max(16px, env(safe-area-inset-top, 0px)); right: var(--gut-r); max-height: calc(100% - 32px); width: 292px; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; box-sizing: border-box; border-radius: 18px; background: rgba(18,15,25,0.74); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--bone-faint); pointer-events: auto; overflow-y: auto; transition: transform 0.35s, opacity 0.35s; }
+#photo.bare .ph-panel { transform: translateX(24px); opacity: 0; pointer-events: none; }
+.ph-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ph-head h2 { font-family: var(--f-display); font-variation-settings: 'wdth' 80, 'opsz' 36; font-weight: 700; font-size: var(--s-5); letter-spacing: -0.02em; margin: 0; line-height: 1; }
+.ph-sec { display: flex; flex-direction: column; gap: 9px; }
+.ph-ctl { display: flex; flex-direction: column; gap: 3px; }
+.ph-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: var(--s-2); }
+.ph-row output { font-family: var(--f-mono); font-size: var(--s-1); color: var(--bone-dim); font-variant-numeric: tabular-nums; }
+.ph-row .linkish { padding: 0 2px; font-size: var(--s-1); }
+.ph-ctl input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; background: none; margin: 0; cursor: pointer; }
+.ph-ctl input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--bone-faint); border-radius: 1px; }
+.ph-ctl input[type=range]::-moz-range-track { height: 2px; background: var(--bone-faint); border-radius: 1px; }
+.ph-ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--bone); border: none; }
+.ph-ctl input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--bone); border: none; }
+.ph-ctl input[type=range]:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; border-radius: 4px; }
+.ph-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ph-chips button { background: none; border: 1px solid var(--bone-faint); border-radius: 999px; padding: 5px 10px; font-size: var(--s-2); color: var(--bone-dim); cursor: pointer; }
+.ph-chips button:hover { border-color: var(--bone-dim); color: var(--bone); }
+.ph-chips button[aria-pressed="true"] { background: var(--bone); color: var(--ink); border-color: var(--bone); }
+.ph-chips button:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+.ph-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.ph-keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: var(--s-1); color: var(--bone-dim); }
+.ph-keys b { font-family: var(--f-mono); font-weight: 500; color: var(--bone); white-space: nowrap; }
+#ph-show { position: absolute; right: var(--gut-r); bottom: max(16px, env(safe-area-inset-bottom, 0px)); opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+#photo.bare #ph-show { opacity: 0.7; pointer-events: auto; }
+#ph-mark { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; border: 1.5px solid var(--sun); border-radius: 3px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+#ph-mark.on { opacity: 0.85; }
+#photo.bare #ph-mark { opacity: 0; }
+@media (max-width: 700px) {
+  .ph-panel { top: auto; bottom: max(16px, env(safe-area-inset-bottom, 0px)); left: var(--gut); right: var(--gut-r); width: auto; max-height: 46vh; }
+  #photo.bare .ph-panel { transform: translateY(24px); }
+  .ph-keys { display: none; }
+}
+
 /* ---------- panels: pause + journal */
 .scrim { position: absolute; inset: 0; background: rgba(12, 10, 18, 0.55); backdrop-filter: blur(14px) saturate(0.8); -webkit-backdrop-filter: blur(14px) saturate(0.8); pointer-events: auto; opacity: 0; transition: opacity 0.35s; display: flex; }
 .scrim.on { opacity: 1; }
@@ -253,9 +292,42 @@ button { font: inherit; color: inherit; }
         <b>Space</b><span>Hold to raise your lens</span>
         <b>Click · F</b><span>Take a photo through the lens</span>
         <b>J</b><span>Field journal</span>
+        <b>O</b><span>Photo mode</span>
         <b>Esc</b><span>Pause and settings</span>
       </div>
     </div>
+  </div>
+
+  <div class="layer" id="photo" hidden>
+    <div id="ph-mark"></div>
+    <div class="ph-panel" role="dialog" aria-labelledby="ph-h">
+      <div class="ph-head"><h2 id="ph-h">Photo mode</h2><span class="label">O to leave</span></div>
+      <div class="ph-sec">
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-fov">Focal length</label><output id="ph-fov-v"></output></div><input type="range" id="ph-fov" min="0" max="1" step="0.001"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-ap">Aperture</label><output id="ph-ap-v"></output></div><input type="range" id="ph-ap" min="0" max="9" step="1"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-focus">Focus</label><button class="linkish" type="button" id="ph-autofocus" hidden>Auto</button><output id="ph-focus-v"></output></div><input type="range" id="ph-focus" min="0" max="1" step="0.001"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-ev">Exposure</label><output id="ph-ev-v"></output></div><input type="range" id="ph-ev" min="-2" max="2" step="0.1"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-wb">White balance</label><output id="ph-wb-v"></output></div><input type="range" id="ph-wb" min="-1" max="1" step="0.02"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-roll">Tilt</label><output id="ph-roll-v"></output></div><input type="range" id="ph-roll" min="-30" max="30" step="1"></div>
+      <div class="ph-ctl"><div class="ph-row"><label for="ph-time">Time of day</label><output id="ph-time-v"></output></div><input type="range" id="ph-time" min="0" max="1" step="0.001"></div>
+      </div>
+      <div class="ph-sec"><span class="label">Grade</span><div class="ph-chips" id="ph-grade"></div></div>
+      <div class="ph-sec"><span class="label">Frame</span><div class="ph-chips" id="ph-frame"></div></div>
+      <div class="ph-sec"><span class="label">Glider</span><div class="ph-chips" id="ph-glider"><button type="button" data-v="true">In shot</button><button type="button" data-v="false">Hidden</button></div></div>
+      <div class="ph-keys">
+        <b>Drag</b><span>Look around</span>
+        <b>W A S D</b><span>Move · Q E down and up · Shift faster</span>
+        <b>Scroll</b><span>Zoom</span>
+        <b>Click</b><span>Focus on that point</span>
+        <b>H</b><span>Hide this panel</span>
+        <b>Enter</b><span>Save photo</span>
+      </div>
+      <div class="ph-actions">
+        <button class="btn primary small" type="button" id="ph-save">Save photo</button>
+        <button class="btn small" type="button" id="ph-exit">Back to flight</button>
+      </div>
+    </div>
+    <button class="btn small" type="button" id="ph-show">Show panel · H</button>
   </div>
 
   <div class="layer scrim" id="pause" hidden>
@@ -271,6 +343,7 @@ button { font: inherit; color: inherit; }
       <div class="row-actions">
         <button class="btn primary" type="button" id="p-resume">Resume</button>
         <button class="btn" type="button" id="p-journal">Field journal</button>
+        <button class="btn" type="button" id="p-photo">Photo mode</button>
       </div>
       <div class="confirm" id="p-newwrap">
         <button class="linkish" type="button" id="p-new">Start a new journal</button>

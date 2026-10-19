@@ -494,6 +494,8 @@ uniform float uTime; uniform float uExposure; uniform float uLens; uniform float
 uniform vec2 uRes; uniform float uFade; uniform float uRayAmt; uniform float uShake; uniform float uSpeedFx; uniform float uSharpen;
 uniform sampler2D tAdapt; uniform float uAutoAmt; uniform float uAutoKey; uniform float uTone;
 uniform vec3 uLift; uniform vec3 uGain; uniform float uSat; uniform float uContrast;
+uniform vec3 uWB; uniform float uMono; uniform vec3 uMonoMix; uniform float uBlack; uniform float uGrain; uniform float uVig;
+uniform vec3 uShadowTint; uniform vec3 uHiTint; uniform float uAR;
 vec3 aces(vec3 x){ const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0); }
 const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
 const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
@@ -529,7 +531,7 @@ void main(){
   // auto-exposure: partial adaptation toward a key value, so the art-directed exposure still leads
   float avgLog = texture(tAdapt, vec2(0.5)).r;
   float autoX = clamp(pow(uAutoKey / exp(avgLog), uAutoAmt), 0.45, 2.2);
-  col *= uExposure * autoX;
+  col *= uExposure * autoX * uWB;
   // naturalist's lens: desaturate and darken outside the aperture
   if (uLens > 0.0) {
     float ap = smoothstep(0.34, 0.27, r);
@@ -544,13 +546,24 @@ void main(){
   col = max(mix(vec3(lum), col, uSat), 0.0);
   col = mix(col, col * col * (3.0 - 2.0 * col), uContrast);
   lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-  col += vec3(-0.010, 0.000, 0.028) * (1.0 - lum) * 0.9;
-  col = mix(col, col * vec3(1.03, 1.0, 0.95), smoothstep(0.5, 1.0, lum));
+  col += uShadowTint * (1.0 - lum);
+  col = mix(col, col * uHiTint, smoothstep(0.5, 1.0, lum));
+  // monochrome through a coloured filter (the mix weights act like a lens filter on panchromatic film)
+  col = mix(col, vec3(dot(col, uMonoMix)), uMono);
   col = pow(max(col, 0.0), vec3(1.0 / 2.2));
+  // faded blacks
+  col = col * (1.0 - uBlack) + uBlack * vec3(0.92, 0.95, 1.0);
   // vignette + grain
-  col *= mix(1.0, 0.72, smoothstep(0.45, 1.05, r));
+  col *= mix(1.0, 1.0 - uVig, smoothstep(0.45, 1.05, r));
   float g = fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 1000.0, vec2(12.9898, 78.233))) * 43758.5453);
-  col += (g - 0.5) * 0.028;
+  col += (g - 0.5) * uGrain;
+  // photo frame: darken outside the chosen aspect ratio
+  if (uAR > 0.0) {
+    float sa = uRes.x / uRes.y;
+    vec2 q = abs(uv - 0.5) * 2.0;
+    float outF = sa > uAR ? step(uAR / sa, q.x) : step(sa / uAR, q.y);
+    col *= 1.0 - 0.82 * outF;
+  }
   col = mix(col, uFlashColor, uFlash);
   col *= uFade;
   fragColor = vec4(col, 1.0);
@@ -574,6 +587,101 @@ void main(){
   float prev = texture(tPrev, vec2(0.5)).r;
   fragColor = vec4(uK >= 1.0 ? cur : mix(prev, cur, uK), 0.0, 0.0, 1.0);
 }`;
+
+// Lens depth of field: GPU autofocus, half-res golden-angle disc gather with separate near and far fields, full-res merge.
+const DOF_COMMON = /* glsl */ `
+uniform sampler2D tDepth; uniform sampler2D tFocus; uniform vec2 uNF; uniform float uAperture;
+float linZ(float z){ return 2.0 * uNF.x * uNF.y / (uNF.y + uNF.x - (z * 2.0 - 1.0) * (uNF.y - uNF.x)); }
+// signed circle of confusion, in units of the largest blur radius: negative in front of the focal plane
+// uAperture folds focal length, f-number and sensor size into metres (thin lens, focus distance well beyond the focal length)
+float cocOf(float z){ float F = texture(tFocus, vec2(0.5)).r, l = linZ(z); return clamp((l - F) / l * uAperture / F, -1.0, 1.0); }`;
+
+const FOCUS_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor;
+${DOF_COMMON}
+uniform sampler2D tPrev; uniform vec2 uUV; uniform float uDist; uniform float uK;
+void main(){
+  float d = uDist;
+  if (d <= 0.0) {
+    // nearest surface in a small cross around the focus point, so a thin subject wins over the sky behind it
+    d = 1e9;
+    for (int i = 0; i < 9; i++) { vec2 o = vec2(float(i % 3 - 1), float(i / 3 - 1)) * vec2(0.006, 0.01); d = min(d, linZ(texture(tDepth, uUV + o).r)); }
+  }
+  float prev = texture(tPrev, vec2(0.5)).r;
+  fragColor = vec4(uK >= 1.0 || prev <= 0.0 ? d : exp(mix(log(prev), log(d), uK)), 0.0, 0.0, 1.0);
+}`;
+
+const DOFPRE_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor;
+${DOF_COMMON}
+uniform sampler2D tSrc; uniform vec2 uTexel;
+void main(){
+  vec3 col = vec3(0.0); float wsum = 0.0, kmin = 1.0, kmax = -1.0;
+  for (int i = 0; i < 4; i++) {
+    vec2 uv = vUv + vec2(i % 2 == 0 ? -0.5 : 0.5, i < 2 ? -0.5 : 0.5) * uTexel;
+    vec3 c = texture(tSrc, uv).rgb;
+    float k = cocOf(texture(tDepth, uv).r);
+    float w = 1.0 / (1.0 + max(c.r, max(c.g, c.b)));   // Karis weight keeps single hot texels from blooming into discs
+    col += c * w; wsum += w; kmin = min(kmin, k); kmax = max(kmax, k);
+  }
+  fragColor = vec4(col / wsum, kmax >= -kmin ? kmax : kmin);
+}`;
+
+const DOFBLUR_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor;
+uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uMaxR;
+float weigh(float coc, float radius){ return clamp((coc - radius + 2.0) / 2.0, 0.0, 1.0); }
+void main(){
+  float cc = texture(tSrc, vUv).a * uMaxR;
+  vec3 bg = vec3(0.0), fg = vec3(0.0); float bw = 0.0, fw = 0.0;
+  const int N = 64;
+  for (int i = 0; i < N; i++) {
+    float fi = float(i);
+    float r = sqrt((fi + 0.5) / float(N)) * uMaxR;
+    float a = fi * 2.39996323;
+    vec4 s = textureLod(tSrc, vUv + vec2(cos(a), sin(a)) * r * uTexel, 0.0);
+    float sc = s.a * uMaxR;
+    // far field: a sample may only spread onto pixels at least as far out of focus as itself
+    float b = weigh(max(0.0, min(sc, cc)), r);
+    bg += s.rgb * b; bw += b;
+    // near field spreads over everything behind it
+    float f = weigh(-sc, r);
+    fg += s.rgb * f; fw += f;
+  }
+  bg /= max(bw, 1e-4); fg /= max(fw, 1e-4);
+  float near = min(1.0, fw * 3.14159265 / float(N));
+  fragColor = vec4(mix(bg, fg, near), near);
+}`;
+
+const DOFTENT_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor; uniform sampler2D tSrc; uniform vec2 uTexel;
+void main(){
+  vec4 o = uTexel.xyxy * vec2(-0.5, 0.5).xxyy;
+  fragColor = (texture(tSrc, vUv + o.xy) + texture(tSrc, vUv + o.zy) + texture(tSrc, vUv + o.xw) + texture(tSrc, vUv + o.zw)) * 0.25;
+}`;
+
+const DOFMERGE_FS = /* glsl */ `
+precision highp float;
+in vec2 vUv; out vec4 fragColor;
+${DOF_COMMON}
+uniform sampler2D tSrc; uniform sampler2D tDof; uniform float uMaxPx;
+void main(){
+  vec3 src = texture(tSrc, vUv).rgb;
+  vec4 d = texture(tDof, vUv);
+  float s = smoothstep(1.0, 3.0, abs(cocOf(texture(tDepth, vUv).r)) * uMaxPx);   // under a pixel or so, keep the full-res image
+  fragColor = vec4(mix(src, d.rgb, s + d.a - s * d.a), 1.0);
+}`;
+
+// Thin-lens blur scale for the DOF pass: focal length from the vertical field of view on a 24 mm tall
+// sensor, divided by the f-number. 'boost' exaggerates it, since the subjects here are big and far away.
+export function apertureFor(fovDeg, fNumber, boost = 4) {
+  const f = 0.012 / Math.tan((fovDeg * Math.PI) / 360);
+  return boost * (f * f) / (fNumber * 0.024) * (1080 / 22);
+}
 
 export class Pipeline {
   constructor(renderer, noise) {
@@ -615,10 +723,21 @@ export class Pipeline {
       uRayAmt: { value: 0.6 }, uShake: { value: 0 }, uSpeedFx: { value: 0 }, uSharpen: { value: 0 },
       tAdapt: { value: null }, uAutoAmt: { value: 0.55 }, uAutoKey: { value: 0.32 }, uTone: { value: 1 },
       uLift: { value: new THREE.Vector3(0, 0, 0) }, uGain: { value: new THREE.Vector3(1, 1, 1) }, uSat: { value: 1.36 }, uContrast: { value: 0.5 },
+      uWB: { value: new THREE.Vector3(1, 1, 1) }, uMono: { value: 0 }, uMonoMix: { value: new THREE.Vector3(0.2126, 0.7152, 0.0722) }, uBlack: { value: 0 },
+      uGrain: { value: 0.028 }, uVig: { value: 0.28 }, uShadowTint: { value: new THREE.Vector3(-0.009, 0, 0.0252) }, uHiTint: { value: new THREE.Vector3(1.03, 1, 0.95) }, uAR: { value: 0 },
     });
+    const dofU = () => ({ tDepth: { value: null }, tFocus: { value: null }, uNF: { value: new THREE.Vector2(0.5, 20000) }, uAperture: { value: 0 } });
+    this.focusMat = mk(FOCUS_FS, { ...dofU(), tPrev: { value: null }, uUV: { value: new THREE.Vector2(0.5, 0.5) }, uDist: { value: 0 }, uK: { value: 1 } });
+    this.dofPreMat = mk(DOFPRE_FS, { ...dofU(), tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });
+    this.dofBlurMat = mk(DOFBLUR_FS, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() }, uMaxR: { value: 10 } });
+    this.dofTentMat = mk(DOFTENT_FS, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });
+    this.dofMergeMat = mk(DOFMERGE_FS, { ...dofU(), tSrc: { value: null }, tDof: { value: null }, uMaxPx: { value: 20 } });
+    // depth of field: aperture 0 = off; focusDist > 0 = manual, otherwise autofocus at focusUV
+    this.dof = { aperture: 0, focusDist: 0, focusUV: new THREE.Vector2(0.5, 0.5), speed: 6, snap: false, focus: 0 };
     this.lumMat = mk(LUM_FS, { tSrc: { value: null } });
     this.adaptMat = mk(ADAPT_FS, { tLum: { value: null }, tPrev: { value: null }, uK: { value: 1 }, uLevels: { value: 7 } });
     const art = (o = {}) => new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, ...o });
+    this.focusRT = [art(), art()]; this.focusIdx = 0;
     this.adapt = [art(), art()]; this.adaptIdx = 0; this.adaptReset = true; this.dt = 1 / 60;
     this.lum = new THREE.WebGLRenderTarget(128, 128, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: true });
     this.quad = fsQuad(this.cloudMat);
@@ -648,7 +767,9 @@ export class Pipeline {
     for (let i = 0; i < 6; i++) { bloom.push(rt(Math.max(2, bw), Math.max(2, bh))); bw = Math.round(bw / 2); bh = Math.round(bh / 2); }
     const bloomUp = bloom.map((b) => rt(b.width, b.height));
     const vel = rt(W, H, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
-    this.targets = { W, H, cs: this.cloudScale, scene, cloud, comp, ao, hist, mask, rays, bloom, bloomUp, vel, list: [scene, cloud, comp, ao, ...hist, mask, rays, ...bloom, ...bloomUp, vel] };
+    const HW = Math.max(2, Math.round(W / 2)), HH = Math.max(2, Math.round(H / 2));
+    const dofA = rt(HW, HH), dofB = rt(HW, HH), dofOut = rt(W, H);
+    this.targets = { W, H, cs: this.cloudScale, scene, cloud, comp, ao, hist, mask, rays, bloom, bloomUp, vel, dofA, dofB, dofOut, list: [scene, cloud, comp, ao, ...hist, mask, rays, ...bloom, ...bloomUp, vel, dofA, dofB, dofOut] };
     this.hasPrev = false;
     U.uPxScale.value = H / 1080;
     this.aoMat.uniforms.uRes.value.set(W, H);
@@ -664,6 +785,44 @@ export class Pipeline {
     const b = new Float32Array(4);
     this.renderer.readRenderTargetPixels(this.adapt[1 - this.adaptIdx], 0, 0, 1, 1, b);
     return b[0];
+  }
+  renderFocus(camera) {
+    const D = this.dof, T = this.targets, fm = this.focusMat.uniforms;
+    const cur = this.focusRT[this.focusIdx], prev = this.focusRT[1 - this.focusIdx];
+    fm.tDepth.value = T.scene.depthTexture; fm.tPrev.value = prev.texture; fm.uNF.value.set(camera.near, camera.far);
+    fm.uUV.value.copy(D.focusUV); fm.uDist.value = D.focusDist;
+    fm.uK.value = D.snap ? 1 : 1 - Math.exp(-this.dt * D.speed);
+    D.snap = false;
+    this.pass(this.focusMat, cur);
+    this.focusIdx = 1 - this.focusIdx;
+    this.focusTex = cur.texture;
+  }
+  // current focus distance in metres (a GPU readback: call it sparingly)
+  readFocus() {
+    const b = new Float32Array(4);
+    this.renderer.readRenderTargetPixels(this.focusRT[1 - this.focusIdx], 0, 0, 1, 1, b);
+    return b[0];
+  }
+  renderDof(src, camera) {
+    const T = this.targets, D = this.dof;
+    const maxPx = 22 * (T.H / 1080);
+    for (const m of [this.dofPreMat, this.dofMergeMat]) {
+      const u = m.uniforms;
+      u.tDepth.value = T.scene.depthTexture; u.tFocus.value = this.focusTex; u.uNF.value.set(camera.near, camera.far); u.uAperture.value = D.aperture;
+    }
+    const pu = this.dofPreMat.uniforms;
+    pu.tSrc.value = src.texture; pu.uTexel.value.set(1 / T.W, 1 / T.H);
+    this.pass(this.dofPreMat, T.dofA);
+    const bu = this.dofBlurMat.uniforms;
+    bu.tSrc.value = T.dofA.texture; bu.uTexel.value.set(1 / T.dofA.width, 1 / T.dofA.height); bu.uMaxR.value = maxPx / 2;
+    this.pass(this.dofBlurMat, T.dofB);
+    const tu = this.dofTentMat.uniforms;
+    tu.tSrc.value = T.dofB.texture; tu.uTexel.value.set(1 / T.dofB.width, 1 / T.dofB.height);
+    this.pass(this.dofTentMat, T.dofA);
+    const mu = this.dofMergeMat.uniforms;
+    mu.tSrc.value = src.texture; mu.tDof.value = T.dofA.texture; mu.uMaxPx.value = maxPx;
+    this.pass(this.dofMergeMat, T.dofOut);
+    return T.dofOut;
   }
   pass(mat, target) {
     this.quad.material = mat;
@@ -752,6 +911,11 @@ export class Pipeline {
       out = cur; this.histIdx = 1 - this.histIdx;
     }
     this.prevVP.copy(VP0); this.prevCam.copy(camera.position); this.hasPrev = true;
+
+    // depth of field (focus is tracked every frame so it is settled when the lens opens)
+    tm('dof');
+    this.renderFocus(camera);
+    if (this.dof.aperture > 0.002) out = this.renderDof(out, camera);
 
     // god rays when the sun is on screen
     const rayDir = U.uSunVis.value > 0.2 ? U.uSunDisc.value : U.uSunDir.value;

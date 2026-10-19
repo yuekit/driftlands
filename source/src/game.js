@@ -5,7 +5,9 @@ import { SPECIES } from './creatures.js';
 import { Audio } from './audio.js';
 import { Debris } from './debris.js';
 import { DayCycle } from './cycle.js';
+import { apertureFor } from './post.js';
 import { GOLDEN, BENCH } from './golden.js';
+import { PhotoMode } from './photo.js';
 
 const STORE_KEY = 'driftlands-journal-v1';
 const SETTINGS_KEY = 'driftlands-settings-v1';
@@ -61,6 +63,7 @@ export class Game {
     this.computeConvergence();
     if (this.j.converged) this.applyConverged();
     this.applyQuality(this.settings.quality === 'low' ? 0 : this.settings.quality === 'high' ? 3 : 2);
+    this.photo = new PhotoMode(this);
   }
 
   freshJournal() {
@@ -289,9 +292,10 @@ export class Game {
     const lensWanted = playing && inp.lens && this.rescueT < 0;
     this.lens += ((lensWanted ? 1 : 0) - this.lens) * Math.min(1, dtReal * 6);
     this.chase.lens = this.lens;
-    const targetScale = this.state === 'journal' || this.state === 'paused' ? 0 : 1 - this.lens * 0.62;
+    const frozen = this.state === 'journal' || this.state === 'paused' || this.state === 'photo';
+    const targetScale = frozen ? 0 : 1 - this.lens * 0.62;
     this.timeScale += (targetScale - this.timeScale) * Math.min(1, dtReal * 5);
-    if (this.state === 'journal' || this.state === 'paused') this.timeScale = 0;
+    if (frozen) this.timeScale = 0;
     const dt = dtReal * this.timeScale;
     this.time += dt;
     U.uTime.value = this.time;
@@ -332,6 +336,7 @@ export class Game {
     this.debris.update(dt);
     // camera
     if (this.debugCam) { const dc = this.debugCam, o = dc.rel ? this.glider.pos : { x: 0, y: 0, z: 0 }; this.camera.position.set(dc.p[0] + o.x, dc.p[1] + o.y, dc.p[2] + o.z); this.camera.lookAt(dc.t[0] + o.x, dc.t[1] + o.y, dc.t[2] + o.z); this.camera.fov = this.debugCam.fov || 60; this.camera.updateProjectionMatrix(); }
+    else if (this.state === 'photo') this.photo.update(dtReal);
     else if (this.state !== 'title') this.chase.update(this.glider, dtReal, inp);
     if (this.glider.impact > 0.2) this.chase.shake = Math.max(this.chase.shake, this.glider.impact * 0.8);
     U.uCamPos.value.copy(this.camera.position);
@@ -339,8 +344,15 @@ export class Game {
     this.eco.draw(ctx);
 
     // lens study
+    this.lensSubject = 0;
     if (playing) this.study(dtReal, inp);
     else this.ui.lens(0, null);
+    if (this.state !== 'photo') {
+      // the lens focuses on the creature being studied, otherwise on whatever is in the middle of the view
+      const D = this.pipe.dof;
+      D.aperture = this.lens > 0.02 ? this.lens * this.lens * apertureFor(this.camera.fov, 2) : 0;
+      D.focusDist = this.lensSubject; D.focusUV.set(0.5, 0.5); D.speed = 6;
+    }
 
     // post uniforms
     const fu = this.pipe.finalMat.uniforms;
@@ -351,6 +363,7 @@ export class Game {
     fu.uExposure.value = this.cycle.exposure();
     fu.uAutoAmt.value = 0.55 * (1 - 0.8 * this.night);
     this.grade(fu);
+    this.photo.applyGrade(fu);
     
 
     if (!render) return;
@@ -369,10 +382,11 @@ export class Game {
     this.pipe.dt = dtReal;
     this.pipe.render(this.scene, this.camera);
     if (this.capture) this.doCapture();
+    this.photo.finishSave();
     if (this.perf) this.perf.update(dtReal);
 
     // audio + HUD
-    if (this.state === 'play' || this.state === 'paused' || this.state === 'journal') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);
+    if (this.state === 'play' || this.state === 'paused' || this.state === 'journal' || this.state === 'photo') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);
     if (this.realTime - this.lastHud > 0.05) { this.lastHud = this.realTime; this.updateHUD(); }
   }
 
@@ -474,6 +488,7 @@ export class Game {
     this.shutterCool = Math.max(0, (this.shutterCool || 0) - dt);
     if ((inp.launch || inp.shutter) && this.lens > 0.6 && this.shutterCool <= 0) this.shutter(best);
     if (best) {
+      this.lensSubject = best.d;
       const sp = best.c.sp;
       const already = !!this.j.recorded[sp.id];
       if (!already) {

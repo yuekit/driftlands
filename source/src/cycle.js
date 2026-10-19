@@ -39,7 +39,8 @@ U.uSunVis = { value: 1 };
 
 // phase lengths in seconds
 const SEG = [['day', 300], ['dusk', 55], ['night', 160], ['dawn', 55]];
-const TOTAL = SEG.reduce((a, s) => a + s[1], 0);
+export const CYCLE_LENGTH = SEG.reduce((a, s) => a + s[1], 0);
+const TOTAL = CYCLE_LENGTH;
 const ss = (x) => x * x * (3 - 2 * x);
 
 export class DayCycle {
