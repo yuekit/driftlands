@@ -157,7 +157,7 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
     float d = dens(L, p, lod);
     if (d > 0.0) {
       float od = 0.0; float ls = ls0; vec3 lp = p;
-      int nl = L == 1 && lod > 0.5 ? 3 : 4;
+      int nl = L == 1 ? (lod > 0.5 ? 2 : 3) : 4;
       for (int j = 0; j < 4; j++) { if (j >= nl) break; lp += uSunDir * ls; od += dens(L, lp, j == 0 ? lod : 1.0) * ls; ls *= 2.3; }
       // multiple scattering: three octaves with weaker extinction and a broader phase
       float ms = exp(-od * 1.5) * p0 + 0.5 * exp(-od * 0.75) * p1 + 0.25 * exp(-od * 0.375) * p2;
@@ -174,7 +174,7 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
       distAcc += t * Tl * (1.0 - tr); wAcc += Tl * (1.0 - tr);
       Tl *= tr;
     }
-    t += dt * (d > 0.0 ? 1.0 : 1.35);
+    t += dt * (d > 0.0 ? 1.0 : (L == 1 ? 2.0 : 1.35));   // the high layer is mostly clear sky: stride over it
   }
   if (wAcc <= 0.0) return;
   vec3 pp = ro + rd * (distAcc / wAcc);
@@ -224,7 +224,7 @@ void main(){
   float cosT = dot(rd, uSunDir);
   float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + uFrame * 0.61803398875);
   float T = 1.0; vec3 S = vec3(0.0);
-  float hs = max(16.0, uSteps * 0.5);
+  float hs = max(12.0, uSteps * 0.4);
   bool aOk = A.y > A.x, bOk = Bh.y > Bh.x;
   if (aOk && bOk && Bh.x < A.x) {
     march(1, ro, rd, Bh.x, Bh.y, hs, jitter, cosT, S, T);

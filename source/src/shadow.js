@@ -58,11 +58,16 @@ export class SunShadow {
     const rt = this.rt, W = this.size * CASCADES.length;
     scene.overrideMaterial = this.mat;
     rt.viewport.set(0, 0, W, this.size); rt.scissor.set(0, 0, W, this.size); rt.scissorTest = false;
-    r.setRenderTarget(rt);
-    r.clear(true, true, false);
+    this.frame = (this.frame || 0) + 1;
+    this.last = this.last || CASCADES.map(() => null);
     CASCADES.forEach((c, i) => {
       const cam = this.cams[i];
       const focus = this._v.copy(camera.position).addScaledVector(fwd, c.ahead);
+      // the near cascade every frame, the middle one every 2nd, the far one every 4th (sooner if the camera jumps)
+      const period = [1, 2, 4][i];
+      const moved = !this.last[i] || this.last[i].distanceTo(focus) > c.extent * 0.15;
+      if (!moved && (this.frame + i) % period) return;
+      (this.last[i] || (this.last[i] = new THREE.Vector3())).copy(focus);
       cam.position.copy(focus).addScaledVector(L, 1200);
       cam.up.set(0, 1, 0);
       cam.lookAt(focus);
@@ -79,6 +84,7 @@ export class SunShadow {
       rt.viewport.set(i * this.size, 0, this.size, this.size);
       rt.scissor.set(i * this.size, 0, this.size, this.size); rt.scissorTest = true;
       r.setRenderTarget(rt);
+      r.clear(true, true, false);
       r.render(scene, cam);
     });
     rt.scissorTest = false; rt.viewport.set(0, 0, W, this.size);
