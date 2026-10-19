@@ -10,6 +10,7 @@ import { GOLDEN, BENCH } from './golden.js';
 import { PhotoMode } from './photo.js';
 import { Weather, FRONTS } from './weather.js';
 import { CONVERGENCES, convergenceReady, convergenceFor } from './convergence.js';
+import { Guide } from './guide.js';
 
 const STORE_KEY = 'driftlands-journal-v1';
 const SETTINGS_KEY = 'driftlands-settings-v1';
@@ -92,7 +93,9 @@ export class Game {
     this.weather = new Weather();
     this.weather.onArrive = (type, text) => { if (this.state === 'play') { this.ui.toast(text); this.audio.whoosh && this.audio.whoosh(); } };
     this._sunBase = U.uSunColor.value.clone(); this._sunOut = new THREE.Vector3(-1, -1, -1);
+    this.guide = new Guide(this);
   }
+  onGuideDone() { if (!this.weather.front) this.weather.calm = Math.min(this.weather.calm, 45); }
 
   freshJournal() {
     return { recorded: {}, progress: {}, tags: {}, notes: {}, conv: {}, started: false, flightTime: 0 };
@@ -157,8 +160,7 @@ export class Game {
     const I0 = this.world.islands[0];
     this.glider.yaw = Math.atan2(I0.pos.x - this.glider.pos.x, I0.pos.z - this.glider.pos.z);
     this.glider.roll = 0;
-    this.hint('steer');
-    this.after(14, () => this.hint('thermal'));
+    if (!this.guide.active) { this.hint('steer'); this.after(14, () => this.hint('thermal')); }
     this.checkConvergences(12);
   }
   newJournal() {
@@ -166,6 +168,7 @@ export class Game {
     this.persist();
     for (const cv of this.convs) { cv.I0.offset.set(0, 0, 0); cv.I1.offset.set(0, 0, 0); cv.phase = 'none'; cv.t = 0; cv.quake = 0; }
     this.eco.removeHybrids();
+    this.guide.reset(); this.ui.goal(null);
     this.timers = [];
     this.ui.updateJournalBadge(this.j);
   }
@@ -223,6 +226,27 @@ export class Game {
 
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
 
+  // ---------------------------------------------------------------- gamepad menus
+  padNav(pe) {
+    if (!pe) return;
+    const st = this.state;
+    if (st === 'title') { if (pe.a || pe.start) this.ui.startGame(); return; }
+    if (st === 'play') {
+      if (pe.start) this.pause(true);
+      else if (pe.y || pe.back) this.openJournal(true);
+      else if (pe.x) this.photo.enter();
+    } else if (st === 'paused') {
+      if (pe.start || pe.b || pe.a) this.pause(false);
+    } else if (st === 'journal') {
+      if (pe.y || pe.b || pe.back || pe.start) this.openJournal(false);
+      else if (pe.up || pe.down) { const n = SPECIES.length; this.ui.select((this.ui.sel + (pe.down ? 1 : n - 1)) % n); }
+    } else if (st === 'photo') {
+      if (pe.b || pe.start) this.photo.exit();
+      else if (pe.a) this.photo.save();
+      else if (pe.y) this.photo.cycleGrade && this.photo.cycleGrade();
+    }
+  }
+
   // ---------------------------------------------------------------- hints
   hint(id) {
     if (this.hints.has(id)) return;
@@ -230,13 +254,14 @@ export class Game {
     save('driftlands-hints-v1', [...this.hints]);
     const mode = this.input.mode;
     const T = {
-      steer: mode === 'touch' ? 'Drag anywhere to steer. Drag down to dive and gain speed, up to climb.' : mode === 'keys' ? 'A and D bank, W climbs, S dives. Dive to gain speed, climb to trade it for height.' : 'Move the mouse to steer. Point below the centre to dive and gain speed, above it to climb.',
+      steer: mode === 'pad' ? 'The left stick steers. Push it down to dive and gain speed, up to climb.' : mode === 'touch' ? 'Drag anywhere to steer. Drag down to dive and gain speed, up to climb.' : mode === 'keys' ? 'A and D bank, W climbs, S dives. Dive to gain speed, climb to trade it for height.' : 'Move the mouse to steer. Point below the centre to dive and gain speed, above it to climb.',
       thermal: 'Rising spores mark warm air. Circle inside a column to climb.',
-      lens: mode === 'touch' ? 'Hold the lens button to study a creature. Keep it inside the circle.' : 'Hold the right mouse button or Space to raise your lens. Keep a creature inside the circle to study it.',
-      lensuse: 'Time slows while the lens is up. Move the mouse to look around.',
-      journal: mode === 'touch' ? 'Tap the journal to read your notes.' : 'Press J to open your field journal.',
-      land: mode === 'touch' ? 'You landed. Tap to launch again.' : 'You landed. Click or press W to launch again.',
+      lens: mode === 'pad' ? 'Hold LT to raise your lens. Keep a creature inside the circle; the right stick aims it.' : mode === 'touch' ? 'Hold the lens button to study a creature. Keep it inside the circle.' : 'Hold the right mouse button or Space to raise your lens. Keep a creature inside the circle to study it.',
+      lensuse: mode === 'pad' ? 'Time slows while the lens is up. Aim with the right stick, press A or RT for a photo.' : 'Time slows while the lens is up. Move the mouse to look around.',
+      journal: mode === 'pad' ? 'Press Y to open your field journal.' : mode === 'touch' ? 'Tap the journal to read your notes.' : 'Press J to open your field journal.',
+      land: mode === 'pad' ? 'You landed. Press A to launch again.' : mode === 'touch' ? 'You landed. Tap to launch again.' : 'You landed. Click or press W to launch again.',
       stall: 'Too slow. Let the nose drop to pick up speed.',
+      ridge: 'Wind hitting a cliff is pushed upward. Fly along the windward face of an island to climb without a thermal.',
       night: 'At night some species sleep, glow or swarm. Open the journal to see which behaviours you still need.',
     };
     if (T[id]) this.ui.hint(T[id]);
@@ -326,6 +351,7 @@ export class Game {
     if (this.benchState) this.benchStep(dtReal); else this.adaptQuality(dtReal);
     const playing = this.state === 'play';
     const inp = this.input.read();
+    this.padNav(inp.pad);
     if (this.state === 'title' && !this.debugCam) this.titleFrame(dtReal);
 
     // lens
@@ -349,14 +375,19 @@ export class Game {
     // flight
     if (playing) {
       let ctl = inp;
-      if (this.lens > 0.3 && this.input.mode !== 'keys') {
+      if (this.lens > 0.3 && this.input.mode !== 'keys' && this.input.mode !== 'pad') {
         // the mouse aims the lens: hold the attitude the glider had
         ctl = { ...inp, roll: this.heldRoll ?? inp.roll, pitch: this.heldPitch ?? 0 };
       } else { this.heldRoll = inp.roll; this.heldPitch = inp.pitch; }
       if (this.lens > 0.3) ctl = { ...ctl, launch: false };
       if (this.rescueT >= 0) ctl = { ...ctl, roll: 0, pitch: 0, launch: false };
       this.events.length = 0;
+      this.world.gust = this.weather.here.wind; this.world.ridgeK = 1 + 1.2 * this.weather.here.wind;
+      const liftBefore = this.glider.thermal || 0;
       this.glider.update(dt, ctl, this.world, this.events);
+      this.bumpCd = Math.max(0, (this.bumpCd || 0) - dt);
+      if (dt > 0 && this.bumpCd <= 0 && ((this.glider.thermal || 0) - liftBefore) / dt > 4) { this.chase.bump(-0.06); this.bumpCd = 2.5; }   // punching into a thermal
+      if ((this.glider.ridge || 0) > 1.3) { this.ridgeT = (this.ridgeT || 0) + dt; if (this.ridgeT > 1.5) this.hint('ridge'); } else this.ridgeT = 0;
       if (!this.glider.perched) this.glider.pos.addScaledVector(this.weather.wind, dt);   // crosswind drift
       this.j.flightTime += dt;
       for (const e of this.events) this.onEvent(e);
@@ -403,6 +434,10 @@ export class Game {
       D.aperture = this.lens > 0.02 ? this.lens * this.lens * apertureFor(this.camera.fov, 2) : 0;
       D.focusDist = this.lensSubject; D.focusUV.set(0.5, 0.5); D.speed = 6;
     }
+
+    this.guide.update(dtReal);
+    // a new pilot's first front waits until the guide is done
+    if (this.guide.active && !this.weather.front) this.weather.calm = Math.max(this.weather.calm, 60);
 
     // post uniforms
     const fu = this.pipe.finalMat.uniforms;
@@ -497,8 +532,8 @@ export class Game {
   }
 
   onEvent(e) {
-    if (e.type === 'bump') { this.audio.bump(e.strength); this.pipe.finalMat.uniforms.uFlash.value = Math.max(this.pipe.finalMat.uniforms.uFlash.value, e.strength * 0.12); this.pipe.finalMat.uniforms.uFlashColor.value.set(1, 0.9, 0.8); }
-    if (e.type === 'land') { this.audio.land(); this.hint('land'); }
+    if (e.type === 'bump') { this.input.rumble(e.strength, e.strength * 0.6, 120 + e.strength * 200); this.audio.bump(e.strength); this.pipe.finalMat.uniforms.uFlash.value = Math.max(this.pipe.finalMat.uniforms.uFlash.value, e.strength * 0.12); this.pipe.finalMat.uniforms.uFlashColor.value.set(1, 0.9, 0.8); }
+    if (e.type === 'land') { this.guide.onLand(); this.input.rumble(0.25, 0.4, 140); this.audio.land(); this.hint('land'); this.chase.bump(0.12); }
     if (e.type === 'launch') this.audio.launch();
   }
 
@@ -543,7 +578,8 @@ export class Game {
       const angR = Math.min(0.18, (c.radius / d) * 0.9 / Math.tan(cam.fov * Math.PI / 360) * 0.5);
       if (r - angR < 0.3 && r < bestR) { bestR = r; best = { c, d, range, x: v.x, y: v.y }; }
     }
-    if (nearUnrecorded && this.lens < 0.1) this.hint('lens');
+    this.nearUnrecorded = nearUnrecorded;
+    if (nearUnrecorded && this.lens < 0.1 && !this.guide.active) this.hint('lens');
     if (this.lens > 0.6) this.hint('lensuse');
     this.shutterCool = Math.max(0, (this.shutterCool || 0) - dt);
     if ((inp.launch || inp.shutter) && this.lens > 0.6 && this.shutterCool <= 0) this.shutter(best);
@@ -589,6 +625,7 @@ export class Game {
     this.capture = { id: sp.id, x: best.x, y: best.y, r: best.c.radius / best.d };
     this.persist();
     this.audio.discover();
+    this.input.rumble(0.1, 0.5, 220);
     const n = Object.keys(this.j.recorded).length;
     this.ui.recorded(sp, n, SPECIES.length);
     this.ui.updateJournalBadge(this.j);
@@ -647,6 +684,7 @@ export class Game {
       this.chase.shake = Math.max(this.chase.shake, Math.max(0.4, 3.2 - dist / 300));
       this.pipe.finalMat.uniforms.uFlash.value = 0.25; this.pipe.finalMat.uniforms.uFlashColor.value.set(1, 0.85, 0.7);
       this.audio.crash(dist);
+      this.input.rumble(Math.max(0.3, 1 - dist / 900), 0.6, 900);
       this.debris.burst(seam, cv.dir, 1);
       this.after(3.5, () => {
         this.eco.spawnHybrid(cv.hybrid, cv.I0, cv.I1, cv.seamLocal);
@@ -690,8 +728,20 @@ export class Game {
       alt: g.pos.y - U.uCloudTop.value, climb: g.climb, speed: g.speed * 3.6, perched: g.perched, labels, mode: this.input.mode,
       recorded: Object.keys(this.j.recorded).length, total: SPECIES.length, playing: this.state === 'play', lens: this.lens,
       phase: this.cycle.info(), timeMode: this.cycle.mode, weather: this.weather.info(this.camera.position),
-      aimX: this.input.aimX, aimY: this.input.aimY, stall: g.stall,
+      aimX: this.input.aimX, aimY: this.input.aimY, stall: g.stall, goal: this.goalView(),
     });
+  }
+
+  goalView() {
+    const v = this.state === 'play' ? this.guide.view() : null;
+    if (!v) return null;
+    if (v.at) {
+      const p = v.at.clone(), d = this.camera.position.distanceTo(v.at);
+      p.project(this.camera);
+      const rel = v.at.clone().sub(this.camera.position).applyQuaternion(this.camera.quaternion.clone().invert());
+      v.mark = { x: p.x, y: p.y, on: p.z < 1 && Math.abs(p.x) < 0.95 && Math.abs(p.y) < 0.92, d, bearing: Math.atan2(rel.x, -rel.z) };
+    }
+    return v;
   }
 
   // ---------------------------------------------------------------- adaptive quality

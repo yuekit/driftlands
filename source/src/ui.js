@@ -43,6 +43,7 @@ export class UI {
     $('t-start').onclick = () => this.startGame();
     $('t-new').onclick = () => { game.newJournal(); $('t-start').textContent = 'Begin flight'; $('t-new').hidden = true; };
     $('jbadge').onclick = () => game.openJournal(true);
+    $('goal-skip').onclick = () => game.guide.skip();
     $('j-close').onclick = () => game.openJournal(false);
     $('p-resume').onclick = () => game.pause(false);
     $('p-journal').onclick = () => { game.pause(false); game.openJournal(true); };
@@ -157,6 +158,7 @@ export class UI {
   }
 
   hud(h) {
+    this.goal(h.goal);
     if (h.phase) this.clock(h.phase, h.timeMode);
     if (h.weather !== this.wxText) { this.wxText = h.weather; const w = $('wx'); if (h.weather) w.textContent = h.weather; w.hidden = !h.weather; }
     $('i-alt').textContent = Math.round(h.alt);
@@ -204,6 +206,35 @@ export class UI {
       } else { edge.style.opacity = 0; }
     });
   }
+  // first-flight goal panel and its world marker
+  goal(v) {
+    const el = $('goal'), mk = $('goalmark');
+    if (!el) return;
+    if (!v) { el.classList.remove('on'); mk.style.opacity = 0; this.goalKey = null; return; }
+    const key = v.n + v.text;
+    if (key !== this.goalKey) {
+      this.goalKey = key;
+      $('goal-k').textContent = `First flight · ${v.n} of ${v.of}`;
+      $('goal-t').textContent = v.text;
+      el.classList.add('on'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    }
+    const m = v.mark;
+    if (!m) { mk.style.opacity = 0; return; }
+    const W = window.innerWidth, H = window.innerHeight;
+    const km = m.d > 999 ? `${(m.d / 1000).toFixed(1)} km` : `${Math.round(m.d / 10) * 10} m`;
+    let px, py, html;
+    if (m.on) {
+      px = (m.x * 0.5 + 0.5) * W; py = (0.5 - m.y * 0.5) * H;
+      html = `<svg viewBox="-6 -6 12 12"><path d="M0 -5 L5 0 L0 5 L-5 0 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle r="1.4" fill="currentColor"/></svg><span>${v.label ? esc(v.label) + ' · ' : ''}${km}</span>`;
+    } else {
+      const rx = W / 2 - 80, ry = H / 2 - 80;
+      px = W / 2 + Math.sin(m.bearing) * rx; py = H / 2 - Math.cos(m.bearing) * ry;
+      html = `<svg viewBox="-5 -5 10 10" style="transform: rotate(${(m.bearing - Math.PI / 2).toFixed(3)}rad)"><path d="M-3 -4 L4 0 L-3 4 Z" fill="currentColor"/></svg><span>${v.label ? esc(v.label) + ' · ' : ''}${km}</span>`;
+    }
+    mk.style.opacity = 1;
+    mk.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -50%)`;
+    if (mk._h !== html) { mk.innerHTML = html; mk._h = html; }
+  }
   lens(amount, t) {
     const L = $('lens');
     L.style.opacity = amount > 0.05 ? Math.min(1, amount * 1.4) : 0;
@@ -230,7 +261,8 @@ export class UI {
 
   showPause(on) {
     const p = $('pause');
-    if (on) { p.hidden = false; requestAnimationFrame(() => p.classList.add('on')); this.syncSettings(); $('p-resume').focus({ preventScroll: true }); }
+    this.pauseOn = on;
+    if (on) { p.hidden = false; requestAnimationFrame(() => { if (this.pauseOn) p.classList.add('on'); }); this.syncSettings(); $('p-resume').focus({ preventScroll: true }); }
     else { p.classList.remove('on'); setTimeout(() => { if (!p.classList.contains('on')) p.hidden = true; }, 350); }
   }
 

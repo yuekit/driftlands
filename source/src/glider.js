@@ -237,14 +237,26 @@ export class Glider {
       if (this.speed < 14) { const s = (14 - this.speed) / 6; tp = Math.min(tp, -0.45 * s); this.stall = Math.min(1, s); } else this.stall = 0;
       this.pitch += (tp - this.pitch) * Math.min(1, dt * 2.0);
       const tr = input.roll * 0.98;
-      this.roll += (tr - this.roll) * Math.min(1, dt * 2.6);
+      // roll answers faster at speed; turbulence nudges the wings
+      this.roll += (tr - this.roll) * Math.min(1, dt * (1.9 + this.speed * 0.035));
+      this.roll += (this.turbRoll || 0) * dt;
       const yawRate = (g * Math.tan(this.roll)) / Math.max(this.speed, 9) * 1.45;
       this.yaw -= yawRate * dt;
       const drag = 0.00104 * this.speed * this.speed * (1 + 0.45 * Math.abs(Math.sin(this.roll)));
       this.speed += (-g * Math.sin(this.pitch) - drag) * dt;
       this.speed = Math.max(7, Math.min(78, this.speed));
       this.fwd.set(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch));
-      this.lift = world.thermals.lift(this.pos);
+      this.lift = this.thermal = world.thermals.lift(this.pos);
+      // ridge lift: wind meeting a cliff face is pushed upward along it
+      this.ridge = this.ridgeLift(world);
+      // turbulence: rough air at thermal edges, over ridges and in crosswinds (smooth, layered sines)
+      const t = performance.now() * 0.001;
+      const rough = Math.min(1.4, Math.abs(this.lift) * 0.22 + this.ridge * 0.25 + (world.gust || 0) * 0.9);
+      const n1 = Math.sin(t * 2.3 + 1.7) * Math.sin(t * 0.91) + Math.sin(t * 5.7) * 0.35;
+      const n2 = Math.sin(t * 1.7 + 0.3) * Math.sin(t * 3.1 + 2.2);
+      this.turb = rough * n1 * 0.9;
+      this.turbRoll = rough * n2 * 0.22;
+      this.lift += this.ridge + this.turb;
       this.vel.copy(this.fwd).multiplyScalar(this.speed);
       this.boost = (this.boost || 0) * Math.exp(-dt * 0.8);
       this.vel.y += this.lift + this.boost;
@@ -275,6 +287,30 @@ export class Glider {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.root.quaternion);
     this.trails[0].push(l, up, this.perched ? 0 : speedK * 0.7);
     this.trails[1].push(r, up, this.perched ? 0 : speedK * 0.7);
+  }
+
+  ridgeLift(world) {
+    const W = this.windDir || (this.windDir = new THREE.Vector3(0.937, 0, 0.351));
+    const k = world.ridgeK || 1;
+    const p = this.pos;
+    let best = 0;
+    for (const isl of world.islands) {
+      if (p.distanceToSquared(isl.pos) > 330 * 330) continue;
+      // sample the rock just upwind-below the glider: that is the face the wind is climbing
+      const qx = p.x - W.x * 18, qy = p.y - 14, qz = p.z - W.z * 18;
+      const d = isl.sdfWorld(qx, qy, qz);
+      if (d > 75 || d < 0) continue;
+      const e = 1.5;
+      const nx = isl.sdfWorld(qx + e, qy, qz) - isl.sdfWorld(qx - e, qy, qz);
+      const ny = isl.sdfWorld(qx, qy + e, qz) - isl.sdfWorld(qx, qy - e, qz);
+      const nz = isl.sdfWorld(qx, qy, qz + e) - isl.sdfWorld(qx, qy, qz - e);
+      const l = Math.hypot(nx, ny, nz) || 1;
+      const facing = Math.max(0, -(nx * W.x + nz * W.z) / l);   // the face looks into the wind
+      const steep = 1 - Math.max(0, ny / l);                     // flat tops deflect nothing
+      const near = Math.max(0, Math.min(1, (75 - d) / 55));
+      best = Math.max(best, 3.4 * k * facing * steep * near * near);
+    }
+    return best;
   }
 
   collide(world, events) {
@@ -366,16 +402,27 @@ export class ChaseCam {
     this.shake = 0;
     this.roll = 0;
     this.fov = 62;
+    this.turn = 0; this.prevYaw = null;
+    this.dip = 0; this.dipV = 0;
   }
+  // a vertical jolt: positive drops the camera (landing), negative lifts it (hitting a thermal)
+  bump(a) { this.dipV += a * 6; }
   snap(g) { this.update(g, 1, { aimX: 0, aimY: 0 }, true); }
   update(g, dt, input, snap = false) {
     const cam = this.camera;
     const yaw = g.yaw, pitch = g.pitch;
+    // smoothed turn rate (rad/s), for the look-ahead
+    if (this.prevYaw !== null && dt > 0 && !snap) {
+      let dy = yaw - this.prevYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      this.turn += (Math.max(-1.2, Math.min(1.2, dy / dt)) - this.turn) * (1 - Math.exp(-dt * 2.5));
+    }
+    this.prevYaw = yaw;
+    if (g.perched) this.turn *= 0.9;
     const flat = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const k = snap ? 1 : 1 - Math.exp(-dt * 4.0);
     // lens free-look offsets
-    const tYaw = this.lens > 0.01 ? -input.aimX * 1.45 : 0;
-    const tPitch = this.lens > 0.01 ? input.aimY * 1.15 - 0.12 : 0;
+    const tYaw = this.lens > 0.01 ? -input.aimX * 1.45 : -(input.lookX || 0) * 1.6;
+    const tPitch = this.lens > 0.01 ? input.aimY * 1.15 - 0.12 : (input.lookY || 0) * 0.5;
     const kl = snap ? 1 : 1 - Math.exp(-dt * 5);
     this.lookYaw += (tYaw - this.lookYaw) * kl;
     this.lookPitch += (tPitch - this.lookPitch) * kl;
@@ -387,6 +434,16 @@ export class ChaseCam {
       const back = 12 + Math.max(0, g.speed - 30) * 0.08;
       desired = g.pos.clone().addScaledVector(flat, -back).add(new THREE.Vector3(0, 7.4 - pitch * 6, 0));
       target = g.pos.clone().addScaledVector(g.fwd, 26).add(new THREE.Vector3(0, -0.2, 0));
+      // look into the turn: lead the view toward where the glider is heading next
+      const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+      target.addScaledVector(side, this.turn * 15);
+      desired.addScaledVector(side, -this.turn * 2.5);
+    }
+    // gamepad right stick: swing the chase camera around the glider
+    if (this.lens < 0.01 && (Math.abs(this.lookYaw) > 1e-3 || Math.abs(this.lookPitch) > 1e-3)) {
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.lookYaw);
+      desired.sub(g.pos).applyQuaternion(q).add(g.pos); desired.y -= this.lookPitch * 10;
+      target.sub(g.pos).applyQuaternion(q).add(g.pos); target.y += this.lookPitch * 20;
     }
     // lens: over-the-shoulder, aimed by free look
     if (this.lens > 0.001) {
@@ -401,6 +458,12 @@ export class ChaseCam {
     this.pos.lerp(desired, this.lens > 0.5 ? 1 - Math.exp(-dt * 9) : k);
     this.look.lerp(target, this.lens > 0.5 ? 1 - Math.exp(-dt * 12) : (snap ? 1 : 1 - Math.exp(-dt * 6)));
     cam.position.copy(this.pos);
+    // springy vertical jolt
+    this.dipV += (-this.dip * 40 - this.dipV * 9) * Math.min(dt, 0.05);
+    this.dip += this.dipV * Math.min(dt, 0.05);
+    cam.position.y -= this.dip;
+    // stall buffet and rough air
+    if (!g.perched) this.shake = Math.max(this.shake, g.stall * 0.22, Math.abs(g.turb || 0) * 0.05);
     g.root.visible = this.lens < 0.6; g.scarfMesh.visible = this.lens < 0.6;
     if (this.shake > 0) {
       cam.position.x += (Math.random() - 0.5) * this.shake;

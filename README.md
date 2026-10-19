@@ -12,14 +12,18 @@ The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Cora
 
 Open `Driftlands.html` in a recent desktop Chrome, Edge, Safari or Firefox (WebGL 2). It is fully self-contained and runs offline; with a connection it also loads its web fonts. Progress is saved in the browser's local storage.
 
-| Action | Mouse | Keyboard | Touch |
-| --- | --- | --- | --- |
-| Steer | Move the pointer | A/D bank, W climb, S dive (or arrows) | Drag on the left of the screen |
-| Lens (slows time) | Hold right button | Hold Space, Shift or E | Lens button |
-| Shutter | Click with the lens up | F with the lens up | Tap |
-| Launch after landing | Click | W or Enter | Tap |
-| Journal | | J | Journal badge |
-| Photo mode | Drag to look, scroll to zoom, click to focus | O (or the pause menu); WASD move, Q/E down and up, H hides the panel, Enter saves | Pause menu, drag to look |
+| Action | Mouse | Keyboard | Touch | Gamepad |
+| --- | --- | --- | --- | --- |
+| Steer | Move the pointer | A/D bank, W climb, S dive (or arrows) | Drag on the left of the screen | Left stick (right stick swings the camera) |
+| Lens (slows time) | Hold right button | Hold Space, Shift or E | Lens button | Hold LT or LB; right stick aims |
+| Shutter | Click with the lens up | F with the lens up | Tap | A or RT with the lens up |
+| Launch after landing | Click | W or Enter | Tap | A |
+| Journal | | J | Journal badge | Y or View; D-pad picks an entry, B closes |
+| Photo mode | Drag to look, scroll to zoom, click to focus | O (or the pause menu); WASD move, Q/E down and up, H hides the panel, Enter saves | Pause menu, drag to look | X; sticks move and look, triggers sink and rise, A saves, B leaves |
+
+Start pauses on a gamepad (Chrome, Edge, Firefox and Safari; rumble where the browser supports it).
+
+New journals start with a short guided first flight: banking, climbing in a thermal, finding and recording a stiltwalker, the journal and landing, with a marker on screen for each goal. It can be skipped from its panel; existing journals skip it. Besides thermals, wind meeting the windward cliffs of an island rises: flying along those faces climbs without a thermal.
 
 Pause menu: invert, ink outlines, sound, time of day (cycle, day, night) and quality (Low, Auto, High). The "Ask the ecologist" notes need the claude.ai artifact runtime; elsewhere the journal shows its built-in notes.
 
@@ -37,6 +41,7 @@ node build.mjs --dev           # unminified
 
 | Module | Role |
 | --- | --- |
+| input.js | Mouse, keyboard, touch and gamepad input, rumble |
 | main.js, boot.js, worker.js | Startup, asset loading, island worker |
 | islands-sdf.js, mesher.js, noise.js | The eight island SDFs, surface-nets meshing, baked AO and sun |
 | world.js, kit.js, texgen.js | Islands, sky, water, falls, flora, boulders, floating rocks, thermals, GPU textures |
@@ -49,6 +54,7 @@ node build.mjs --dev           # unminified
 | glow.js | Night light pooled around glowing caps and creatures |
 | particles.js | Stateless GPU particles: pollen, night spores, waterfall spray |
 | weather.js | Weather fronts: fog, rain and crosswind bands, their effect on thermals, the glider, creatures, sound and the lens |
+| guide.js | The guided first flight: goals, their markers and completion checks |
 | convergence.js | The four convergences, what triggers each, and their hybrids |
 | photo.js | Photo mode: free camera with time stopped, focal length, aperture and focus, exposure, white balance, time of day, grade presets, crop frames, PNG export |
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |

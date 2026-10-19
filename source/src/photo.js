@@ -158,7 +158,7 @@ export class PhotoMode {
     g.ui.showHUD(false); g.ui.lens(0, null);
     g.audio.duck(true);
     this.el.hidden = false; this.togglePanel(false);
-    requestAnimationFrame(() => this.el.classList.add('on'));
+    requestAnimationFrame(() => { if (this.on) this.el.classList.add('on'); });
     this.sync();
   }
   exit() {
@@ -185,8 +185,15 @@ export class PhotoMode {
       .addScaledVector(fwd, ax('w', 's') || ax('arrowup', 'arrowdown'))
       .addScaledVector(right, ax('d', 'a') || ax('arrowright', 'arrowleft'))
       .addScaledVector(new THREE.Vector3(0, 1, 0), ax('e', 'q'));
+    const inp = g.input;
+    if (inp.mode === 'pad') {
+      // gamepad: left stick moves, right stick looks, triggers sink and rise, held RB moves fast
+      want.addScaledVector(fwd, inp.padStick[1]).addScaledVector(right, inp.padStick[0]).addScaledVector(new THREE.Vector3(0, 1, 0), inp.padTrig[1] - inp.padTrig[0]);
+      this.yaw -= inp.padLook[0] * dt * 1.6;
+      this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch + inp.padLook[1] * dt * 1.2));
+    }
     if (want.lengthSq() > 1) want.normalize();
-    const speed = k.has('shift') ? 40 : 9;
+    const speed = k.has('shift') || (inp.pad && inp.padPrev[5]) ? 40 : 9;
     this.vel.lerp(want.multiplyScalar(speed), 1 - Math.exp(-dt * 6));
     this.pos.addScaledVector(this.vel, dt);
     // stay within reach of the glider and above the cloud sea floor
