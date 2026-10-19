@@ -145,16 +145,23 @@ float phaseF(float c, float k){ return mix(hg(c, 0.68 * k), hg(c, -0.22 * k), 0.
 // one slab, front to back; returns its in-scattered light with aerial perspective applied
 void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitter, float cosT, inout vec3 S, inout float T){
   float dt = L == 0 ? clamp((t1 - t0) / steps, 2.5, 90.0) : clamp((t1 - t0) / steps, 5.0, 260.0);
+  // the high layer steps finer near the camera and coarser far away, so close clouds don't show slicing stripes
+  if (L == 1) dt = clamp(12.0 + t0 * 0.035, 12.0, 260.0);
   float t = t0 + dt * jitter;
+  float maxI = L == 0 ? steps * 1.5 : 80.0;
+  float back = 0.0, fine = 0.0;
   float Tl = 1.0; vec3 Sl = vec3(0.0); float distAcc = 0.0, wAcc = 0.0;
   vec3 sunC = uSunColor * 1.15;
   float p0 = phaseF(cosT, 1.0), p1 = phaseF(cosT, 0.5), p2 = phaseF(cosT, 0.25);
   float ls0 = L == 0 ? 6.0 : 12.0;
   for (float i = 0.0; i < 128.0; i += 1.0) {
-    if (i >= steps * 1.5 || t > t1 || Tl * T < 0.015) break;
+    if (i >= maxI || t > t1 || Tl * T < 0.015) break;
+    if (L == 1) dt = clamp(12.0 + t * 0.035, 12.0, 260.0);
     vec3 p = ro + rd * t;
     float lod = t > (L == 0 ? 1600.0 : 7000.0) ? 1.0 : 0.0;
     float d = dens(L, p, lod);
+    // landed in cloud after a long stride over clear sky: step back and come in at the fine step
+    if (d > 0.0 && back > 0.0) { t -= back; back = 0.0; fine = 2.0; continue; }
     if (d > 0.0) {
       float od = 0.0; float ls = ls0; vec3 lp = p;
       int nl = L == 1 ? (lod > 0.5 ? 2 : 3) : 4;
@@ -174,7 +181,10 @@ void march(int L, vec3 ro, vec3 rd, float t0, float t1, float steps, float jitte
       distAcc += t * Tl * (1.0 - tr); wAcc += Tl * (1.0 - tr);
       Tl *= tr;
     }
-    t += dt * (d > 0.0 ? 1.0 : (L == 1 ? 2.0 : 1.35));   // the high layer is mostly clear sky: stride over it
+    float st = dt * (d > 0.0 ? 1.0 : (L == 1 ? (fine > 0.0 ? 1.0 : 2.0) : 1.35));   // the high layer is mostly clear sky: stride over it
+    back = d > 0.0 || L == 0 || fine > 0.0 ? 0.0 : st - dt;
+    fine = max(fine - 1.0, 0.0);
+    t += st;
   }
   if (wAcc <= 0.0) return;
   vec3 pp = ro + rd * (distAcc / wAcc);
