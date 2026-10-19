@@ -8,6 +8,8 @@ import { DayCycle } from './cycle.js';
 import { apertureFor } from './post.js';
 import { GOLDEN, BENCH } from './golden.js';
 import { PhotoMode } from './photo.js';
+import { Weather, FRONTS } from './weather.js';
+import { CONVERGENCES, convergenceReady, convergenceFor } from './convergence.js';
 
 const STORE_KEY = 'driftlands-journal-v1';
 const SETTINGS_KEY = 'driftlands-settings-v1';
@@ -34,6 +36,17 @@ const TAG_TEXT = {
   'wader:graze': 'probing the shallows with its bill', 'wader:walk': 'stepping carefully along the shore', 'wader:alert': 'craning its neck at the glider',
   'lily:open': 'floating open on the still water', 'lily:closing': 'folding shut and dipping under', 'lily:nightglow': 'glowing on the dark lake',
   'veil:open': 'hanging open beneath the roots', 'veil:closing': 'drawing up its fringe as the glider passed', 'veil:nightglow': 'glowing like a lantern under the island',
+  'kiln:seam': 'stepping across the seam where fire met glass', 'kiln:rain': 'steaming in the rain as drops hit its warm back',
+  'bell:open': 'hanging open where the lake drips through the roots', 'bell:closing': 'snapping shut and spilling water as the glider passed',
+  'bell:nightglow': 'glowing under the seam at night', 'bell:rain': 'filling with rain until it overflows',
+  'rootwing:seam': 'weaving between the hanging roots beneath the seam', 'rootwing:gust': 'tumbling and recovering on the crosswind',
+  'rootwing:nightglow': 'circling under the seam with a glowing ribbon',
+  rain: 'out in the rain', fogcall: 'calling through the fog', gust: 'riding the crosswind',
+  'stilt:rain': 'shaking rain off its back', 'polyp:rain': 'crown cupped open to catch the rain', 'kite:gust': 'hanging motionless on the crosswind',
+  'lantern:fogcall': 'glowing through the fog like a lamp', 'whale:fogcall': 'calling long and low through the fog', 'swift:gust': 'racing the crosswind through the ring',
+  'ray:fogcall': 'calling to the others through the fog', 'glassworm:rain': 'rain beading down its glass back', 'moth:fogcall': 'gathering thickly in the fog',
+  'strider:gust': 'bracing against the wind, legs splayed', 'cinderbell:rain': 'hissing as the rain hits its glow', 'wader:rain': 'standing hunched in the rain',
+  'lily:rain': 'drinking the rain, petals cupped', 'veil:gust': 'streaming sideways in the wind',
   'rootworm:crawl': 'winding down a hanging root', 'rootworm:nightglow': 'spots glowing among the dark roots',
 };
 export const tagText = (id, t) => TAG_TEXT[id + ':' + t] || TAG_TEXT[t] || t;
@@ -57,6 +70,7 @@ export class Game {
     this.j = this.freshJournal();
     const saved = load(STORE_KEY, null);
     if (saved && saved.recorded) this.j = Object.assign(this.freshJournal(), saved);
+    if (this.j.converged) { this.j.conv = Object.assign({ ochre: true }, this.j.conv); delete this.j.converged; }   // journals saved before v12
     this.state = 'loading';
     this.time = 0; this.realTime = 0;
     this.timeScale = 1;
@@ -67,36 +81,49 @@ export class Game {
     this.hints = new Set(load('driftlands-hints-v1', []));
     this.hintQueue = [];
     this.frameAvg = 16; this.slowT = 0; this.fastT = 0;
-    this.convergence = { phase: this.j.converged ? 'done' : 'none', t: 0 };
     this.titleAng = 0;
     this.lastHud = 0;
     this.notified = new Set();
     this.timers = [];
-    this.computeConvergence();
-    if (this.j.converged) this.applyConverged();
+    this.computeConvergences();
+    for (const cv of this.convs) if (this.j.conv[cv.key]) this.applyConverged(cv);
     this.applyQuality(this.settings.quality === 'low' ? 0 : this.settings.quality === 'high' ? 3 : 2);
     this.photo = new PhotoMode(this);
+    this.weather = new Weather();
+    this.weather.onArrive = (type, text) => { if (this.state === 'play') { this.ui.toast(text); this.audio.whoosh && this.audio.whoosh(); } };
+    this._sunBase = U.uSunColor.value.clone(); this._sunOut = new THREE.Vector3(-1, -1, -1);
   }
 
   freshJournal() {
-    return { recorded: {}, progress: {}, tags: {}, notes: {}, converged: false, started: false, flightTime: 0 };
+    return { recorded: {}, progress: {}, tags: {}, notes: {}, conv: {}, started: false, flightTime: 0 };
   }
   persist() { save(STORE_KEY, this.j); }
 
-  computeConvergence() {
-    const [I0, I1] = this.world.islands;
-    const dir = new THREE.Vector3().subVectors(I1.basePos, I0.basePos).setY(0).normalize();
-    const final = I0.basePos.clone().addScaledVector(dir, I0.spec.radius + I1.spec.radius - 10);
-    final.y = I0.basePos.y + 3;
-    this.convFinal = final.sub(I1.basePos);
-    this.seamLocal = dir.clone().multiplyScalar(I0.spec.radius - 22);
-    this.convDir = dir;
+  computeConvergences() {
+    const isl = (k) => this.world.islands.find((I) => I.spec.key === k);
+    this.convs = CONVERGENCES.map((c) => {
+      const I0 = isl(c.a), I1 = isl(c.b);
+      const dir = new THREE.Vector3().subVectors(I1.basePos, I0.basePos).setY(0).normalize();
+      const final = I0.basePos.clone().addScaledVector(dir, I0.spec.radius + I1.spec.radius - 10);
+      final.y = I0.basePos.y + 3;
+      return { ...c, I0, I1, dir, final: final.sub(I1.basePos), seamLocal: dir.clone().multiplyScalar(I0.spec.radius - 22), phase: 'none', t: 0, quake: 0 };
+    });
   }
-  applyConverged() {
-    this.world.islands[1].offset.copy(this.convFinal);
-    this.world.islands[1].update(0);
+  applyConverged(cv) {
+    cv.phase = 'done'; cv.quake = 0;
+    cv.I1.offset.copy(cv.final);
+    cv.I1.update(0);
     this.world.thermals.update();
-    this.eco.spawnHybrids(this.seamLocal);
+    this.eco.spawnHybrid(cv.hybrid, cv.I0, cv.I1, cv.seamLocal);
+  }
+  convergedCount() { return this.convs.filter((c) => c.phase === 'done').length; }
+  // start the next convergence whose islands are ready; one at a time
+  checkConvergences(delay = 8) {
+    if (this.convs.some((c) => c.phase === 'drifting' || c.phase === 'queued' || c.quake > 0)) return;
+    const cv = this.convs.find((c) => c.phase === 'none' && convergenceReady(c, this.world.islands, this.j.recorded));
+    if (!cv) return;
+    cv.phase = 'queued';
+    this.after(delay, () => this.beginConvergence(cv));
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -132,15 +159,13 @@ export class Game {
     this.glider.roll = 0;
     this.hint('steer');
     this.after(14, () => this.hint('thermal'));
-    if (Object.keys(this.j.recorded).length >= 4 && this.convergence.phase === 'none') this.after(12, () => this.beginConvergence());
+    this.checkConvergences(12);
   }
   newJournal() {
     this.j = this.freshJournal();
     this.persist();
-    this.world.islands[1].offset.set(0, 0, 0);
-    this.convergence = { phase: 'none', t: 0 };
-    this.eco.list = this.eco.list.filter((c) => c.sp.id !== 'hybrid');
-    this.eco.bySpecies.hybrid = []; this.eco.hybridsSpawned = false;
+    for (const cv of this.convs) { cv.I0.offset.set(0, 0, 0); cv.I1.offset.set(0, 0, 0); cv.phase = 'none'; cv.t = 0; cv.quake = 0; }
+    this.eco.removeHybrids();
     this.timers = [];
     this.ui.updateJournalBadge(this.j);
   }
@@ -222,6 +247,8 @@ export class Game {
     const v = typeof i === 'number' ? GOLDEN[i] : GOLDEN.find((g) => g.name === i);
     if (!v) return GOLDEN.map((g) => g.name);
     this.cycle.mode = 'hold'; this.cycle.t = v.time; this.cycle.apply();
+    this.weather.hold();
+    if (v.weather) { const w = v.weather; this.weather.start(w.type, w.s, w.angle); this.weather.front.age = 10; this.weather.update(0, new THREE.Vector3(...v.p), null); this.weather.wetLens = Math.max(this.weather.here.rain, this.weather.here.fog * 0.45); }
     if (v.creature) {
       const c = this.eco.bySpecies[v.creature][0];
       this.sim(0.2);
@@ -238,6 +265,7 @@ export class Game {
     const curve = new THREE.CatmullRomCurve3(pts, true);
     const len = curve.getLength();
     this.cycle.mode = 'hold'; this.cycle.t = 120; this.cycle.apply();
+    this.weather.hold();
     this.benchState = { curve, len, t0: performance.now(), d: 0, speed, times: [] };
     this.debugCam = { p: [0, 0, 0], t: [0, 0, 0], fov: 62 };
   }
@@ -329,6 +357,7 @@ export class Game {
       if (this.rescueT >= 0) ctl = { ...ctl, roll: 0, pitch: 0, launch: false };
       this.events.length = 0;
       this.glider.update(dt, ctl, this.world, this.events);
+      if (!this.glider.perched) this.glider.pos.addScaledVector(this.weather.wind, dt);   // crosswind drift
       this.j.flightTime += dt;
       for (const e of this.events) this.onEvent(e);
       if (this.glider.stall > 0.6) this.hint('stall');
@@ -339,14 +368,20 @@ export class Game {
     // world
     if (this.timers.length && dt > 0) { for (const tm of this.timers) tm.t -= dt; const due = this.timers.filter((tm) => tm.t <= 0); this.timers = this.timers.filter((tm) => tm.t > 0); due.forEach((tm) => tm.fn()); }
     for (const isl of this.world.islands) isl.update(this.time);
-    this.updateConvergence(dt);
+    for (const cv of this.convs) this.updateConvergence(cv, dt);
     this.world.thermals.update();
+    this.weather.update(this.state === 'play' || this.state === 'title' || this.debugCam ? dt : 0, this.camera.position, this.world.thermals);
+    // overcast under fog and rain: dim the sun (the cycle rewrites uSunColor when it runs; keep its value as the base)
+    if (!U.uSunColor.value.equals(this._sunOut)) this._sunBase.copy(U.uSunColor.value);
+    this._sunOut.copy(this._sunBase).multiplyScalar(1 - this.weather.overcast());
+    U.uSunColor.value.copy(this._sunOut);
+    this.audio.wx = this.weather.here;
     this.world.rocks.update(this.time);
     // the cloud pass shades and mists only around the islands nearest the camera
     const cp = this.camera.position, uI = this.pipe.cloudMat.uniforms.uIsl.value;
     const near = this.world.islands.slice().sort((a, b) => a.pos.distanceToSquared(cp) - b.pos.distanceToSquared(cp));
     uI.forEach((v, i) => { const I = near[i]; if (I) v.set(I.pos.x, I.pos.y, I.pos.z, I.spec.radius); else v.set(0, -1e5, 0, 1); });
-    const ctx = { time: this.time, glider: this.glider, camPos: this.camera.position, camera: this.camera, night: this.night || 0, audio: this.state === 'play' ? this.audio : null };
+    const ctx = { time: this.time, glider: this.glider, camPos: this.camera.position, camera: this.camera, night: this.night || 0, audio: this.state === 'play' ? this.audio : null, weather: this.weather };
     if (dt > 0) this.eco.update(dt, ctx);
     this.debris.update(dt);
     // camera
@@ -377,6 +412,8 @@ export class Game {
     fu.uFlash.value = Math.max(0, fu.uFlash.value - dtReal * 1.5);
     fu.uExposure.value = this.cycle.exposure();
     fu.uAutoAmt.value = 0.55 * (1 - 0.8 * this.night);
+    fu.uRain.value = this.weather.here.rain;
+    fu.uWet.value = this.state === 'photo' ? 0 : this.weather.wetLens;
     this.grade(fu);
     this.photo.applyGrade(fu);
     
@@ -556,7 +593,7 @@ export class Game {
     this.ui.recorded(sp, n, SPECIES.length);
     this.ui.updateJournalBadge(this.j);
     this.after(3.5, () => this.hint('journal'));
-    if (n >= 4 && this.convergence.phase === 'none') this.after(8, () => this.beginConvergence());
+    this.checkConvergences(8);
     if (n === SPECIES.length) this.after(4, () => this.ui.complete(this.j));
   }
 
@@ -579,46 +616,48 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- convergence
-  beginConvergence() {
-    if (this.convergence.phase !== 'none') return;
-    this.convergence = { phase: 'drifting', t: 0, dur: 52 };
-    this.ui.event('Convergence', 'The Ochre Table has caught a current and is drifting toward Verdigris Reach.');
-    this.audio.rumble(52);
+  beginConvergence(cv) {
+    if (cv.phase === 'drifting' || cv.phase === 'done') return;
+    cv.phase = 'drifting'; cv.t = 0;
+    this.ui.event('Convergence', cv.begin);
+    this.audio.rumble(cv.dur);
   }
-  updateConvergence(dt) {
-    const cv = this.convergence;
+  updateConvergence(cv, dt) {
     if (cv.phase === 'done' && cv.quake > 0) {
       cv.quake -= dt;
       const k = Math.max(0, cv.quake / 5);
       const w = Math.sin(cv.quake * 9) * k * k * 4;
-      this.world.islands[1].offset.copy(this.convFinal).addScaledVector(this.convDir, -w);
-      this.world.islands[0].offset.copy(this.convDir).multiplyScalar(w * 0.35);
-      this.world.islands[0].offset.y = -Math.abs(w) * 0.3;
-      if (cv.quake <= 0) { this.world.islands[0].offset.set(0, 0, 0); this.world.islands[1].offset.copy(this.convFinal); }
+      cv.I1.offset.copy(cv.final).addScaledVector(cv.dir, -w);
+      cv.I0.offset.copy(cv.dir).multiplyScalar(w * 0.35);
+      cv.I0.offset.y = -Math.abs(w) * 0.3;
+      if (cv.quake <= 0) { cv.I0.offset.set(0, 0, 0); cv.I1.offset.copy(cv.final); this.after(20, () => this.checkConvergences(30)); }
       return;
     }
     if (cv.phase !== 'drifting') return;
     cv.t += dt;
     const u = Math.min(1, cv.t / cv.dur);
     const e = u < 0.15 ? (u * u) / 0.3 : 0.075 + (u - 0.15) * (0.925 / 0.85);
-    const I1 = this.world.islands[1];
-    I1.offset.copy(this.convFinal).multiplyScalar(e);
+    cv.I1.offset.copy(cv.final).multiplyScalar(e);
     if (u >= 1) {
       cv.phase = 'done'; cv.quake = 5;
-      this.j.converged = true; this.persist();
-      const I0 = this.world.islands[0];
-      const seam = I0.pos.clone().add(this.seamLocal.clone().multiplyScalar((I0.spec.radius + 8) / (I0.spec.radius - 22)));
+      this.j.conv[cv.key] = true; this.persist();
+      const I0 = cv.I0;
+      const seam = I0.pos.clone().add(cv.seamLocal.clone().multiplyScalar((I0.spec.radius + 8) / (I0.spec.radius - 22)));
       const dist = this.camera.position.distanceTo(seam);
       this.chase.shake = Math.max(this.chase.shake, Math.max(0.4, 3.2 - dist / 300));
       this.pipe.finalMat.uniforms.uFlash.value = 0.25; this.pipe.finalMat.uniforms.uFlashColor.value.set(1, 0.85, 0.7);
       this.audio.crash(dist);
-      this.debris.burst(seam, this.convDir, 1);
+      this.debris.burst(seam, cv.dir, 1);
       this.after(3.5, () => {
-        this.eco.spawnHybrids(this.seamLocal);
-        this.ui.event('The islands have met', 'Something new is walking where the rock fused. Go and see.');
+        this.eco.spawnHybrid(cv.hybrid, cv.I0, cv.I1, cv.seamLocal);
+        this.ui.event(cv.met[0], cv.met[1]);
+        this.ui.updateJournalBadge(this.j);
+        if (cv.key === 'ochre') this.after(14, () => this.ui.toast('Currents carry islands whose life is fully recorded. Finish the survey of two neighbours to bring them together.'));
       });
     }
   }
+  // debug: finish a convergence instantly
+  converge(key) { const cv = this.convs.find((c) => c.key === key); if (cv && cv.phase !== 'done') { this.j.conv[key] = true; this.applyConverged(cv); } return this.convs.map((c) => c.key + ':' + c.phase); }
 
   // ---------------------------------------------------------------- HUD
   onPhase(name) {
@@ -639,7 +678,8 @@ export class Game {
     for (const isl of this.world.islands) {
       v.copy(isl.pos).add(new THREE.Vector3(0, 75, 0));
       const d = cam.position.distanceTo(isl.pos);
-      const pending = SPECIES.filter((s) => s.island === isl.index && !this.j.recorded[s.id]).length + (isl.index <= 1 && this.eco.hybridsSpawned && !this.j.recorded.hybrid ? 1 : 0);
+      const pending = SPECIES.filter((s) => s.island === isl.index && !this.j.recorded[s.id]).length
+        + this.convs.filter((c) => c.I0 === isl && this.eco.spawned_(c.hybrid) && !this.j.recorded[c.hybrid]).length;
       v.project(cam);
       const on = v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1;
       const rel = isl.pos.clone().sub(cam.position).applyQuaternion(cam.quaternion.clone().invert());
@@ -649,7 +689,7 @@ export class Game {
     this.ui.hud({
       alt: g.pos.y - U.uCloudTop.value, climb: g.climb, speed: g.speed * 3.6, perched: g.perched, labels, mode: this.input.mode,
       recorded: Object.keys(this.j.recorded).length, total: SPECIES.length, playing: this.state === 'play', lens: this.lens,
-      phase: this.cycle.info(), timeMode: this.cycle.mode,
+      phase: this.cycle.info(), timeMode: this.cycle.mode, weather: this.weather.info(this.camera.position),
       aimX: this.input.aimX, aimY: this.input.aimY, stall: g.stall,
     });
   }

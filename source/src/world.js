@@ -337,7 +337,7 @@ void main(){
   float gust = smoothstep(0.38, 0.85, vnoise2(wp.xz * 0.016 - uWind * uTime * 0.5));
   float sway = ((sin(uTime * 1.3 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.3) * (0.5 + 0.5 * gust) + gust * 1.1) * aInst.y;
   vGust = gust;
-  w.xz += vec2(uWind.x, uWind.y) * sway * aH * aH;
+  w.xz += vec2(uWind.x, uWind.y) * sway * aH * aH * (1.0 + 2.4 * uFrontK.z * frontW(wp.xz));
   w.xyz += pushOffset(wp.xyz, aH, length(instanceMatrix[1].xyz));
   vWorld = w.xyz;
   vNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
@@ -1017,6 +1017,7 @@ void main(){
   float ang = aSeed.y * 40.0 + uTime * 0.35 + y * 0.02;
   float r = th.w * (0.15 + 0.85 * aSeed.z) * (0.75 + 0.4 * y / H);
   vec3 wp = vec3(th.x + cos(ang) * r, 10.0 + y, th.z + sin(ang) * r);
+  wp.xz += uFront.xy * uFrontK.z * frontW(th.xz) * y * 0.45;   // a crosswind leans the column over
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   gl_Position = projectionMatrix * mv;
   float dist = -mv.z;
@@ -1106,13 +1107,18 @@ export class Thermals {
       if (this.cols) this.cols[i].position.set(x, 240, z);
     });
   }
+  // weather: fronts weaken thermals under them (k = 0..1 per thermal)
+  damp(fn) {
+    this.list.forEach((t, i) => { t.damp = fn(t.x, t.z); this.uTherm.value[i].y = t.vis * (0.25 + 0.75 * t.damp); });
+  }
   // vertical air speed at a point
   lift(p) {
     let w = 0;
     for (const t of this.list) {
       const dx = p.x - t.x, dz = p.z - t.z;
       const r2 = (dx * dx + dz * dz) / (t.r * t.r);
-      if (r2 < 1) w += t.w * (1 - r2) * (1 - Math.max(0, Math.min(1, (p.y - 440) / 60)));
+      const k = t.damp ?? 1;
+      if (r2 < 1) w += t.w * k * (1 - r2) * (1 - Math.max(0, Math.min(1, (p.y - 440) / 60)));
       else if (r2 < 1.7) w -= 0.6 * (1 - (r2 - 1) / 0.7);
     }
     return w;

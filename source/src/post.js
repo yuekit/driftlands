@@ -213,6 +213,38 @@ vec4 shafts(vec3 ro, vec3 rd, float tMax, float cosT, float jitter){
   float ph = max(hgPhase(cosT, 0.6) - 0.05, 0.0);       // only the forward excess: the fog already holds the rest
   return vec4(uSunColor * lit * ph * uSunVis * 0.35, shd);
 }
+// weather front: fog bank / rain curtain as an analytic slab across the map (soft edges approximated by
+// shrinking the band, density varied with noise at the segment's midpoint), composited over clouds and scene
+void frontFog(vec3 ro, vec3 rd, float dist, float cosT, inout vec3 S, inout float T){
+  float kf = uFrontK.x, kr = uFrontK.y;
+  if (kf + kr < 0.002) return;
+  vec2 d = uFront.xy;
+  float c0 = dot(ro.xz, d) - uFront.z, cd = dot(rd.xz, d);
+  float along = dot(ro.xz, vec2(-d.y, d.x));
+  float hw = uFront.w * 0.8 * (1.0 + 0.18 * sin(along * 0.0041 + 1.3) + 0.1 * sin(along * 0.011));
+  float t0 = 0.0, t1 = min(dist, 7000.0);
+  if (abs(cd) < 1e-4) { if (abs(c0) > hw) return; }
+  else {
+    float ta = (-hw - c0) / cd, tb = (hw - c0) / cd;
+    t0 = max(t0, min(ta, tb)); t1 = min(t1, max(ta, tb));
+  }
+  // height: the bank fills the air from the cloud sea up to about 330 m, thinning near its top
+  float FT = 340.0;
+  vec2 hy = vec2(0.0, 1e9);
+  if (abs(rd.y) > 1e-4) { float ya = (uCloudTop - 60.0 - ro.y) / rd.y, yb = (FT - ro.y) / rd.y; hy = vec2(min(ya, yb), max(ya, yb)); }
+  else if (ro.y > FT) return;
+  t0 = max(t0, hy.x); t1 = min(t1, hy.y);
+  if (t1 <= t0) return;
+  vec3 pm = ro + rd * (0.5 * (t0 + t1));
+  float n = texture(tNoise, vec3(pm.x * 0.0011, 0.47 + uTime * 0.0004, pm.z * 0.0011)).a;
+  float top = 1.0 - smoothstep(FT - 120.0, FT, pm.y);
+  float dens = (kf * 0.0062 + kr * 0.0019) * (0.55 + 0.9 * n) * (0.35 + 0.65 * top);
+  float Tf = exp(-(t1 - t0) * dens);
+  vec3 amb = mix(uAmbLo, uAmbHi, 0.65);
+  vec3 lit = amb * 1.05 + uSunColor * uSunVis * (0.06 + 0.5 * hgPhase(cosT, 0.55)) * 0.35;
+  vec3 col = mix(lit, lit * vec3(0.48, 0.5, 0.56), kr / max(kf + kr, 1e-3));
+  S = S * Tf + col * (1.0 - Tf); T *= Tf;
+}
 vec2 slab(vec3 ro, vec3 rd, float y0, float y1, float tMax){
   float t0, t1;
   if (abs(rd.y) < 1e-4) { t0 = 0.0; t1 = (ro.y > y0 && ro.y < y1) ? 9000.0 : -1.0; }
@@ -249,6 +281,7 @@ void main(){
     S = S * f + sh.rgb * uShaft; T *= f;
     if (uShaft > 5.0) { S = vec3(sh.a * 4.0, dot(sh.rgb, vec3(0.3)) * 4.0, 0.0); T = 0.0; }
   }
+  frontFog(ro, rd, zr >= 0.99999 ? 7000.0 : sceneDist, cosT, S, T);
   fragColor = vec4(S, T);
 }`;
 
@@ -496,6 +529,41 @@ uniform sampler2D tAdapt; uniform float uAutoAmt; uniform float uAutoKey; unifor
 uniform vec3 uLift; uniform vec3 uGain; uniform float uSat; uniform float uContrast;
 uniform vec3 uWB; uniform float uMono; uniform vec3 uMonoMix; uniform float uBlack; uniform float uGrain; uniform float uVig;
 uniform vec3 uShadowTint; uniform vec3 uHiTint; uniform float uAR;
+uniform float uRain; uniform float uWet;
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+// water drops beaded on the lens: each refracts a flipped bit of the view behind it
+vec2 lensDrops(vec2 uv, out float rim){
+  rim = 0.0; vec2 off = vec2(0.0);
+  if (uWet < 0.01) return off;
+  vec2 a = vec2(uRes.x / uRes.y, 1.0);
+  for (int l = 0; l < 2; l++) {
+    float sc = l == 0 ? 6.0 : 13.0, fl = float(l);
+    vec2 g = uv * a * sc; vec2 id = floor(g); vec2 f = fract(g) - 0.5;
+    float h = h21(id + fl * 17.0);
+    if (h > uWet * (l == 0 ? 0.28 : 0.42)) continue;
+    vec2 c = (vec2(h21(id + 3.1), h21(id + 7.7)) - 0.5) * 0.5;
+    float r = 0.1 + 0.2 * h21(id + 11.3);
+    vec2 q = f - c; float dd = length(q * vec2(1.0, 0.88));
+    if (dd < r) { float k = dd / r; off -= q / (sc * a) * (1.0 - k * k) * 1.6; rim = max(rim, smoothstep(0.65, 1.0, k)); }
+  }
+  return off;
+}
+// falling rain: thin slanted streaks in three depth layers
+float rainStreaks(vec2 uv){
+  float acc = 0.0;
+  vec2 a = vec2(uRes.x / uRes.y, 1.0);
+  for (int l = 0; l < 3; l++) {
+    float fl = float(l);
+    vec2 p = uv * a; p.x += p.y * (0.16 + uSpeedFx * 0.25);
+    p.y += uTime * (2.4 + fl * 0.9) + fl * 0.37;
+    vec2 g = p * vec2(70.0 + fl * 55.0, 2.0 + fl * 0.9);
+    vec2 id = floor(g); vec2 f = fract(g);
+    float on = step(0.6, h21(id + fl * 7.0));
+    float y = fract(f.y + h21(vec2(id.x, fl * 13.0)));
+    acc += on * smoothstep(0.16, 0.0, abs(f.x - 0.5)) * smoothstep(0.0, 0.12, y) * smoothstep(0.55, 0.12, y) / (1.0 + fl * 0.8);
+  }
+  return acc;
+}
 vec3 aces(vec3 x){ const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0); }
 const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
 const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
@@ -512,6 +580,8 @@ vec3 agx(vec3 c){
 }
 void main(){
   vec2 uv = vUv;
+  float dropRim = 0.0;
+  uv += lensDrops(uv, dropRim);
   vec2 cc = uv - 0.5; cc.x *= uRes.x / uRes.y;
   float r = length(cc);
   // subtle chromatic aberration toward the edges, more at speed
@@ -532,6 +602,8 @@ void main(){
   float avgLog = texture(tAdapt, vec2(0.5)).r;
   float autoX = clamp(pow(uAutoKey / exp(avgLog), uAutoAmt), 0.45, 2.2);
   col *= uExposure * autoX * uWB;
+  if (uRain > 0.01) col += vec3(0.78, 0.82, 0.9) * rainStreaks(vUv) * uRain * 0.07;
+  col *= 1.0 - dropRim * 0.1;
   // naturalist's lens: desaturate and darken outside the aperture
   if (uLens > 0.0) {
     float ap = smoothstep(0.34, 0.27, r);
@@ -725,6 +797,7 @@ export class Pipeline {
       uLift: { value: new THREE.Vector3(0, 0, 0) }, uGain: { value: new THREE.Vector3(1, 1, 1) }, uSat: { value: 1.36 }, uContrast: { value: 0.5 },
       uWB: { value: new THREE.Vector3(1, 1, 1) }, uMono: { value: 0 }, uMonoMix: { value: new THREE.Vector3(0.2126, 0.7152, 0.0722) }, uBlack: { value: 0 },
       uGrain: { value: 0.028 }, uVig: { value: 0.28 }, uShadowTint: { value: new THREE.Vector3(-0.009, 0, 0.0252) }, uHiTint: { value: new THREE.Vector3(1.03, 1, 0.95) }, uAR: { value: 0 },
+      uRain: { value: 0 }, uWet: { value: 0 },
     });
     const dofU = () => ({ tDepth: { value: null }, tFocus: { value: null }, uNF: { value: new THREE.Vector2(0.5, 20000) }, uAperture: { value: 0 } });
     this.focusMat = mk(FOCUS_FS, { ...dofU(), tPrev: { value: null }, uUV: { value: new THREE.Vector2(0.5, 0.5) }, uDist: { value: 0 }, uK: { value: 1 } });

@@ -19,6 +19,9 @@ export const GOLDEN = [
   { name: 'mire-lake', p: [-600, 210, -10], t: [-860, 110, 170], fov: 55, time: 110 },
   { name: 'under-rootfall', p: [-440, 70, -460], t: [-660, 110, -640], fov: 60, time: 140 },
   { name: 'glasswing-night', p: [1300, 190, 450], t: [1160, 180, 330], fov: 60, time: 440 },
+  { name: 'fog-bank', p: [520, 270, -480], t: [0, 170, 0], fov: 55, time: 110, weather: { type: 'fog', s: -120, angle: 0 } },
+  { name: 'rain-mire', p: [-600, 210, -10], t: [-860, 110, 170], fov: 55, time: 110, weather: { type: 'rain', s: 60, angle: 1.5708 } },
+  { name: 'crosswind', p: [260, 240, -260], t: [0, 200, 0], fov: 60, time: 120, weather: { type: 'wind', s: 0, angle: 0.4 } },
 ];
 
 // waypoints for the benchmark: a loop around all three islands, about 60 s at 1x

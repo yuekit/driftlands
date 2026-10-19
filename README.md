@@ -2,7 +2,11 @@
 
 Ride the warm air between floating islands and record the strange life on each one in your field journal, before the islands collide.
 
-The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Coral Rookery in the middle, and five outer islands, each with its own life: Windgate (a stone ring that swifts and sky rays fly through), the Glasswing Spires (glass centipedes and spire moths), the Ember Caldera (ash striders and cinderbells over a warm crater), Mirewater Shoal (waders and floating lilies on a still lake) and Rootfall Hollow (veil blooms and root worms beneath a curtain of hanging roots). The journal holds seventeen species.
+The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Coral Rookery in the middle, and five outer islands, each with its own life: Windgate (a stone ring that swifts and sky rays fly through), the Glasswing Spires (glass centipedes and spire moths), the Ember Caldera (ash striders and cinderbells over a warm crater), Mirewater Shoal (waders and floating lilies on a still lake) and Rootfall Hollow (veil blooms and root worms beneath a curtain of hanging roots). The journal holds twenty species, three of which only appear after a convergence.
+
+**Convergences.** When every species on two neighbouring islands is recorded, a current carries one island into the other: the Ochre Table into Verdigris Reach (this first one comes early, after any four records), the Ember Caldera into the Glasswing Spires, Mirewater Shoal into Rootfall Hollow, and Windgate into Rootfall Hollow. Each fused seam breeds a hybrid: the Seam strider, the Kilnback strider, the Rootwater bell and the Rootwing.
+
+**Weather.** Fronts sweep across the archipelago one at a time: fog banks that hide islands, rain bands that kill thermals and bead the lens, and crosswinds that push the glider sideways and lean the thermal columns over. The pill under the clock says where the current front is. Some behaviours can only be seen in a particular front; the journal says which.
 
 ## Play
 
@@ -44,13 +48,15 @@ node build.mjs --dev           # unminified
 | water.js | Pool and channel water: planar mirror reflection, caustics, foam |
 | glow.js | Night light pooled around glowing caps and creatures |
 | particles.js | Stateless GPU particles: pollen, night spores, waterfall spray |
+| weather.js | Weather fronts: fog, rain and crosswind bands, their effect on thermals, the glider, creatures, sound and the lens |
+| convergence.js | The four convergences, what triggers each, and their hybrids |
 | photo.js | Photo mode: free camera with time stopped, focal length, aperture and focus, exposure, white balance, time of day, grade presets, crop frames, PNG export |
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
-Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the eighteen golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all eighteen headless and `tools/sheet.py` makes a side-by-side contact sheet.
+Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the twenty-one golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all twenty-one headless and `tools/sheet.py` makes a side-by-side contact sheet.
 
-`window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
+`window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `weather.start('fog' | 'rain' | 'wind', position)`, `converge('ochre' | 'kiln' | 'rootwater' | 'gale')`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
 
 ## Blender pipeline
 

@@ -88,5 +88,20 @@
   "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(17)",
   "wait": 6000,
   "name": "glasswing-night"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(18)",
+  "wait": 6000,
+  "name": "fog-bank"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(19)",
+  "wait": 6000,
+  "name": "rain-mire"
+ },
+ {
+  "js": "for (const e of document.querySelectorAll('body *')) if (e.id !== 'dl-canvas' && !e.contains(document.getElementById('dl-canvas'))) e.style.visibility = 'hidden';__dl.goldenView(20)",
+  "wait": 6000,
+  "name": "crosswind"
  }
 ]

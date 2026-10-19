@@ -212,6 +212,8 @@ button { font: inherit; color: inherit; }
 .clock .ph { font-family: var(--f-display); font-variation-settings: 'wdth' 85, 'opsz' 14; font-weight: 600; font-size: var(--s-2); letter-spacing: 0.02em; }
 .clock .nx { font-family: var(--f-mono); font-size: var(--s-1); color: var(--bone-dim); font-variant-numeric: tabular-nums; }
 .clock .col { display: flex; flex-direction: column; gap: 1px; }
+.wx { position: absolute; top: calc(max(16px, env(safe-area-inset-top, 0px)) + 54px); right: var(--gut-r); padding: 5px 12px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--bone-faint); font-family: var(--f-mono); font-size: var(--s-1); color: var(--bone-dim); transition: opacity 0.6s; }
+.wx[hidden] { display: block; opacity: 0; pointer-events: none; }
 .swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
 
 #fatal { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; font-size: var(--s-3); line-height: 1.5; color: var(--bone); background: var(--ink); }
@@ -248,6 +250,7 @@ button { font: inherit; color: inherit; }
       <svg viewBox="-13 -13 26 26" aria-hidden="true"><circle r="11.5" fill="none" stroke="rgba(242,233,220,0.25)" stroke-width="1.5"/><path id="clock-arc" fill="none" stroke="#ffad7a" stroke-width="1.5" stroke-linecap="round" d=""/><circle id="clock-dot" r="3.2" fill="#ffad7a"/></svg>
       <span class="col"><span class="ph" id="clock-ph">Golden hour</span><span class="nx" id="clock-nx">Dusk in 4 min</span></span>
     </div>
+    <div class="wx" id="wx" hidden aria-live="polite"></div>
     <div id="labels"></div>
     <div id="reticle"></div><div id="tether"></div><div id="cursor"></div>
     <div class="inst" aria-live="off">

@@ -16,6 +16,8 @@ export const U = {
   uCloudShadow: { value: null }, uCloudShadowBox: { value: new THREE.Vector4(0, 0, 1600, 500) }, uCloudShadowOn: { value: 0 },
   uCover: { value: 0.5 },   // high cumulus coverage
   uGlowMap: { value: null }, uGlowH: { value: null }, uGlowBox: { value: new THREE.Vector4(0, 0, 220, 0) },   // bioluminescent light, see glow.js
+  uFront: { value: new THREE.Vector4(1, 0, -1e5, 400) },   // weather front band: travel dir xz, position along it, half width
+  uFrontK: { value: new THREE.Vector4(0, 0, 0, 0) },       // fog, rain, wind strength of the current front
   uPush: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, -1e4, 0, 0)) },   // glider wake: xyz, strength   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
@@ -32,6 +34,14 @@ uniform float uPxScale;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
 uniform vec4 uPush[4];
+uniform vec4 uFront; uniform vec4 uFrontK;
+// 0..1 inside the weather front's band, with ragged edges (matches Weather.weight in weather.js)
+float frontW(vec2 xz){
+  float c = dot(xz, uFront.xy) - uFront.z;
+  float along = dot(xz, vec2(-uFront.y, uFront.x));
+  float hw = uFront.w * (1.0 + 0.18 * sin(along * 0.0041 + 1.3) + 0.1 * sin(along * 0.011));
+  return 1.0 - smoothstep(hw * 0.55, hw, abs(c));
+}
 uniform sampler2D uGlowMap; uniform sampler2D uGlowH; uniform vec4 uGlowBox;
 uniform sampler2D uCloudShadow; uniform vec4 uCloudShadowBox; uniform float uCloudShadowOn;
 uniform sampler2D uShadowMap; uniform mat4 uShadowMats[3]; uniform float uShadowOn; uniform float uShadowTexel; uniform vec3 uCascadeTexelWorld;

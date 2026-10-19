@@ -62,6 +62,13 @@ export class Audio {
     wsrc.connect(this.windBP).connect(this.windG).connect(master);
     wsrc2.connect(this.whistle).connect(this.whistleG).connect(master);
     wsrc.start(); wsrc2.start();
+    // rain hiss for weather fronts
+    const rsrc = ctx.createBufferSource(); rsrc.buffer = nb; rsrc.loop = true; rsrc.playbackRate.value = 1.13;
+    const rhp = ctx.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 1800;
+    const rlp = ctx.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 7500;
+    this.rainG = ctx.createGain(); this.rainG.gain.value = 0;
+    rsrc.connect(rhp).connect(rlp).connect(this.rainG).connect(master); rsrc.start();
+    this.wx = { rain: 0, wind: 0, fog: 0 }; this.nextDrop = 0;
     // variometer
     this.vario = ctx.createOscillator(); this.vario.type = 'sine';
     this.varioG = ctx.createGain(); this.varioG.gain.value = 0;
@@ -154,8 +161,11 @@ export class Audio {
     // wind
     const sp = glider.perched ? 2 : glider.speed;
     const wv = Math.min(1, sp / 70);
-    this.windG.gain.setTargetAtTime((0.04 + wv * wv * 0.5) * (timeScale > 0.05 ? 1 : 0.2), t, 0.15);
-    this.windBP.frequency.setTargetAtTime(280 + wv * 900, t, 0.2);
+    const wx = this.wx, gust = wx.wind * (0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 2.3 + 1));
+    this.windG.gain.setTargetAtTime((0.04 + wv * wv * 0.5 + gust * 0.22) * (timeScale > 0.05 ? 1 : 0.2), t, 0.15);
+    this.windBP.frequency.setTargetAtTime(280 + wv * 900 - gust * 120, t, 0.2);
+    this.rainG.gain.setTargetAtTime(wx.rain * 0.16 * (timeScale > 0.05 ? 1 : 0.3), t, 0.4);
+    if (wx.rain > 0.25 && t > this.nextDrop) { this.noiseHit(0.03, 2600 + Math.random() * 3000, 0.05 * wx.rain, 'bandpass'); this.nextDrop = t + 0.04 + Math.random() * 0.25 / wx.rain; }
     this.whistleG.gain.setTargetAtTime(Math.max(0, wv - 0.5) * 0.25, t, 0.2);
     this.whistle.frequency.setTargetAtTime(1000 + wv * 1600, t, 0.2);
     // lens: dreamy low-pass

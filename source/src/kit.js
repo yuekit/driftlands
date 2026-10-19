@@ -178,7 +178,7 @@ void main(){
   float ph = wp0.x * 0.07 + wp0.z * 0.05;
   float gust = smoothstep(0.38, 0.85, vnoise2(wp0.xz * 0.016 - uWind * uTime * 0.5));
   float sway = ((sin(uTime * 0.9 + ph) * 0.6 + sin(uTime * 2.1 + ph * 1.7) * 0.25) * (0.5 + 0.5 * gust) + gust * 0.9) * aInst.y;
-  w.xz += uWind * sway * h * h * uHeight * 0.06;
+  w.xz += uWind * sway * h * h * uHeight * 0.06 * (1.0 + 2.0 * uFrontK.z * frontW(wp0.xz));
   w.xyz += pushOffset(wp0.xyz, min(h, 1.0), min(uHeight * length(instanceMatrix[1].xyz) * 0.25, 1.2));
   vGust = gust;
   vWorld = w.xyz; vUv = uv; vCap = instanceColor; vSun = aInst.x;

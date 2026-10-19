@@ -1,5 +1,7 @@
 // DOM overlay: title, HUD, lens, journal, pause, ecologist notes.
 import { oklchCss, NIGHT_TAGS, SPECIES } from './creatures.js';
+import { WEATHER_TAGS } from './weather.js';
+import { CONVERGENCES, convergenceFor } from './convergence.js';
 import { ISLANDS } from './islands-sdf.js';
 
 const $ = (id) => document.getElementById(id);
@@ -156,6 +158,7 @@ export class UI {
 
   hud(h) {
     if (h.phase) this.clock(h.phase, h.timeMode);
+    if (h.weather !== this.wxText) { this.wxText = h.weather; const w = $('wx'); if (h.weather) w.textContent = h.weather; w.hidden = !h.weather; }
     $('i-alt').textContent = Math.round(h.alt);
     const v = $('i-vario');
     v.textContent = (h.climb >= 0 ? '+' : '') + h.climb.toFixed(1);
@@ -240,7 +243,8 @@ export class UI {
     const mins = Math.floor(j.flightTime / 60);
     let bSeen = 0, bAll = 0;
     for (const sp of species) for (const b of sp.behaviours) { bAll++; if ((j.tags[sp.id] || []).includes(b) && j.recorded[sp.id]) bSeen++; }
-    $('j-sub').textContent = `${n} of ${species.length} species · ${bSeen} of ${bAll} behaviours · ${mins} min in the air`;
+    const nConv = CONVERGENCES.filter((c) => j.conv && j.conv[c.key]).length;
+    $('j-sub').textContent = `${n} of ${species.length} species · ${bSeen} of ${bAll} behaviours · ${nConv} of ${CONVERGENCES.length} convergences · ${mins} min in the air`;
     // select the newest or first unrecorded
     if (this.newPip) this.sel = species.findIndex((s) => s.id === this.newPip);
     this.newPip = null;
@@ -280,7 +284,7 @@ export class UI {
     const tags = s.behaviours.filter((t) => seenTags.includes(t)).map((t) => this.tagText(s.id, t));
     const checklist = s.behaviours.map((t) => {
       const seen = seenTags.includes(t);
-      return `<li class="${seen ? 'on' : ''}"><i></i><span>${seen ? esc(this.tagText(s.id, t)) : 'Not yet observed' + (NIGHT_TAGS.has(t) ? ' · try after dark' : '')}</span></li>`;
+      return `<li class="${seen ? 'on' : ''}"><i></i><span>${seen ? esc(this.tagText(s.id, t)) : 'Not yet observed' + (NIGHT_TAGS.has(t) ? ' · try after dark' : WEATHER_TAGS[t] ? ` · try ${({ fog: 'in a fog bank', rain: 'under a rain band', wind: 'in a crosswind' })[WEATHER_TAGS[t]]}` : '')}</span></li>`;
     }).join('');
     const genes = [];
     if (g.legs) genes.push(`${g.legs} legs`);
@@ -302,7 +306,7 @@ export class UI {
           <dt>Found</dt><dd>${esc(rec.island)}, studied from ${rec.dist} m</dd>
           <dt>Seen</dt><dd><ul class="beh">${checklist}</ul></dd>
           <dt>Genome</dt><dd><div class="gen">${genes.map((x) => `<span>${esc(x)}</span>`).join('')}<span>${sw(g.colA)}${sw(g.colB)}colours</span></div></dd>
-          ${s.hybrid ? '<dt>Lineage</dt><dd>Crossover of the Verdigris stiltwalker and the Arch centipede, after the collision</dd>' : ''}
+          ${s.hybrid ? `<dt>Lineage</dt><dd>Crossover of the ${esc(lineage(s))}, after the collision</dd>` : ''}
         </dl>
       </div>
       <div class="notes" id="notes">
@@ -349,12 +353,13 @@ Size: ${s.size}
 Found: ${rec.island}; studied through the lens from ${rec.dist} m away
 Behaviours observed: ${tags.length ? tags.join('; ') : 'none beyond its appearance'}
 Genome parameters: ${JSON.stringify(g)}
-${s.hybrid ? 'History: this species appeared only after the Ochre Table drifted into Verdigris Reach and the two islands fused. Its genome is a crossover of the Verdigris stiltwalker and the Arch centipede.\n' : ''}Other species already recorded: ${others.length ? others.join('; ') : 'none yet'}
+${s.hybrid ? `History: this species ${convergenceFor(s.id).history}. Its genome is a crossover of the ${lineage(s)}.\n` : ''}Other species already recorded: ${others.length ? others.join('; ') : 'none yet'}
 
 Write only the paragraph.`;
   }
 }
 
+const lineage = (s) => s.hybrid.map((id) => SPECIES.find((o) => o.id === id).common.toLowerCase()).join(' and the ');
 function islandName(i) { return ISLANDS[i] ? ISLANDS[i].name : 'the open air'; }
 
 function templateNote(s, rec, tags) {
@@ -368,6 +373,19 @@ function templateNote(s, rec, tags) {
     lantern: 'A floating bell that rises in slow pulses and trails fine tentacles. It brightens when disturbed.',
     whale: 'The largest animal on the survey. It circles high above its island on a fixed route, and its flank lights pulse while it calls.',
     hybrid: 'A walker that appeared after the collision. It carries the segmented body of the arch centipede on the long legs of the stiltwalker.',
+    swift: 'A small, fast flier that lives on laps of the stone ring. The flock passes through the hoop again and again, as if the ring were the point.',
+    ray: 'A sky ray far smaller than the whale, flying wide loops that thread the gate. Its flank lights pulse when it hums.',
+    glassworm: 'A centipede so clear the light passes through it. It climbs the crystal spires and is easiest to see by the glow inside it at night.',
+    moth: 'A loose cloud of pale fliers that wander between the spires rather than circling the island.',
+    strider: 'A six-legged walker of the warm ash. The herd grazes minerals from the cinders and freezes, antennae raised, when anything flies over.',
+    cinderbell: 'A small floating bell that rides the warm air over the crater. Its core glows like an ember.',
+    wader: 'A pale walker on very thin legs that feeds in the lake shallows, probing the water with its bill.',
+    lily: 'A flower-like animal that floats on the still lake, rooted in the silt below. It folds shut and dips when something passes.',
+    veil: 'A bloom that grows upside down from the underside of the island and hangs open in the shade of the roots.',
+    rootworm: 'A golden centipede that lives on the hanging roots, far below the plateau.',
+    kiln: 'A walker that appeared after the caldera met the spires. It has the strider\'s six legs and a segmented back with a glassy sheen.',
+    bell: 'A hanging bloom that appeared where the lake drains into the roots. It crosses the floating lily with the veil bloom and glows strongly at night.',
+    rootwing: 'A flier that appeared after the ring met the roots. It flies tight circles beneath the seam, weaving between the hanging roots.',
   }[s.id] || '';
   return `${base}${seen} Notes written from ${rec.dist} m.`;
 }
