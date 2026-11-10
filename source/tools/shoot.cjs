@@ -48,7 +48,7 @@ fs.mkdirSync(OUT, { recursive: true });
     }, v); } catch (e) { r = 'skip: ' + String(e.message).split('\n')[0]; }
     if (String(r).startsWith('skip')) { console.log('shot', v.name, r); continue; }
     await pg.waitForTimeout(300);
-    await pg.screenshot({ path: path.join(OUT, v.name + '.png'), timeout: 300000 });
+    await pg.screenshot({ path: path.join(OUT, v.name + '.png'), timeout: 900000 });
     console.log('shot', v.name, r, (Date.now() - t) / 1000);
   }
   console.log(logs.slice(-15).join('\n'));

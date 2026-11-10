@@ -395,7 +395,8 @@ export class UI {
     $('e-body').innerHTML = paras.map((t, i) => `<p class="${i === paras.length - 1 ? 'sign' : ''}">${esc(t)}</p>`).join('');
     $('e-next').hidden = true;
     const j = this.game.j, stars = Object.values(j.recorded).reduce((a, r) => a + (r.stars || 1), 0);
-    $('e-tally').textContent = `${Object.keys(j.recorded).length} species · ${stars} stars · ${Math.max(1, Math.round(j.flightTime / 60))} minutes in the air`;
+    const mins = Math.max(1, Math.round(j.flightTime / 60));
+    $('e-tally').textContent = `${Object.keys(j.recorded).length} species · ${stars} stars · ${mins} ${mins === 1 ? 'minute' : 'minutes'} in the air`;
     $('e-cred').innerHTML = CREDITS.slice(1).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
     requestAnimationFrame(() => el.classList.add('on'));
     clearInterval(this.endI);

@@ -21,6 +21,7 @@ if (web) {
   const cut = pageW.indexOf('<div id="dl-root">');
   const head = pageW.slice(0, cut).replace('<title>Driftlands</title>', '');
   const desc = 'Driftlands is a glider game about a naturalist surveying floating islands above a sea of cloud. Ride the warm air, study the strange life on each island, and fill your field journal.';
+  const site = process.env.SITE_URL ? process.env.SITE_URL.replace(/\/?$/, '/') : '';   // link previews need an absolute image address
   const doc = `<!doctype html>
 <html lang="en">
 <head>
@@ -32,7 +33,7 @@ if (web) {
 <meta property="og:title" content="Driftlands">
 <meta property="og:description" content="${desc}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="share.jpg">
+<meta property="og:image" content="${site}share.jpg">${site ? `\n<meta property="og:url" content="${site}">\n<link rel="canonical" href="${site}">` : ''}
 <meta name="twitter:card" content="summary_large_image">
 <link rel="modulepreload" href="driftlands.js">
 <style>[hidden]{display:none!important}html,body{margin:0;height:100%;background:#120f19}</style>

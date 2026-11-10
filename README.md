@@ -44,7 +44,7 @@ node build.mjs --web           # dist/web/: index.html, driftlands.js and assets
 node build.mjs --dev           # unminified
 ```
 
-**Hosting.** Upload the contents of `dist/web/` to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3) at a domain root or in a subfolder; all paths are relative. Model and texture files carry a content hash in their names, so they can be cached for a long time, while `index.html` and `driftlands.js` should be served with a short cache. Put a 1200 by 630 image at `source/web/share.jpg` before building to give link previews a picture. The page loads its typefaces from Google Fonts and falls back to system fonts without them.
+**Hosting.** Upload the contents of `dist/web/` to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3) at a domain root or in a subfolder; all paths are relative. Model and texture files carry a content hash in their names, so they can be cached for a long time, while `index.html` and `driftlands.js` should be served with a short cache. `source/web/share.jpg` (1200 by 630) is the picture link previews show; build with `SITE_URL=https://your.domain/ node build.mjs --web` once the address is known, because previews need the image address in full. The page loads its typefaces from Google Fonts and falls back to system fonts without them.
 
 `src/main.js` is the entry. Embedded assets live in `src/assets/` (glider.glb, rocks.glb, flora.glb, parts.glb, skins.jpg, parts_anchors.json).
 
