@@ -169,6 +169,8 @@ export class Game {
     if (!this.guide.active) { this.hint('steer'); this.after(14, () => this.hint('thermal')); }
     this.checkConvergences(12);
     this.after(this.guide.active ? 40 : 9, () => this.checkStory());
+    // a finished survey that never saw its ending (closed before the Chord, or a journal carried over from an older build)
+    if (!this.j.ended && Object.keys(this.j.recorded).length >= SPECIES.length) this.after(10, () => this.beginChord());
   }
   newJournal() {
     this.j = this.freshJournal();
@@ -273,6 +275,7 @@ export class Game {
     if (this.state !== 'ending') return;
     this.chordOn = false;
     this.state = 'play';
+    this.weather.clear();      // the ending held the weather off; let the fronts come round again
     this.landmarks && (this.landmarks.chordTarget = 0.3);
     const I0 = this.world.islands[0];
     const p = new THREE.Vector3(I0.pos.x + 150, I0.pos.y + 95, I0.pos.z - 70);
