@@ -20,7 +20,8 @@ fs.mkdirSync(OUT, { recursive: true });
   await pg.waitForFunction('window.__dl && window.__dl.state==="title"', null, { timeout: 300000 });
   await pg.evaluate((sc) => { __dl.adaptQuality = () => {}; __dl.settings.quality = 'low'; __dl.applyQuality(0); __dl.pipe.scale = sc; __dl.resize(); }, +process.env.SCALE || 0.35);   // a small internal resolution keeps the software renderer responsive
   const shot = async (name, wait = 2500) => { await pg.waitForTimeout(wait); await pg.screenshot({ path: path.join(OUT, name + '.png'), timeout: 300000 }); console.log('shot', name); };
-  const step = async (name, fn) => { try { await fn(); } catch (e) { console.log('STEP FAILED', name, String(e.message).split('\n')[0]); } };
+  const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;   // ONLY=title,start,ending runs just those steps
+  const step = async (name, fn) => { if (ONLY && !ONLY.includes(name)) return; try { await fn(); } catch (e) { console.log('STEP FAILED', name, String(e.message).split('\n')[0]); } };
   await step('title', async () => { await shot('01-title', 6000); });
   await step('start', async () => { await pg.click('#t-start'); await pg.waitForFunction('__dl.state==="play"'); await pg.evaluate(() => { __dl.guide.skip(); }); await shot('02-hud', 5000); });
   await step('pause', async () => { await pg.keyboard.press('Escape'); await shot('03-pause'); });
@@ -58,10 +59,16 @@ fs.mkdirSync(OUT, { recursive: true });
   });
   await step('ending', async () => {
     await pg.evaluate(() => __dl.debugEnding());
-    await shot('12-ending-letter', 9000);
-    await pg.keyboard.press('Enter'); await shot('13-ending-full', 3000);
-    await pg.keyboard.press('Enter'); await shot('14-credits', 3000);
-    await pg.keyboard.press('Enter'); await shot('15-after', 5000);
+    await pg.waitForTimeout(2500);
+    const st = () => pg.evaluate(() => [__dl.state, 'continue=' + !document.getElementById('e-next').hidden, 'credits=' + document.getElementById('ending').classList.contains('credits')].join(' '));
+    console.log('ending start =', await st());                 // expect: ending continue=false credits=false
+    await pg.keyboard.press('Enter'); await pg.waitForTimeout(900);
+    console.log('after one press =', await st());              // expect: ending continue=true credits=false (one press, one step)
+    await shot('12-ending-letter', 2500);
+    await pg.keyboard.press('Enter'); await pg.waitForTimeout(900);
+    console.log('after two presses =', await st());            // expect: ending continue=true credits=true
+    await shot('13-credits', 2500);
+    await pg.keyboard.press('Enter'); await shot('14-after', 4000);
     console.log('state after ending =', await pg.evaluate(() => __dl.state + ' ended=' + __dl.j.ended + ' chord=' + __dl.landmarks.chordTarget));
   });
   console.log(logs.length ? logs.slice(-25).join('\n') : 'no console errors or warnings');

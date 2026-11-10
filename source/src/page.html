@@ -319,6 +319,15 @@ button { font: inherit; color: inherit; }
   #hint { bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 104px)); font-size: var(--s-2); }
   #toast { top: 96px; }
 }
+@media (max-height: 800px) {
+  .e-letter { gap: 12px; }
+  .e-letter h2 { font-size: clamp(44px, 6vw, 64px); }
+  .e-letter p { font-size: 18px; }
+  .e-credits { gap: 14px; }
+  .e-credits .t-mark { width: 62px; }
+  .e-credits h2 { font-size: 60px; }
+  .e-credits dl { gap: 9px; }
+}
 @media (max-height: 520px) {
   .t-side { display: none; }
   .t-main { grid-column: 1 / -1; gap: 10px; padding-bottom: 0; }
