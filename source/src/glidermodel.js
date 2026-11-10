@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import gliderB64 from './assets/glider.glb';
 import { U, COMMON } from './glsl.js';
+import { assetBuffer } from './assetbuf.js';
 import { CASTER_LAYER } from './shadow.js';
 
 const VS = /* glsl */ `
@@ -47,12 +48,6 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-function b64ToBuffer(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out.buffer;
-}
 
 function dress(mesh, opts = {}) {
   const src = mesh.material;
@@ -75,10 +70,11 @@ function dress(mesh, opts = {}) {
   return m;
 }
 
-export function loadGliderModel() {
+export async function loadGliderModel() {
+  const buf = await assetBuffer(gliderB64);
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
-    loader.parse(b64ToBuffer(gliderB64), '', (gltf) => {
+    loader.parse(buf, '', (gltf) => {
       const root = gltf.scene;
       const parts = {};
       root.traverse((o) => { if (o.name) parts[o.name] = o; });

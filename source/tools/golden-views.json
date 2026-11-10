@@ -1,0 +1,86 @@
+[
+ {
+  "name": "verdigris-day",
+  "golden": 0
+ },
+ {
+  "name": "verdigris-arch",
+  "golden": 1
+ },
+ {
+  "name": "ochre-sunface",
+  "golden": 2
+ },
+ {
+  "name": "into-sun",
+  "golden": 3
+ },
+ {
+  "name": "coral-dusk",
+  "golden": 4
+ },
+ {
+  "name": "verdigris-night",
+  "golden": 5
+ },
+ {
+  "name": "cloud-sea",
+  "golden": 6
+ },
+ {
+  "name": "stilt-close",
+  "golden": 7
+ },
+ {
+  "name": "verdigris-pool",
+  "golden": 8
+ },
+ {
+  "name": "night-glade",
+  "golden": 9
+ },
+ {
+  "name": "under-verdigris",
+  "golden": 10
+ },
+ {
+  "name": "windgate-ring",
+  "golden": 11
+ },
+ {
+  "name": "glasswing-spires",
+  "golden": 12
+ },
+ {
+  "name": "ember-dusk",
+  "golden": 13
+ },
+ {
+  "name": "ember-night",
+  "golden": 14
+ },
+ {
+  "name": "mire-lake",
+  "golden": 15
+ },
+ {
+  "name": "under-rootfall",
+  "golden": 16
+ },
+ {
+  "name": "glasswing-night",
+  "golden": 17
+ },
+ {
+  "name": "fog-bank",
+  "golden": 18
+ },
+ {
+  "name": "rain-mire",
+  "golden": 19
+ },
+ {
+  "name": "crosswind",
+  "golden": 20
+ }
+]

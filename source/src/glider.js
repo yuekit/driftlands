@@ -402,6 +402,7 @@ export class ChaseCam {
     this.shake = 0;
     this.roll = 0;
     this.fov = 62;
+    this.fovBias = 0; this.shakeScale = 1; this.speedFov = 1;   // settings: field of view, camera shake, reduced motion
     this.turn = 0; this.prevYaw = null;
     this.dip = 0; this.dipV = 0;
   }
@@ -461,21 +462,22 @@ export class ChaseCam {
     // springy vertical jolt
     this.dipV += (-this.dip * 40 - this.dipV * 9) * Math.min(dt, 0.05);
     this.dip += this.dipV * Math.min(dt, 0.05);
-    cam.position.y -= this.dip;
+    cam.position.y -= this.dip * this.shakeScale;
     // stall buffet and rough air
     if (!g.perched) this.shake = Math.max(this.shake, g.stall * 0.22, Math.abs(g.turb || 0) * 0.05);
     g.root.visible = this.lens < 0.6; g.scarfMesh.visible = this.lens < 0.6;
     if (this.shake > 0) {
-      cam.position.x += (Math.random() - 0.5) * this.shake;
-      cam.position.y += (Math.random() - 0.5) * this.shake;
-      cam.position.z += (Math.random() - 0.5) * this.shake;
+      const sk = this.shake * this.shakeScale;
+      cam.position.x += (Math.random() - 0.5) * sk;
+      cam.position.y += (Math.random() - 0.5) * sk;
+      cam.position.z += (Math.random() - 0.5) * sk;
       this.shake = Math.max(0, this.shake - dt * 3);
     }
     cam.up.set(0, 1, 0);
     cam.lookAt(this.look);
-    this.roll += ((g.perched ? 0 : g.roll * 0.32) * (1 - this.lens) - this.roll) * (snap ? 1 : 1 - Math.exp(-dt * 3));
+    this.roll += ((g.perched ? 0 : g.roll * 0.32 * (0.4 + 0.6 * this.speedFov)) * (1 - this.lens) - this.roll) * (snap ? 1 : 1 - Math.exp(-dt * 3));
     cam.rotateZ(-this.roll);
-    const fovT = g.perched ? 58 : Math.max(56, Math.min(84, 60 + (g.speed - 24) * 0.42));
+    const fovT = (g.perched ? 58 : Math.max(56, Math.min(84, 60 + (g.speed - 24) * 0.42 * this.speedFov))) + this.fovBias;
     this.fov += (fovT * (1 - this.lens) + 28 * this.lens - this.fov) * (snap ? 1 : 1 - Math.exp(-dt * 3));
     cam.fov = this.fov;
     cam.updateProjectionMatrix();

@@ -47,11 +47,85 @@ vec3 starField(vec3 d){
   }
   return acc;
 }
+// ---- the companion world: a ringed giant that never sets, and two small moons. All analytic: a unit-distance
+// sphere per body, lit by the same sun as the islands, seen through the day sky the way a daytime moon is.
+const vec3 PL_C = vec3(-0.8054, 0.3624, 0.4699);
+const vec3 PL_AX = vec3(0.5883, 0.6977, -0.4087);   // tilted toward the viewer, so the rings open into an ellipse
+const float PL_R = 0.185;
+float sphereHit(vec3 d, vec3 C, float r){
+  float b = dot(d, C); float h = b * b - (dot(C, C) - r * r);
+  return h < 0.0 ? -1.0 : b - sqrt(h);
+}
+float ringDens(float rr){
+  float a = smoothstep(1.28, 1.34, rr) * (1.0 - smoothstep(2.28, 2.36, rr));
+  float gaps = 0.55 + 0.45 * sin(rr * 41.0) * sin(rr * 13.0 + 1.0);
+  gaps *= 1.0 - 0.85 * smoothstep(0.03, 0.0, abs(rr - 1.92));        // one wide division
+  gaps *= 0.75 + 0.25 * sin(rr * 160.0);
+  return a * clamp(gaps, 0.0, 1.0);
+}
+vec3 companion(vec3 d, vec3 sky, out float cover){
+  cover = 0.0;
+  if (dot(d, PL_C) < 0.82) return sky;
+  vec3 L = normalize(uSunDir + vec3(-0.25, 0.1, 0.0));
+  float aa = 0.0016;
+  vec3 col = sky;
+  float haze = smoothstep(0.02, 0.3, d.y);
+  float lum = mix(1.0, 0.24, uNight) * haze;
+  // far half of the ring, then the globe, then the near half
+  float tp = dot(PL_C, PL_AX) / dot(d, PL_AX);
+  vec3 q = d * tp - PL_C; float rr = length(q) / PL_R;
+  float rd = tp > 0.0 ? ringDens(rr) : 0.0;
+  float rsh = sphereHit(L, -q, PL_R) > 0.0 ? 0.25 : 1.0;      // the globe's shadow across the ring
+  vec3 ringCol = mix(vec3(0.95, 0.82, 0.70), vec3(0.78, 0.62, 0.66), smoothstep(1.3, 2.3, rr)) * rsh;
+  float ts = sphereHit(d, PL_C, PL_R);
+  float bq = dot(d, PL_C); float edge = sqrt(max(dot(PL_C, PL_C) - bq * bq, 0.0));     // closest approach of the ray to the centre
+  float disc = 1.0 - smoothstep(PL_R - aa, PL_R + aa, edge);
+  if (rd > 0.0 && (ts < 0.0 || tp > ts)) { col = mix(col, sky * 0.5 + ringCol * lum * 0.75, rd * 0.8 * haze); cover = max(cover, rd * 0.8); }
+  if (disc > 0.0) {
+    vec3 N = normalize(d * (ts > 0.0 ? ts : bq) - PL_C);
+    float lat = dot(N, PL_AX);
+    float lon = atan(dot(N, normalize(cross(PL_AX, vec3(0.0, 0.0, 1.0)))), dot(N, cross(PL_AX, normalize(cross(PL_AX, vec3(0.0, 0.0, 1.0))))));
+    float w = fbm2(vec2(lon * 1.6 + uTime * 0.002, lat * 9.0)) - 0.5;
+    float bandv = lat * 7.5 + w * 1.1;
+    float b1 = smoothstep(-0.3, 0.3, sin(bandv * 2.0)), b2 = smoothstep(-0.2, 0.2, sin(bandv * 5.3 + 1.7));
+    vec3 pc = mix(vec3(0.93, 0.72, 0.58), vec3(0.98, 0.90, 0.80), b1);
+    pc = mix(pc, vec3(0.72, 0.47, 0.50), b2 * 0.32);
+    pc = mix(pc, vec3(0.50, 0.72, 0.74), smoothstep(0.62, 0.95, abs(lat)) * 0.7);         // teal polar caps
+    float storm = smoothstep(0.075, 0.03, length(vec2((lon - 0.6) * 0.45, lat + 0.28)));
+    pc = mix(pc, vec3(0.85, 0.36, 0.30), storm * 0.8);
+    float ndl = dot(N, L);
+    float lit = smoothstep(-0.06, 0.10, ndl) * (0.62 + 0.38 * smoothstep(0.1, 0.75, ndl));    // a drawn terminator, two tones
+    // the ring's shadow, a thin dark band across the lit face
+    vec3 hp = N * PL_R; float tr = -dot(hp, PL_AX) / dot(L, PL_AX);
+    if (tr > 0.0) { float sr = length(hp + L * tr) / PL_R; lit *= 1.0 - 0.5 * smoothstep(1.28, 1.5, sr) * (1.0 - smoothstep(2.0, 2.36, sr)); }
+    float limb = pow(1.0 - max(dot(N, -d), 0.0), 2.5);
+    vec3 body = sky * mix(mix(0.84, 0.5, lit), 0.30, uNight) + pc * lit * lum * 0.52 + sky * limb * 0.3;   // by day the unlit side is nearly lost in the sky
+    col = mix(col, mix(sky, body, haze), disc); cover = max(cover, disc);
+  }
+  if (rd > 0.0 && ts > 0.0 && tp > 0.0 && tp <= ts) { col = mix(col, sky * 0.5 + ringCol * lum * 0.75, rd * 0.85 * haze); cover = max(cover, rd * 0.85); }
+  // moons
+  for (int i = 0; i < 2; i++) {
+    vec3 C = i == 0 ? normalize(vec3(-0.60, 0.62, 0.12)) : normalize(vec3(-0.93, 0.20, 0.74));
+    float r = i == 0 ? 0.021 : 0.012;
+    float b = dot(d, C); float e2 = sqrt(max(1.0 - b * b, 0.0));
+    float m = (1.0 - smoothstep(r - aa * 0.7, r + aa * 0.7, e2)) * step(0.0, b);
+    if (m > 0.0) {
+      float t = sphereHit(d, C, r); vec3 N = normalize(d * (t > 0.0 ? t : b) - C);
+      float ndl = dot(N, L); float lit = smoothstep(-0.05, 0.12, ndl);
+      vec3 mc = i == 0 ? vec3(0.62, 0.86, 0.80) : vec3(0.98, 0.78, 0.66);
+      mc *= 0.85 + 0.15 * vnoise(N * 9.0);
+      float hz = smoothstep(0.02, 0.3, d.y);
+      col = mix(col, mix(sky, sky * mix(mix(0.86, 0.55, lit), 0.3, uNight) + mc * lit * mix(0.55, 0.3, uNight), hz), m); cover = max(cover, m);
+    }
+  }
+  return col;
+}
 void main(){
   vec3 d = normalize(vDir);
   vec3 col = skyColor(d) + mieGlow(d) * smoothstep(0.45, 0.0, abs(d.y));
   float sd = dot(d, uSunDisc);
   col += uSunColor * 7.0 * smoothstep(0.99955, 0.99985, sd) * uSunVis * smoothstep(-0.02, 0.01, d.y);
+  vec3 skyBase = col;
   // night: stars, moon, aurora
   if (uNight > 0.01 && d.y > -0.05) {
     float hz = smoothstep(-0.02, 0.25, d.y);
@@ -73,6 +147,7 @@ void main(){
     float shade = 0.75 + 0.25 * vnoise(d * 900.0);
     col = mix(col, vec3(1.0, 0.97, 0.9) * 2.6 * shade, disc * uMoon);
   }
+  float plCover; vec3 withPl = companion(d, skyBase, plCover); col = mix(col, withPl, plCover);
   // painterly high cloud streaks
   if (d.y > 0.0) {
     vec2 uv = d.xz / (d.y + 0.16) * 1.6;
@@ -166,6 +241,7 @@ void main(){
   float s1 = fract(band * 0.155);
   vec3 rock = mix(uRockA, uRockB, smoothstep(0.52, 0.6, s1) * 0.8);
   rock = mix(rock, uRockC, smoothstep(0.80, 0.84, s1) * 0.55);
+  vec3 rockFlat = rock;
   rock *= 0.9 + 0.1 * sin(band * 3.3);
   float streak = vnoise(vec3(p.x * 0.35, p.y * 0.018, p.z * 0.35));
   float steep = 1.0 - n0.y * n0.y;
@@ -174,6 +250,7 @@ void main(){
   rock *= 1.0 - rcav * 0.4;
   rock = mix(rock, rock * 1.32 + 0.025, smoothstep(0.55, 0.85, rcurv) * 0.8);    // worn, sunlit edges
   rock = mix(rock, mix(uTop2, uTop1, 0.4) * 1.05, lichen * 0.45 * smoothstep(0.0, 0.6, n0.y));
+  rock = mix(rock, rockFlat * (0.93 + 0.14 * rh), uStyle * 0.6);      // ink plate: flatter colour, the line carries the detail
 
   // ---- moss: grows on tops and fills hollows first
   float cn = fbm3(p * 0.06);
@@ -189,6 +266,7 @@ void main(){
     cover *= (0.62 + 0.62 * md.r) * mix(0.86, 1.14, md.b);
     cover = mix(cover, cover * vec3(1.15, 1.1, 0.75) + 0.02, smoothstep(0.6, 0.95, mc) * 0.5);   // sunlit tips
     cover = mix(cover, vec3(1.0, 0.86, 0.7) * 0.9, md.a * 0.8);                                  // tiny flowers
+    cover = mix(cover, mix(uTop1, uTop2, smoothstep(0.42, 0.5, fbm3(p * 0.021 + 4.0))) * (0.9 + 0.2 * md.r), uStyle * 0.5);
   }
   vec3 alb = mix(rock, cover, mossAmt);
   float und = smoothstep(-uParams.x * 0.7, -uParams.x * 2.6, p.y);
@@ -202,15 +280,16 @@ void main(){
   float rough = mix(mix(0.74, 0.52, smoothstep(0.55, 0.85, rcurv)), 0.93, mossAmt);
   // sky light arrives along the baked bent normal; overhangs pick up warm light bounced from the sunlit ground
   vec3 ambN = normalize(mix(n, normalize(vBent + (n - n0)), 0.65));
+  gHatchPos = vLocal; gHatchN = n0; gHatch = 1.0 - 0.5 * mossAmt;
   vec3 col = litSurfacePBRx(alb, n, ambN, vWorld, vSun, ao, 0.12, rough, vec3(0.035));
   vec3 groundCol = mix(uTop1, uTop2, 0.5) * 0.6 + mix(uRockA, uRockB, 0.5) * 0.4;
   col += alb * groundCol * uSunColor * vBounce * 0.42 * ao;
-  // Moebius-style hatching in the shade (fades in close so it never fights the texture)
+  // the v13 shade hatching, kept for the painted style (the ink plate style draws its own in litSurfacePBRx)
   float light = clamp(dot(n0, uSunDir), 0.0, 1.0) * vSun;
   float hl = sin(dot(vLocal, vec3(0.9, 1.6, 0.5)) * 2.2);
   float hw = fwidth(hl);
   float hatch = smoothstep(0.6 - hw, 0.6 + hw, hl) * (1.0 - smoothstep(0.0, 0.35, light)) * smoothstep(40.0, 120.0, dist) * (1.0 - smoothstep(160.0, 420.0, dist));
-  col *= 1.0 - hatch * 0.14 * (1.0 - uNight);
+  col *= 1.0 - hatch * 0.14 * (1.0 - uNight) * (1.0 - uStyle);
   // bioluminescent moss at night
   if (uNight > 0.01 && uDetail > 0.5) {
     float sp = vnoise(p * 0.55) * 0.7 + vnoise(p * 1.9) * 0.3;
@@ -1046,7 +1125,7 @@ void main(){
   float fade = smoothstep(0.0, 0.18, vY) * smoothstep(1.0, 0.6, vY);
   float dist = length(uCamPos - vWorld);
   float near = smoothstep(40.0, 220.0, dist);
-  float a = pow(edge, 2.5) * streak * fade * (0.035 + 0.075 * near);
+  float a = pow(edge, 2.5) * streak * fade * (0.035 + 0.075 * near) * mix(1.0, 0.6, uStyle);
   gl_FragColor = vec4(mix(vec3(1.0, 0.82, 0.58) * 1.6, vec3(0.4, 0.9, 0.8) * 0.9, uNight), a * (1.0 - uNight * 0.35));
 }`;
 

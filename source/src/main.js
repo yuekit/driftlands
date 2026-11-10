@@ -20,6 +20,7 @@ import { UI } from './ui.js';
 import { loadGliderModel } from './glidermodel.js';
 import { GpuTimer, PerfOverlay } from './perf.js';
 import { VelocityPass } from './velocity.js';
+import { Landmarks } from './landmarks.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -65,6 +66,7 @@ async function main() {
   eco.setParts(await partsP);
   if (eco.D.parts) for (const k in eco.D.parts) markCaster(eco.D.parts[k].mesh);
   if (eco.D.pPetal) markCaster(eco.D.pPetal.mesh);
+  const landmarks = new Landmarks(scene, islands);
   const world = { islands, rocks, thermals, eco };
   const pipe = new Pipeline(renderer, noise);
   const shadow = new SunShadow(renderer, 2048);
@@ -84,7 +86,7 @@ async function main() {
   if (kit) for (const m of rocks.meshes) markCaster(m);
   const input = new Input(canvas);
 
-  const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, debug: DEBUG });
+  const game = new Game({ renderer, scene, camera, pipe, shadow, world, glider, chase, eco, input, ui, canvas, landmarks, debug: DEBUG });
   game.mirror = mirror; game.glow = new GlowMap(renderer); game.motes = new Motes(scene, islands); game.applyQuality(game.quality.level);
   window.__dl = game; window.__U = U;
   pipe.timer = new GpuTimer(renderer);

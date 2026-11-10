@@ -3,9 +3,13 @@ import { oklchCss, NIGHT_TAGS, SPECIES } from './creatures.js';
 import { WEATHER_TAGS } from './weather.js';
 import { CONVERGENCES, convergenceFor } from './convergence.js';
 import { ISLANDS } from './islands-sdf.js';
+import { LETTERS, CREDITS } from './story.js';
+import { KEY_ACTIONS, keyName } from './input.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const STAR = '<svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 1.6l2.5 5.3 5.8.7-4.3 4 1.1 5.8L10 14.5l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7z"/></svg>';
+export const starsHtml = (n) => `<span class="stars" role="img" aria-label="${n} of 3 stars">${[1, 2, 3].map((i) => (i <= n ? STAR : STAR.replace('<svg', '<svg class="off"'))).join('')}</span>`;
 const PLAN_TEXT = { walker: 'Walker on long jointed legs', sessile: 'Rooted, plant-like animal', flyer: 'Flapping glider', crawler: 'Many-legged surface crawler', drifter: 'Jet-pulsing air medusa', leviathan: 'Giant undulating flier' };
 
 export class UI {
@@ -38,7 +42,7 @@ export class UI {
     $('t-load').hidden = true;
     $('t-actions').hidden = false;
     const n = Object.keys(game.j.recorded).length;
-    if (game.j.started && n > 0) { $('t-start').textContent = `Continue journal · ${n} of ${SPECIES.length}`; $('t-new').hidden = false; }
+    if (game.j.started && n > 0) { $('t-start').textContent = game.j.ended ? 'Continue · survey complete' : `Continue journal · ${n} of ${SPECIES.length}`; $('t-new').hidden = false; }
     $('t-start').focus({ preventScroll: true });
     $('t-start').onclick = () => this.startGame();
     $('t-new').onclick = () => { game.newJournal(); $('t-start').textContent = 'Begin flight'; $('t-new').hidden = true; };
@@ -49,6 +53,16 @@ export class UI {
     $('p-journal').onclick = () => { game.pause(false); game.openJournal(true); };
     $('p-photo').onclick = () => game.photo.enter();
     this.bindNew();
+    this.jtab = 'plates'; this.lsel = 0;
+    $('jt-plates').onclick = () => this.setTab('plates');
+    $('jt-letters').onclick = () => this.setTab('letters');
+    $('p-keys').onclick = () => this.showKeys(true);
+    $('keys-done').onclick = () => this.showKeys(false);
+    $('keys-reset').onclick = () => { game.resetKeys(); this.renderKeys(); this.keyLabels(); $('keys-note').textContent = 'Keys reset.'; };
+    $('p-ending').onclick = () => game.startEnding(true);
+    $('e-next').onclick = () => this.endingAdvance(false);
+    $('e-fly').onclick = () => this.endingAdvance(false);
+    this.keyLabels();
     document.querySelectorAll('.seg').forEach((seg) => {
       const key = seg.dataset.set;
       seg.querySelectorAll('button').forEach((b) => b.onclick = () => {
@@ -60,9 +74,11 @@ export class UI {
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
       if (game.state === 'title' && (k === 'enter')) { this.startGame(); return; }
-      if (k === 'j' || k === 'tab') { e.preventDefault(); if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.openJournal(true); }
+      if (game.state === 'ending') { if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); this.endingAdvance(k === 'escape'); } return; }
+      if (k === game.input.bind.journal || k === 'tab') { e.preventDefault(); if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.openJournal(true); }
       if (k === 'escape') { if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.pause(true); else if (game.state === 'paused') game.pause(false); }
-      if (game.state === 'journal' && (k === 'arrowdown' || k === 'arrowup')) { e.preventDefault(); this.select((this.sel + (k === 'arrowdown' ? 1 : SPECIES.length - 1)) % SPECIES.length); }
+      if (game.state === 'journal' && (k === 'arrowdown' || k === 'arrowup')) { e.preventDefault(); this.step(k === 'arrowdown' ? 1 : -1); }
+      if (game.state === 'journal' && (k === 'arrowleft' || k === 'arrowright')) { e.preventDefault(); this.setTab(this.jtab === 'plates' ? 'letters' : 'plates'); }
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'play') game.pause(true); });
     // touch lens button
@@ -71,6 +87,7 @@ export class UI {
     const off = (e) => { e.preventDefault(); game.input.lensTouch = false; lb.classList.remove('on'); };
     lb.addEventListener('touchstart', on, { passive: false }); lb.addEventListener('touchend', off); lb.addEventListener('touchcancel', off);
     if (this.isTouch) { $('jkey').hidden = true; }
+    $('pause-btn').onclick = () => game.pause(true);
   }
   bindNew() {
     const wrap = $('p-newwrap');
@@ -116,28 +133,60 @@ export class UI {
     const t = $('toast'); t.textContent = text; t.classList.add('on');
     clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('on'), 4200);
   }
-  event(head, body) {
-    $('event-k').textContent = 'The islands are moving';
+  event(head, body, kicker = 'The islands are moving', ms = 7000) {
+    $('event-k').textContent = kicker;
     $('event-h').textContent = head; $('event-b').textContent = body;
     const e = $('event'); e.classList.add('on');
-    clearTimeout(this.eventT); this.eventT = setTimeout(() => e.classList.remove('on'), 7000);
+    clearTimeout(this.eventT); this.eventT = setTimeout(() => e.classList.remove('on'), ms);
   }
-  recorded(sp, n, total) {
-    $('rec-lat').textContent = sp.latin; $('rec-com').textContent = `${sp.common} · ${n} of ${total}`;
+  // a page of the old notebook, picked up at a cairn
+  found(pg, key) {
+    this.event(pg.title, `${pg.from}. ${this.game.input.mode === 'pad' ? 'Press Y' : this.game.input.mode === 'touch' ? 'Tap the journal' : 'Press ' + key} to read it.`, 'A page under the cairn', 8000);
+    this.jtabNext = 'letters'; this.lsel = LETTERS.indexOf(pg);
+  }
+  // key names on the title screen and in the panels follow the bindings
+  keyLabels() {
+    const g = this.game, k = (a) => g.key(a);
+    $('k-fly').textContent = `${k('up')} ${k('left')} ${k('down')} ${k('right')}`;
+    $('k-lens').textContent = k('lens'); $('k-shutter').textContent = `Click · ${k('shutter')}`;
+    $('k-journal').textContent = k('journal'); $('k-photo').textContent = k('photo');
+    $('jkey').textContent = k('journal'); $('j-close-k').textContent = k('journal');
+    $('ph-leave').textContent = `${k('photo')} to leave`;
+  }
+  showKeys(on) {
+    $('p-opts').hidden = on; $('p-keys-panel').hidden = !on;
+    this.game.input.rebind = null;
+    if (on) { this.renderKeys(); $('keys-note').textContent = 'Choose an action, then press the key you want for it.'; }
+    else $('p-keys').focus({ preventScroll: true });
+  }
+  renderKeys() {
+    const g = this.game;
+    $('keys-list').innerHTML = KEY_ACTIONS.map(([a, label]) => `<span>${label}</span><button class="key" type="button" data-act="${a}">${esc(g.key(a))}</button>`).join('');
+    $('keys-list').querySelectorAll('button.key').forEach((b) => b.onclick = () => {
+      this.renderKeys();
+      const nb = $('keys-list').querySelector(`[data-act="${b.dataset.act}"]`);
+      nb.classList.add('wait'); nb.textContent = 'Press a key'; nb.focus({ preventScroll: true });
+      $('keys-note').textContent = 'Waiting for a key. Escape cancels.';
+      g.input.rebind = (key) => {
+        if (key === 'escape') { this.renderKeys(); $('keys-note').textContent = 'Cancelled.'; return; }
+        const err = g.rebind(b.dataset.act, key);
+        this.renderKeys(); this.keyLabels();
+        $('keys-note').textContent = err || `${KEY_ACTIONS.find((x) => x[0] === b.dataset.act)[1]} is now ${keyName(key)}.`;
+      };
+    });
+  }
+  recorded(sp, n, total, stars = 1) {
+    $('rec-lat').textContent = sp.latin; $('rec-com').innerHTML = `${esc(sp.common)} · ${n} of ${total} · <span style="color:var(--sun)">${starsHtml(stars)}</span>`;
     const r = $('record'); r.classList.add('on');
     clearTimeout(this.recT); this.recT = setTimeout(() => r.classList.remove('on'), 3600);
     this.newPip = sp.id;
   }
-  complete() {
-    $('event-k').textContent = 'Survey complete';
-    $('event-h').textContent = `All ${SPECIES.length} recorded`;
-    $('event-b').textContent = 'Your field journal is full. The air is still warm — fly on for as long as you like.';
-    const e = $('event'); e.classList.add('on');
-    clearTimeout(this.eventT); this.eventT = setTimeout(() => e.classList.remove('on'), 9000);
-  }
   updateJournalBadge(j) {
     const ids = SPECIES.map((s) => s.id);
     $('pips').innerHTML = ids.map((id) => `<i class="${j.recorded[id] ? (this.newPip === id ? 'new' : 'on') : ''}"></i>`).join('');
+    const unread = LETTERS.filter((l) => j.letters && j.letters[l.id] && !(j.read && j.read[l.id]));
+    $('jmail').classList.toggle('on', unread.length > 0);
+    if (unread.length) $('jmail-t').textContent = unread.length > 1 ? `${unread.length} unread` : unread[0].kind === 'page' ? 'New page' : 'New letter';
   }
 
   // ---------------------------------------------------------------- per-frame HUD
@@ -186,8 +235,9 @@ export class UI {
       const km = l.d > 999 ? `${(l.d / 1000).toFixed(1)} km` : `${Math.round(l.d / 10) * 10} m`;
       const pend = l.pending > 0 ? ` · <b>${l.pending} unrecorded</b>` : '';
       if (l.on && l.d > 330 && h.lens < 0.3) {
-        el.className = 'isl'; el.style.opacity = 1;
-        el.style.transform = `translate(${(l.x * 0.5 + 0.5) * W}px, ${(0.5 - l.y * 0.5) * H}px) translate(-50%, -100%)`;
+        const lx = (l.x * 0.5 + 0.5) * W, ly = (0.5 - l.y * 0.5) * H;
+        el.className = 'isl'; el.style.opacity = ly < 124 && (lx < 340 || lx > W - 240) ? 0 : 1;   // keep clear of the journal badge and the clock
+        el.style.transform = `translate(${lx}px, ${ly}px) translate(-50%, -100%)`;
         const html = `<span class="n">${esc(l.name)}</span><span class="d">${km}${pend}</span>`;
         if (el._h !== html) { el.innerHTML = html; el._h = html; }
       } else el.style.opacity = 0;
@@ -262,8 +312,9 @@ export class UI {
   showPause(on) {
     const p = $('pause');
     this.pauseOn = on;
-    if (on) { p.hidden = false; requestAnimationFrame(() => { if (this.pauseOn) p.classList.add('on'); }); this.syncSettings(); $('p-resume').focus({ preventScroll: true }); }
-    else { p.classList.remove('on'); setTimeout(() => { if (!p.classList.contains('on')) p.hidden = true; }, 350); }
+    if (on) { p.hidden = false; requestAnimationFrame(() => { if (this.pauseOn) p.classList.add('on'); }); this.syncSettings(); $('p-opts').hidden = false; $('p-keys-panel').hidden = true; $('p-ending').hidden = !this.game.j.ended; $('p-resume').focus({ preventScroll: true }); }
+    else this.game.input.rebind = null;
+    if (!on) { p.classList.remove('on'); setTimeout(() => { if (!p.classList.contains('on')) p.hidden = true; }, 350); }
   }
 
   // ---------------------------------------------------------------- journal
@@ -276,16 +327,107 @@ export class UI {
     let bSeen = 0, bAll = 0;
     for (const sp of species) for (const b of sp.behaviours) { bAll++; if ((j.tags[sp.id] || []).includes(b) && j.recorded[sp.id]) bSeen++; }
     const nConv = CONVERGENCES.filter((c) => j.conv && j.conv[c.key]).length;
-    $('j-sub').textContent = `${n} of ${species.length} species · ${bSeen} of ${bAll} behaviours · ${nConv} of ${CONVERGENCES.length} convergences · ${mins} min in the air`;
+    const stars = Object.values(j.recorded).reduce((a, r) => a + (r.stars || 1), 0);
+    $('j-sub').textContent = `${n} of ${species.length} species · ${stars} of ${species.length * 3} stars · ${bSeen} of ${bAll} behaviours · ${nConv} of ${CONVERGENCES.length} convergences · ${mins} min in the air`;
     // select the newest or first unrecorded
-    if (this.newPip) this.sel = species.findIndex((s) => s.id === this.newPip);
+    if (this.newPip) { this.sel = species.findIndex((s) => s.id === this.newPip); this.jtabNext = 'plates'; }
     this.newPip = null;
-    this.updateJournalBadge(j);
+    // open on the letters when one is waiting
+    const unread = LETTERS.findIndex((l) => j.letters[l.id] && !j.read[l.id]);
+    if (!this.jtabNext && unread >= 0) { this.jtabNext = 'letters'; this.lsel = unread; }
+    this.setTab(this.jtabNext || this.jtab);
+    this.jtabNext = null;
+  }
+  setTab(tab) {
+    this.jtab = tab;
+    $('jt-plates').setAttribute('aria-selected', String(tab === 'plates'));
+    $('jt-letters').setAttribute('aria-selected', String(tab === 'letters'));
+    $('j-detail').classList.toggle('letter', tab === 'letters');
+    $('j-detail').scrollTop = 0;
     this.renderList();
-    this.select(this.sel);
+    if (tab === 'plates') this.select(this.sel); else this.selectLetter(this.lsel);
+    this.updateJournalBadge(this.j);
+    $('jt-dot').hidden = !LETTERS.some((l) => this.j.letters[l.id] && !this.j.read[l.id]);
+  }
+  step(d) {
+    if (this.jtab === 'plates') this.select((this.sel + d + SPECIES.length) % SPECIES.length);
+    else this.selectLetter((this.lsel + d + LETTERS.length) % LETTERS.length);
+  }
+  renderLetters() {
+    const j = this.j;
+    $('j-list').innerHTML = LETTERS.map((l, i) => {
+      const got = j.letters[l.id];
+      const sub = got ? l.from : l.kind === 'page' ? `A cairn on ${campName(l.camp)}` : 'Not yet received';
+      return `<button class="j-item letter ${got ? (j.read[l.id] ? '' : 'unread') : 'unk'}" role="tab" type="button" data-i="${i}" aria-selected="${i === this.lsel}">
+        <span class="no">${l.kind === 'page' ? 'pg' : 'no'}</span>
+        <span class="nm"><b>${got ? esc(l.title) : l.kind === 'page' ? 'A missing page' : 'A letter to come'}</b><i>${esc(sub)}</i></span>
+        <span class="st ${got ? 'on' : ''}"></span>
+      </button>`;
+    }).join('');
+    $('j-list').querySelectorAll('.j-item').forEach((b) => b.onclick = () => this.selectLetter(+b.dataset.i));
+  }
+  selectLetter(i) {
+    this.lsel = i;
+    const l = LETTERS[i], j = this.j, got = j.letters[l.id], d = $('j-detail');
+    if (got && !j.read[l.id]) { j.read[l.id] = true; this.game.persist(); this.renderLetters(); this.updateJournalBadge(j); $('jt-dot').hidden = !LETTERS.some((x) => j.letters[x.id] && !j.read[x.id]); }
+    document.querySelectorAll('.j-item').forEach((b) => b.setAttribute('aria-selected', String(+b.dataset.i === i)));
+    if (!got) {
+      d.innerHTML = `<div class="d-text" style="max-width:52ch;margin:0 auto"><span class="label">${l.kind === 'page' ? 'Notebook page' : 'Letter'} · not yet in your journal</span>
+        <p class="hintline">${l.kind === 'page' ? `The surveyor before you left a camp beside the listening post on ${esc(campName(l.camp))}. Look for a cairn and a scrap of sail, and fly close.` : 'The Institute writes when there is news. Keep recording.'}</p></div>`;
+      return;
+    }
+    d.innerHTML = `<article class="paper ${l.kind === 'page' ? 'page' : ''}">
+      ${l.kind === 'letter' ? '<svg class="seal" aria-hidden="true"><use href="#dl-mark"/></svg>' : ''}
+      <div class="from"><span>${esc(l.from)}</span></div>
+      <h3>${esc(l.title)}</h3>
+      ${l.body.map((t) => `<p>${esc(t)}</p>`).join('')}
+      <p class="sign">${esc(l.sign)}</p>
+    </article>`;
+    d.scrollTop = 0;
+  }
+
+  // ---------------------------------------------------------------- ending
+  showEnding(letter) {
+    const el = $('ending');
+    el.hidden = false; el.classList.remove('credits');
+    $('e-from').textContent = letter.from; $('e-h').textContent = letter.title;
+    const paras = [...letter.body, letter.sign];
+    $('e-body').innerHTML = paras.map((t, i) => `<p class="${i === paras.length - 1 ? 'sign' : ''}">${esc(t)}</p>`).join('');
+    $('e-next').hidden = true;
+    const j = this.game.j, stars = Object.values(j.recorded).reduce((a, r) => a + (r.stars || 1), 0);
+    const mins = Math.max(1, Math.round(j.flightTime / 60));
+    $('e-tally').textContent = `${Object.keys(j.recorded).length} species · ${stars} stars · ${mins} ${mins === 1 ? 'minute' : 'minutes'} in the air`;
+    $('e-cred').innerHTML = CREDITS.slice(1).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+    requestAnimationFrame(() => el.classList.add('on'));
+    clearInterval(this.endI);
+    let i = 0;
+    const ps = [...$('e-body').children];
+    const reveal = () => { if (i < ps.length) ps[i++].classList.add('on'); if (i >= ps.length) { clearInterval(this.endI); $('e-next').hidden = false; $('e-next').focus({ preventScroll: true }); } };
+    setTimeout(reveal, 1800);
+    this.endI = setInterval(reveal, 5200);
+    this.endReveal = () => { ps.forEach((p) => p.classList.add('on')); i = ps.length; clearInterval(this.endI); $('e-next').hidden = false; $('e-next').focus({ preventScroll: true }); };
+  }
+  // Enter or Space: show the whole letter, then the credits, then fly on. Escape skips straight out.
+  endingAdvance(skip) {
+    const el = $('ending'), now = performance.now();
+    if (now - (this.endAdvT || 0) < 450) return;      // one key press, one step (a key that moves focus onto a button would otherwise also click it)
+    this.endAdvT = now;
+    if (skip) { this.hideEnding(); return; }
+    if (el.classList.contains('credits')) this.hideEnding();
+    else if ($('e-next').hidden) this.endReveal && this.endReveal();
+    else this.showCredits();
+  }
+  showCredits() { $('ending').classList.add('credits'); $('e-fly').focus({ preventScroll: true }); }
+  hideEnding() {
+    const el = $('ending');
+    clearInterval(this.endI);
+    el.classList.remove('on');
+    setTimeout(() => { if (!el.classList.contains('on')) { el.hidden = true; el.classList.remove('credits'); } }, 1700);
+    this.game.finishEnding();
   }
   closeJournal() { const p = $('journal'); p.classList.remove('on'); setTimeout(() => { if (!p.classList.contains('on')) p.hidden = true; }, 350); }
   renderList() {
+    if (this.jtab === 'letters') { this.renderLetters(); return; }
     const j = this.j;
     $('j-list').innerHTML = this.species.map((s, i) => {
       const rec = j.recorded[s.id];
@@ -294,7 +436,7 @@ export class UI {
       return `<button class="j-item ${rec ? '' : 'unk'}" role="tab" type="button" data-i="${i}" id="ji-${i}" aria-selected="${i === this.sel}">
         <span class="no">${no}</span>
         <span class="nm"><b>${rec ? esc(s.common) : 'Unrecorded'}</b><i>${rec ? esc(s.latin) : (prog > 0 ? `study ${Math.round(prog * 100)}% complete` : (s.island >= 0 ? islandName(s.island) : 'Where islands meet'))}</i></span>
-        <span class="st ${rec ? 'on' : prog > 0 ? 'part' : ''}"></span>
+        <span class="rt">${rec ? starsHtml(rec.stars || 1) : ''}<span class="st ${rec ? 'on' : prog > 0 ? 'part' : ''}"></span></span>
       </button>`;
     }).join('');
     $('j-list').querySelectorAll('.j-item').forEach((b) => b.onclick = () => this.select(+b.dataset.i));
@@ -328,7 +470,7 @@ export class UI {
     if (g.glow > 0.3) genes.push('bioluminescent');
     const sw = (c) => `<i class="swatch" style="background:${oklchCss(c)}"></i>`;
     const notes = j.notes[s.id];
-    d.innerHTML = `<div class="plate">${rec.img ? `<img alt="Field plate of the ${esc(s.common)}" src="${rec.img}">` : '<span class="q">·</span>'}<span class="cap">Plate ${String(i + 1).padStart(2, '0')} · ${esc(rec.island)}</span></div>
+    d.innerHTML = `<div class="plate">${rec.img ? `<img alt="Field plate of the ${esc(s.common)}" src="${rec.img}">` : '<span class="q">·</span>'}<span class="cap">Plate ${String(i + 1).padStart(2, '0')} · ${esc(rec.island)}</span><span class="grade">${starsHtml(rec.stars || 1)}</span></div>
       <div class="d-text">
         <span class="label">${esc(PLAN_TEXT[s.plan])}</span>
         <p class="lat">${esc(s.latin)}</p>
@@ -336,6 +478,7 @@ export class UI {
         <dl class="meta">
           <dt>Size</dt><dd>${esc(s.size)}</dd>
           <dt>Found</dt><dd>${esc(rec.island)}, studied from ${rec.dist} m</dd>
+          <dt>Plate</dt><dd>${starsHtml(rec.stars || 1)} ${esc(plateNote(rec))}</dd>
           <dt>Seen</dt><dd><ul class="beh">${checklist}</ul></dd>
           <dt>Genome</dt><dd><div class="gen">${genes.map((x) => `<span>${esc(x)}</span>`).join('')}<span>${sw(g.colA)}${sw(g.colB)}colours</span></div></dd>
           ${s.hybrid ? `<dt>Lineage</dt><dd>Crossover of the ${esc(lineage(s))}, after the collision</dd>` : ''}
@@ -392,6 +535,16 @@ Write only the paragraph.`;
 }
 
 const lineage = (s) => s.hybrid.map((id) => SPECIES.find((o) => o.id === id).common.toLowerCase()).join(' and the ');
+const campName = (key) => { const I = ISLANDS.find((x) => x.key === key); return I ? I.name : 'an island'; };
+// what the plate's grade is made of, and what would raise it
+function plateNote(rec) {
+  const g = rec.grade || {};
+  if ((rec.stars || 1) >= 3) return 'Well framed, and caught in the act.';
+  const tips = [];
+  if (!g.framed) tips.push(g.small ? 'get closer so it fills more of the lens' : g.big ? 'back off so the whole animal fits' : 'bring it to the middle of the lens');
+  if (!g.behaviour) tips.push('catch it doing something');
+  return tips.length ? `For a better plate, ${tips.join(' and ')}, then press the shutter again.` : '';
+}
 function islandName(i) { return ISLANDS[i] ? ISLANDS[i].name : 'the open air'; }
 
 function templateNote(s, rec, tags) {

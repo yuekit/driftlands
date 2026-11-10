@@ -1,0 +1,9 @@
+[
+ {"name":"verdigris-day","golden":0,"frames":14},
+ {"name":"planet","p":[230,205,-150],"t":[-575,455,320],"fov":60,"time":60,"frames":12},
+ {"name":"post","p":[0,0,0],"t":[0,0,1],"fov":50,"time":90,"frames":12,"js":"const P=g.landmarks.posts[0],w=g.landmarks.postWorld(P);g.debugCam={p:[w.x+34,w.y-5,w.z+26],t:[w.x,w.y-9,w.z],fov:50};g.sim(0.1);g.pipe.adaptReset=true;"},
+ {"name":"camp","p":[0,0,0],"t":[0,0,1],"fov":50,"time":120,"frames":12,"js":"const c=g.landmarks.camps[0].world;g.debugCam={p:[c.x+13,c.y+5,c.z+10],t:[c.x,c.y+1.5,c.z],fov:55};g.sim(0.1);g.pipe.adaptReset=true;"},
+ {"name":"under-verdigris","golden":10,"frames":12},
+ {"name":"verdigris-arch","golden":1,"frames":12},
+ {"name":"chord-night","p":[0,0,0],"t":[0,0,1],"fov":50,"time":430,"frames":12,"js":"g.landmarks.chord=1;g.landmarks.chordTarget=1;for(const P of g.landmarks.posts){P.active=1;P.target=1;}g.debugCam={p:[420,330,-420],t:[0,230,0],fov:55};g.sim(0.1);g.pipe.adaptReset=true;"}
+]

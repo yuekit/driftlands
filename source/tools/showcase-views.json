@@ -1,0 +1,6 @@
+[
+ {"name":"showcase-hero","p":[300,185,-180],"t":[0,240,0],"fov":64,"time":60,"frames":16},
+ {"name":"showcase-plate","p":[-150,170,120],"t":[0,150,0],"fov":30,"time":150,"frames":14},
+ {"name":"showcase-glider","p":[0,0,0],"t":[0,0,1],"fov":62,"time":100,"frames":14,"js":"const G=g.glider,f=G.fwd;g.debugCam={rel:true,p:[-f.x*12,5,-f.z*12],t:[f.x*24,0,f.z*24],fov:62};g.sim(0.1);g.pipe.adaptReset=true;"},
+ {"name":"showcase-chord","p":[0,0,0],"t":[0,0,1],"fov":50,"time":430,"frames":14,"js":"g.landmarks.chord=1;g.landmarks.chordTarget=1;for(const P of g.landmarks.posts){P.active=1;P.target=1;}g.debugCam={p:[420,330,-420],t:[0,230,0],fov:55};g.sim(0.1);g.pipe.adaptReset=true;"}
+]
