@@ -42,7 +42,12 @@ const STEPS = [
     update: (G) => G.data.landed && !G.game.glider.perched,
   },
   {
-    id: 'four', text: 'Record four species. Watch what the currents do next',
+    id: 'cairn', label: 'Old camp', text: 'Someone camped by the listening post. Fly close to the cairn and pick up what they left',
+    marker: (G) => { const L = G.game.landmarks, c = L && L.camps.find((k) => k.key === 'verdigris'); return c ? c.world.clone().add(new THREE.Vector3(0, 6, 0)) : null; },
+    update: (G) => !!G.game.j.letters.page1 || !G.game.landmarks || !G.game.landmarks.camps.some((k) => k.key === 'verdigris'),
+  },
+  {
+    id: 'four', text: 'Record four species. Watch what the islands do next',
     update: (G) => Object.keys(G.game.j.recorded).length >= 4,
   },
 ];
@@ -52,13 +57,15 @@ export class Guide {
     this.game = game;
     this.data = {};
     this.step = game.j.guide ?? (Object.keys(game.j.recorded).length > 0 ? STEPS.length : 0);
+    if (game.j.guide >= 7 && !game.j.guideV) this.step = STEPS.length;   // journals that finished the seven-step guide of v13
+    game.j.guideV = 2;
     this.started = -1;
   }
   get active() { return this.step < STEPS.length; }
   get total() { return STEPS.length; }
   reset() { this.step = 0; this.started = -1; this.data = {}; this.save(); }
   skip() { this.step = STEPS.length; this.save(); this.game.ui.goal(null); }
-  save() { this.game.j.guide = this.step; this.game.persist(); }
+  save() { this.game.j.guide = this.step; this.game.j.guideV = 2; this.game.persist(); }
   onLand() { this.data.landed = true; }
   update(dt) {
     if (!this.active || this.game.state === 'title') return;

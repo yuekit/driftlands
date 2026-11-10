@@ -50,7 +50,7 @@ vec3 starField(vec3 d){
 // ---- the companion world: a ringed giant that never sets, and two small moons. All analytic: a unit-distance
 // sphere per body, lit by the same sun as the islands, seen through the day sky the way a daytime moon is.
 const vec3 PL_C = vec3(-0.8054, 0.3624, 0.4699);
-const vec3 PL_AX = vec3(0.2873, 0.9273, -0.2395);
+const vec3 PL_AX = vec3(0.5883, 0.6977, -0.4087);   // tilted toward the viewer, so the rings open into an ellipse
 const float PL_R = 0.185;
 float sphereHit(vec3 d, vec3 C, float r){
   float b = dot(d, C); float h = b * b - (dot(C, C) - r * r);
@@ -80,9 +80,9 @@ vec3 companion(vec3 d, vec3 sky, out float cover){
   float ts = sphereHit(d, PL_C, PL_R);
   float bq = dot(d, PL_C); float edge = sqrt(max(dot(PL_C, PL_C) - bq * bq, 0.0));     // closest approach of the ray to the centre
   float disc = 1.0 - smoothstep(PL_R - aa, PL_R + aa, edge);
-  if (rd > 0.0 && (ts < 0.0 || tp > ts)) { col = mix(col, sky * 0.55 + ringCol * lum * 0.9, rd * 0.8 * haze); cover = max(cover, rd * 0.8); }
+  if (rd > 0.0 && (ts < 0.0 || tp > ts)) { col = mix(col, sky * 0.5 + ringCol * lum * 0.75, rd * 0.8 * haze); cover = max(cover, rd * 0.8); }
   if (disc > 0.0) {
-    vec3 N = normalize(d * max(ts, bq) - PL_C);
+    vec3 N = normalize(d * (ts > 0.0 ? ts : bq) - PL_C);
     float lat = dot(N, PL_AX);
     float lon = atan(dot(N, normalize(cross(PL_AX, vec3(0.0, 0.0, 1.0)))), dot(N, cross(PL_AX, normalize(cross(PL_AX, vec3(0.0, 0.0, 1.0))))));
     float w = fbm2(vec2(lon * 1.6 + uTime * 0.002, lat * 9.0)) - 0.5;
@@ -97,12 +97,12 @@ vec3 companion(vec3 d, vec3 sky, out float cover){
     float lit = smoothstep(-0.06, 0.10, ndl) * (0.62 + 0.38 * smoothstep(0.1, 0.75, ndl));    // a drawn terminator, two tones
     // the ring's shadow, a thin dark band across the lit face
     vec3 hp = N * PL_R; float tr = -dot(hp, PL_AX) / dot(L, PL_AX);
-    if (tr > 0.0) lit *= 1.0 - 0.6 * ringDens(length(hp + L * tr) / PL_R);
+    if (tr > 0.0) { float sr = length(hp + L * tr) / PL_R; lit *= 1.0 - 0.5 * smoothstep(1.28, 1.5, sr) * (1.0 - smoothstep(2.0, 2.36, sr)); }
     float limb = pow(1.0 - max(dot(N, -d), 0.0), 2.5);
-    vec3 body = sky * mix(0.72, 0.30, uNight) + pc * lit * lum * 0.85 + sky * limb * 0.35;
+    vec3 body = sky * mix(mix(0.84, 0.5, lit), 0.30, uNight) + pc * lit * lum * 0.52 + sky * limb * 0.3;   // by day the unlit side is nearly lost in the sky
     col = mix(col, mix(sky, body, haze), disc); cover = max(cover, disc);
   }
-  if (rd > 0.0 && ts > 0.0 && tp > 0.0 && tp <= ts) { col = mix(col, sky * 0.55 + ringCol * lum * 0.9, rd * 0.8 * haze); cover = max(cover, rd * 0.8); }
+  if (rd > 0.0 && ts > 0.0 && tp > 0.0 && tp <= ts) { col = mix(col, sky * 0.5 + ringCol * lum * 0.75, rd * 0.85 * haze); cover = max(cover, rd * 0.85); }
   // moons
   for (int i = 0; i < 2; i++) {
     vec3 C = i == 0 ? normalize(vec3(-0.60, 0.62, 0.12)) : normalize(vec3(-0.93, 0.20, 0.74));
@@ -110,12 +110,12 @@ vec3 companion(vec3 d, vec3 sky, out float cover){
     float b = dot(d, C); float e2 = sqrt(max(1.0 - b * b, 0.0));
     float m = (1.0 - smoothstep(r - aa * 0.7, r + aa * 0.7, e2)) * step(0.0, b);
     if (m > 0.0) {
-      float t = sphereHit(d, C, r); vec3 N = normalize(d * max(t, b) - C);
+      float t = sphereHit(d, C, r); vec3 N = normalize(d * (t > 0.0 ? t : b) - C);
       float ndl = dot(N, L); float lit = smoothstep(-0.05, 0.12, ndl);
       vec3 mc = i == 0 ? vec3(0.62, 0.86, 0.80) : vec3(0.98, 0.78, 0.66);
       mc *= 0.85 + 0.15 * vnoise(N * 9.0);
       float hz = smoothstep(0.02, 0.3, d.y);
-      col = mix(col, mix(sky, sky * mix(0.75, 0.3, uNight) + mc * lit * mix(1.0, 0.3, uNight), hz), m); cover = max(cover, m);
+      col = mix(col, mix(sky, sky * mix(mix(0.86, 0.55, lit), 0.3, uNight) + mc * lit * mix(0.55, 0.3, uNight), hz), m); cover = max(cover, m);
     }
   }
   return col;
@@ -1125,7 +1125,7 @@ void main(){
   float fade = smoothstep(0.0, 0.18, vY) * smoothstep(1.0, 0.6, vY);
   float dist = length(uCamPos - vWorld);
   float near = smoothstep(40.0, 220.0, dist);
-  float a = pow(edge, 2.5) * streak * fade * (0.035 + 0.075 * near);
+  float a = pow(edge, 2.5) * streak * fade * (0.035 + 0.075 * near) * mix(1.0, 0.6, uStyle);
   gl_FragColor = vec4(mix(vec3(1.0, 0.82, 0.58) * 1.6, vec3(0.4, 0.9, 0.8) * 0.9, uNight), a * (1.0 - uNight * 0.35));
 }`;
 

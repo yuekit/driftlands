@@ -111,6 +111,9 @@ button { font: inherit; color: inherit; }
 #lens-btn { position: absolute; right: var(--gut-r); bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)); width: 76px; height: 76px; border-radius: 50%; pointer-events: auto; background: var(--glass); border: 1.5px solid var(--bone-dim); display: none; align-items: center; justify-content: center; font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: 0.1em; text-transform: uppercase; touch-action: none; }
 #lens-btn.on { background: rgba(255,173,122,0.3); border-color: var(--sun); }
 .touch #lens-btn { display: flex; }
+#pause-btn { position: absolute; right: calc(var(--gut-r) + 16px); bottom: calc(max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) + 92px); width: 44px; height: 44px; border-radius: 50%; pointer-events: auto; background: var(--glass); border: 1px solid var(--bone-faint); display: none; align-items: center; justify-content: center; gap: 4px; }
+#pause-btn i { width: 3px; height: 14px; background: var(--bone); border-radius: 1px; }
+.touch #pause-btn { display: flex; }
 
 /* ---------- photo mode */
 #photo { opacity: 0; transition: opacity 0.3s; }
@@ -256,20 +259,26 @@ button { font: inherit; color: inherit; }
 .paper p { font-family: var(--f-serif); font-size: var(--s-4); line-height: 30px; margin: 0 0 30px; text-wrap: pretty; }
 .paper.page p { font-style: italic; }
 .paper .sign { font-family: var(--f-serif); font-style: italic; font-size: var(--s-4); text-align: right; margin: 0; }
-.paper .seal { position: absolute; right: 22px; top: 18px; width: 34px; opacity: 0.9; }
+.paper .seal { position: absolute; right: 22px; top: 16px; width: 30px; height: 50px; opacity: 0.92; }
 .j-item.letter .ic { width: 16px; height: 16px; color: var(--bone-dim); }
 .j-item.letter.unread .nm b::after { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--sun); margin-left: 8px; vertical-align: 2px; }
-.pause { max-height: calc(100% - 32px); overflow-y: auto; width: min(480px, calc(100% - 32px)); }
+.pause { max-height: calc(100% - 32px); overflow-y: auto; width: min(880px, calc(100% - 32px)); box-sizing: border-box; }
+.opts.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; }
+.opts.cols[hidden] { display: none; }
+.opt-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#p-keys-panel { max-width: 440px; }
+@media (max-width: 800px) { .opts.cols { grid-template-columns: minmax(0, 1fr); } }
 .opt { padding: 9px 0; }
 .opt-h { font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sun); padding: 14px 0 4px; }
-.opt-h:first-child { padding-top: 0; }
+.opt-h { padding-top: 0; }
+@media (max-width: 800px) { .opt-col + .opt-col .opt-h { padding-top: 14px; } }
 .keys-panel { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; font-size: var(--s-3); }
 .keys-panel button.key { min-width: 86px; font-family: var(--f-mono); font-size: var(--s-2); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--bone-faint); background: rgba(242,233,220,0.06); cursor: pointer; }
 .keys-panel button.key:hover { border-color: var(--bone-dim); }
 .keys-panel button.key.wait { border-color: var(--sun); color: var(--sun); }
 .keys-panel button.key:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
 .keys-note { font-size: var(--s-2); color: var(--bone-dim); min-height: 1.4em; }
-#ending { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 20px; align-items: center; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+#ending { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); column-gap: 20px; align-items: center; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
 #ending.on { opacity: 1; pointer-events: auto; }
 #ending::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(18,15,25,0.72) 0%, rgba(18,15,25,0.35) 45%, rgba(18,15,25,0) 70%), linear-gradient(180deg, rgba(18,15,25,0) 60%, rgba(18,15,25,0.5) 100%); pointer-events: none; }
 #ending.credits::before { background: rgba(14,11,20,0.62); }
@@ -280,6 +289,7 @@ button { font: inherit; color: inherit; }
 .e-letter p.on { opacity: 1; transform: none; }
 .e-letter .sign { font-style: italic; }
 .e-credits { grid-column: 4 / span 6; position: relative; display: none; flex-direction: column; align-items: center; text-align: center; gap: 22px; max-height: 100%; overflow-y: auto; }
+.e-credits > *, .e-letter > * { flex-shrink: 0; }
 #ending.credits .e-letter { display: none; }
 #ending.credits .e-credits { display: flex; }
 .e-credits .t-mark { width: clamp(70px, 9vw, 120px); }
@@ -309,6 +319,38 @@ button { font: inherit; color: inherit; }
   #hint { bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 104px)); font-size: var(--s-2); }
   #toast { top: 96px; }
 }
+@media (max-height: 520px) {
+  .t-side { display: none; }
+  .t-main { grid-column: 1 / -1; gap: 10px; padding-bottom: 0; }
+  .t-mark { width: 34px; }
+  #title { grid-template-rows: minmax(0, 1fr) auto; }
+  .t-word { font-size: min(13.5vw, 27vh); }
+  .t-pitch { font-size: var(--s-3); max-width: 52ch; }
+  .t-load { min-height: 40px; }
+  .btn { padding: 10px 18px; }
+  .goal { display: none; }
+  #hint { bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 10px)); font-size: var(--s-2); padding: 8px 14px; max-width: min(460px, calc(100vw - 260px)); }
+  .journal { height: calc(100% - 16px); border-radius: 16px; }
+  .j-head { padding: 10px 16px; align-items: center; flex-wrap: nowrap; }
+  .j-head h2 { font-size: var(--s-5); }
+  .j-head .sub { display: none; }
+  .j-detail { padding: 14px; gap: 16px; }
+  .j-detail.letter { padding: 14px; }
+  .pause { padding: 16px 20px; gap: 12px; max-height: calc(100% - 16px); }
+  .pause h2 { font-size: var(--s-5); }
+  .e-letter { gap: 10px; }
+  .e-letter p { font-size: 16px; }
+  .e-letter h2 { font-size: 44px; }
+  .e-credits { grid-column: 1 / -1; gap: 10px; }
+  .e-credits .t-mark { width: 40px; }
+  .e-credits h2 { font-size: 40px; }
+  .e-credits dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 20px; }
+  .e-credits dd { font-size: var(--s-3); }
+}
+.touch #j-close-k { display: none; }
+.keys.for-touch { display: none; }
+.touch .keys.for-touch { display: grid; }
+.touch .keys.for-keys { display: none; }
 @media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01s !important; } }
 </style>
 
@@ -360,6 +402,7 @@ button { font: inherit; color: inherit; }
     <div id="event"><span class="label" id="event-k" style="color: var(--sun)">Event</span><span class="h" id="event-h"></span><span class="b" id="event-b"></span></div>
     <div id="record"><span class="label">Recorded in your journal</span><span class="lat" id="rec-lat"></span><span class="com" id="rec-com"></span></div>
     <button id="lens-btn" type="button" aria-label="Hold to raise lens">Lens</button>
+    <button id="pause-btn" type="button" aria-label="Pause and settings"><i></i><i></i></button>
   </div>
 
   <div class="layer" id="title">
@@ -377,7 +420,13 @@ button { font: inherit; color: inherit; }
     </div>
     <div class="t-side">
       <span class="label">Controls</span>
-      <div class="keys">
+      <div class="keys for-touch">
+        <b>Drag</b><span>Steer the glider</span>
+        <b>Lens</b><span>Hold the lens button to study a creature</span>
+        <b>Shutter</b><span>Tap it while the lens is up</span>
+        <b>Journal</b><span>Tap the journal badge</span>
+      </div>
+      <div class="keys for-keys">
         <b>Mouse</b><span>Steer toward the cursor</span>
         <b>Right-click</b><span>Hold to raise your lens</span>
         <b id="k-fly">W A S D</b><span>Fly with the keyboard</span>
@@ -426,19 +475,20 @@ button { font: inherit; color: inherit; }
   <div class="layer scrim" id="pause" hidden>
     <div class="pause" role="dialog" aria-modal="true" aria-labelledby="pause-h">
       <h2 id="pause-h">Paused</h2>
-      <div class="opts" id="p-opts">
-        <div class="opt-h">Flight</div>
+      <div class="opts cols" id="p-opts">
+        <div class="opt-col"><div class="opt-h">Flight</div>
         <div class="opt"><span>Pitch</span><div class="seg" data-set="invert"><button type="button" data-v="false">Normal</button><button type="button" data-v="true">Inverted</button></div></div>
         <div class="opt"><span>Field of view</span><div class="seg" data-set="fov"><button type="button" data-v="narrow">Narrow</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="wide">Wide</button></div></div>
         <div class="opt"><span>Camera shake</span><div class="seg" data-set="shake"><button type="button" data-v="true">On</button><button type="button" data-v="false">Off</button></div></div>
         <div class="opt"><span>Motion effects</span><div class="seg" data-set="motion"><button type="button" data-v="full">Full</button><button type="button" data-v="reduced">Reduced</button></div></div>
-        <div class="opt-h">Picture and sound</div>
+        <div class="opt"><span>Keyboard</span><button class="btn small" type="button" id="p-keys">Change keys</button></div>
+        </div><div class="opt-col"><div class="opt-h">Picture and sound</div>
         <div class="opt"><span>Render style</span><div class="seg" data-set="style"><button type="button" data-v="ink">Ink plate</button><button type="button" data-v="painted">Painted</button></div></div>
         <div class="opt"><span>Quality</span><div class="seg" data-set="quality"><button type="button" data-v="low">Low</button><button type="button" data-v="auto">Auto</button><button type="button" data-v="high">High</button></div></div>
         <div class="opt"><span>Time of day</span><div class="seg" data-set="time"><button type="button" data-v="cycle">Cycle</button><button type="button" data-v="day">Day</button><button type="button" data-v="night">Night</button></div></div>
         <div class="opt"><span>Text size</span><div class="seg" data-set="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button></div></div>
         <div class="opt"><span>Sound</span><div class="seg" data-set="sound"><button type="button" data-v="true">On</button><button type="button" data-v="false">Off</button></div></div>
-        <div class="opt"><span>Keyboard</span><button class="btn small" type="button" id="p-keys">Change keys</button></div>
+        </div>
       </div>
       <div class="opts" id="p-keys-panel" hidden>
         <div class="opt-h">Keyboard</div>

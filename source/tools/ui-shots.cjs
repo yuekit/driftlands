@@ -18,7 +18,7 @@ fs.mkdirSync(OUT, { recursive: true });
   await pg.addInitScript('try{localStorage.clear()}catch(e){}');
   await pg.goto('file://' + path.join(ROOT, process.env.PAGE || 'dist/test.html'), { timeout: 120000 });
   await pg.waitForFunction('window.__dl && window.__dl.state==="title"', null, { timeout: 300000 });
-  await pg.evaluate(() => { __dl.adaptQuality = () => {}; __dl.settings.quality = 'low'; __dl.applyQuality(0); });
+  await pg.evaluate((sc) => { __dl.adaptQuality = () => {}; __dl.settings.quality = 'low'; __dl.applyQuality(0); __dl.pipe.scale = sc; __dl.resize(); }, +process.env.SCALE || 0.35);   // a small internal resolution keeps the software renderer responsive
   const shot = async (name, wait = 2500) => { await pg.waitForTimeout(wait); await pg.screenshot({ path: path.join(OUT, name + '.png'), timeout: 300000 }); console.log('shot', name); };
   const step = async (name, fn) => { try { await fn(); } catch (e) { console.log('STEP FAILED', name, String(e.message).split('\n')[0]); } };
   await step('title', async () => { await shot('01-title', 6000); });
@@ -43,7 +43,7 @@ fs.mkdirSync(OUT, { recursive: true });
       g.deliver('commission'); g.j.letters.page1 = { at: Date.now() }; g.syncLandmarks(); g.ui.updateJournalBadge(g.j);
     });
     await shot('06-hud-mail', 1500);
-    await pg.keyboard.press('j'); await shot('07-journal-letters', 1500);
+    console.log('state before journal =', await pg.evaluate(() => __dl.state + ' mode=' + __dl.input.mode)); if (process.env.TOUCH) await pg.tap('#jbadge'); else await pg.keyboard.press('j'); await shot('07-journal-letters', 1500);
     await pg.click('#jt-plates'); await shot('08-journal-plates', 1200);
     await pg.keyboard.press('ArrowRight'); await pg.keyboard.press('ArrowDown'); await shot('09-journal-page', 1200);
     await pg.keyboard.press('ArrowDown'); await shot('10-journal-locked', 800);

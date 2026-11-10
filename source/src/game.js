@@ -254,7 +254,7 @@ export class Game {
     this.audio.chord && this.audio.chord();
     const fu = this.pipe.finalMat.uniforms; fu.uFlash.value = this.reducedMotion ? 0.08 : 0.3; fu.uFlashColor.value.set(0.6, 1, 0.88);
     this.input.rumble(0.4, 0.8, 1200);
-    this.ui.event('Every listening post is singing at once.', 'Hold your course and look around.', 'The Chord', 11000);
+    this.ui.event('The Chord', 'Every listening post is singing at once. Hold your course and look around.', 'Survey complete', 11000);
     this.after(13, () => this.startEnding());
   }
   startEnding(replay = false) {
@@ -288,12 +288,12 @@ export class Game {
     this.circleGlider(dt);
     let cx = 0, cy = 0, cz = 0; const n = this.world.islands.length;
     for (const I of this.world.islands) { cx += I.pos.x / n; cy += I.pos.y / n; cz += I.pos.z / n; }
-    const a = 2.4 + this.endT * 0.022, r = 1500 - Math.min(380, this.endT * 5), h = 430 + Math.sin(this.endT * 0.05) * 40;
+    const a = 2.4 + this.endT * 0.022, r = 1380 - Math.min(380, this.endT * 5), h = 400 + Math.sin(this.endT * 0.05) * 40;
     const cam = this.camera;
     cam.position.set(cx + Math.cos(a) * r, h, cz + Math.sin(a) * r);
     cam.up.set(0, 1, 0);
     cam.lookAt(cx, cy + 150, cz);
-    cam.fov = 44; cam.updateProjectionMatrix();
+    cam.fov = 48; cam.updateProjectionMatrix();
     this.chase.pos.copy(cam.position);
   }
 

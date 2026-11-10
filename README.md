@@ -2,9 +2,13 @@
 
 Ride the warm air between floating islands and record the strange life on each one in your field journal, before the islands collide.
 
-The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Coral Rookery in the middle, and five outer islands, each with its own life: Windgate (a stone ring that swifts and sky rays fly through), the Glasswing Spires (glass centipedes and spire moths), the Ember Caldera (ash striders and cinderbells over a warm crater), Mirewater Shoal (waders and floating lilies on a still lake) and Rootfall Hollow (veil blooms and root worms beneath a curtain of hanging roots). The journal holds twenty species, three of which only appear after a convergence.
+The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Coral Rookery in the middle, and five outer islands, each with its own life: Windgate (a stone ring that swifts and sky rays fly through), the Glasswing Spires (glass centipedes and spire moths), the Ember Caldera (ash striders and cinderbells over a warm crater), Mirewater Shoal (waders and floating lilies on a still lake) and Rootfall Hollow (veil blooms and root worms beneath a curtain of hanging roots). The journal holds twenty species, four of which only appear after a convergence.
 
 **Convergences.** When every species on two neighbouring islands is recorded, a current carries one island into the other: the Ochre Table into Verdigris Reach (this first one comes early, after any four records), the Ember Caldera into the Glasswing Spires, Mirewater Shoal into Rootfall Hollow, and Windgate into Rootfall Hollow. Each fused seam breeds a hybrid: the Seam strider, the Kilnback strider, the Rootwater bell and the Rootwing.
+
+**The survey.** A surveyor came before you and left a listening post on every island. A post lights when every species native to its island is in your journal. Four islands (Verdigris Reach, Windgate, Mirewater Shoal and the Ember Caldera) also hold a camp beside the post: a cairn, a scrap of sail and a page of the old notebook, picked up by flying close. Letters from the Institute arrive as the journal fills. The journal's Letters tab keeps all eight. When the twentieth species is recorded every post sings at once (the Chord), the closing letter and credits play, and free flight carries on afterwards.
+
+**Plates.** Every record is graded one to three stars: one for the record, one for framing (the animal a good size and near the middle of the lens) and one for catching a behaviour. Pressing the shutter on a recorded species retakes its plate and keeps the better one.
 
 **Weather.** Fronts sweep across the archipelago one at a time: fog banks that hide islands, rain bands that kill thermals and bead the lens, and crosswinds that push the glider sideways and lean the thermal columns over. The pill under the clock says where the current front is. Some behaviours can only be seen in a particular front; the journal says which.
 
@@ -15,7 +19,7 @@ Open `Driftlands.html` in a recent desktop Chrome, Edge, Safari or Firefox (WebG
 | Action | Mouse | Keyboard | Touch | Gamepad |
 | --- | --- | --- | --- | --- |
 | Steer | Move the pointer | A/D bank, W climb, S dive (or arrows) | Drag on the left of the screen | Left stick (right stick swings the camera) |
-| Lens (slows time) | Hold right button | Hold Space, Shift or E | Lens button | Hold LT or LB; right stick aims |
+| Lens (slows time) | Hold right button | Hold Space or Shift | Lens button | Hold LT or LB; right stick aims |
 | Shutter | Click with the lens up | F with the lens up | Tap | A or RT with the lens up |
 | Launch after landing | Click | W or Enter | Tap | A |
 | Journal | | J | Journal badge | Y or View; D-pad picks an entry, B closes |
@@ -25,7 +29,9 @@ Start pauses on a gamepad (Chrome, Edge, Firefox and Safari; rumble where the br
 
 New journals start with a short guided first flight: banking, climbing in a thermal, finding and recording a stiltwalker, the journal and landing, with a marker on screen for each goal. It can be skipped from its panel; existing journals skip it. Besides thermals, wind meeting the windward cliffs of an island rises: flying along those faces climbs without a thermal.
 
-Pause menu: invert, ink outlines, sound, time of day (cycle, day, night) and quality (Low, Auto, High). The "Ask the ecologist" notes need the claude.ai artifact runtime; elsewhere the journal shows its built-in notes.
+Pause menu: pitch (normal or inverted), field of view, camera shake, motion effects (Reduced turns off shake, speed blur and most of the speed zoom; it starts on when the system asks for reduced motion), render style, quality (Low, Auto, High), time of day (cycle, day, night), text size, sound, and a keyboard panel where every key can be changed. The key names in this table are the defaults.
+
+**Render style.** Ink plate (the default) draws the world like a coloured pen drawing: light falls in three flat tones, shade is hatched with pen lines that keep a constant size on screen, silhouettes and creases carry an ink line, the clouds are lit in flat tones and the air is clearer. Painted is the softer look of earlier versions. The "Ask the ecologist" notes need the claude.ai artifact runtime; elsewhere the journal shows its built-in notes.
 
 ## Build from source
 
@@ -34,8 +40,11 @@ cd source
 npm install
 node build.mjs                 # dist/driftlands.html (claude.ai artifact body, three.js from CDN) + dist/test.html
 node build.mjs --standalone    # dist/Driftlands.html (three.js bundled, runs offline)
+node build.mjs --web           # dist/web/: index.html, driftlands.js and assets/ as separate files, for hosting
 node build.mjs --dev           # unminified
 ```
+
+**Hosting.** Upload the contents of `dist/web/` to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3) at a domain root or in a subfolder; all paths are relative. Model and texture files carry a content hash in their names, so they can be cached for a long time, while `index.html` and `driftlands.js` should be served with a short cache. Put a 1200 by 630 image at `source/web/share.jpg` before building to give link previews a picture. The page loads its typefaces from Google Fonts and falls back to system fonts without them.
 
 `src/main.js` is the entry. Embedded assets live in `src/assets/` (glider.glb, rocks.glb, flora.glb, parts.glb, skins.jpg, parts_anchors.json).
 
@@ -48,7 +57,7 @@ node build.mjs --dev           # unminified
 | glider.js, glidermodel.js | Flight model, chase camera, Blender glider, scarf and trails |
 | creatures.js, tubes.js, skins.js, parts.js | Seventeen species on six body plans (walker, sessile, flyer, crawler, drifter, leviathan), behaviours, tube bodies, eyes, skins, sculpted parts |
 | game.js, input.js, ui.js, audio.js, cycle.js | Game loop, lens and journal, convergence, controls, HUD, sound, day-night |
-| glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA, lens depth of field, grading) |
+| glsl.js, shadow.js, post.js | Shared lighting (GGX specular, sky environment, aerial perspective, cloud shadows, thin-tissue transmission, plant push), cascaded soft shadows, render pipeline (ink plate style: banded light, pen hatching, depth-curvature ink line; two cloud layers, volumetric sun shafts, AgX, auto-exposure, contact shadows, TAA, lens depth of field, grading) |
 | cloudgen.js | Tileable 3D cloud noise generated on the GPU at startup |
 | water.js | Pool and channel water: planar mirror reflection, caustics, foam |
 | glow.js | Night light pooled around glowing caps and creatures |
@@ -58,11 +67,14 @@ node build.mjs --dev           # unminified
 | convergence.js | The four convergences, what triggers each, and their hybrids |
 | photo.js | Photo mode: free camera with time stopped, focal length, aperture and focus, exposure, white balance, time of day, grade presets, crop frames, PNG export |
 | velocity.js | Motion vectors for creatures and the glider, used by TAA |
+| landmarks.js | Listening posts, the old surveyor's camps and the beams of the Chord, built from code |
+| story.js | The eight letters and notebook pages, and the credits |
+| assetbuf.js | Loads a model from base64 (single-file builds) or a URL (hosted build) |
 | perf.js, golden.js | GPU timers and overlay; golden views and benchmark path |
 
 Debug: press P or F3 (or add `?perf`) for the performance overlay: frame time, draw calls, triangles and per-pass GPU timings (`EXT_disjoint_timer_query_webgl2`, Chrome and Edge). `__dl.bench()` flies a fixed loop around the three islands and logs average and 99th-percentile frame times as `BENCH {...}`; run it on real hardware after each change. `__dl.goldenView(i)` jumps to one of the twenty-one golden views in `src/golden.js`, the fixed cameras and times of day used to judge lighting changes; `python3 tools/shoot.py tools/golden.json` renders all twenty-one headless and `tools/sheet.py` makes a side-by-side contact sheet.
 
-`window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `weather.start('fog' | 'rain' | 'wind', position)`, `converge('ochre' | 'kiln' | 'rootwater' | 'gale')`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`).
+`window.__dl` also exposes the running game (`sim(seconds)`, `debugCam`, `weather.start('fog' | 'rain' | 'wind', position)`, `converge('ochre' | 'kiln' | 'rootwater' | 'gale')`, `cycle.setMode('night')`, `applyQuality(0-3)`). `tools/shoot.py` is the headless Playwright screenshot harness (`python3 tools/shoot.py steps.json [W H] [query] [outdir]`). `tools/shoot.cjs` is the same harness for Node (`NODE_PATH=$(npm root -g) node tools/shoot.cjs tools/golden-views.json 1920 1080 out`), and `tools/ui-shots.cjs` walks the title, pause menu, key rebinding, journal, a camp pickup and the ending with the interface visible and reports console errors. Set `TOUCH=1 W=844 H=390` for a phone-sized touch run. `tools/web-check.cjs` serves `dist/web/` over HTTP, loads it and lists every request and console error. `__dl.debugEnding()` records everything and plays the ending.
 
 ## Blender pipeline
 

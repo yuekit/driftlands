@@ -295,7 +295,7 @@ const COMPOSITE_FS = /* glsl */ `
 precision highp float;
 in vec2 vUv; out vec4 fragColor;
 uniform sampler2D tScene; uniform sampler2D tDepth; uniform sampler2D tCloud; uniform sampler2D tAO;
-uniform vec2 uRes; uniform vec2 uCloudRes; uniform vec2 uAORes; uniform float uNear; uniform float uFar; uniform float uInk; uniform float uInkStyle; uniform float uPxK; uniform float uAOStr;
+uniform vec2 uRes; uniform vec2 uCloudRes; uniform vec2 uAORes; uniform float uNear; uniform float uFar; uniform float uInk; uniform float uInkStyle; uniform float uPxK; uniform float uRefH; uniform float uAOStr;
 uniform mat4 uProj; uniform mat4 uInvProj; uniform vec3 uSunView; uniform float uContact; uniform float uFrame;
 float linDepth(float z){ float ndc = z * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - ndc * (uFar - uNear)); }
 vec3 viewAt(vec2 uv, float z){ vec4 p = uInvProj * vec4(uv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); return p.xyz / p.w; }
@@ -356,7 +356,7 @@ void main(){
       float edge = smoothstep(0.035, 0.12, e) * (1.0 - smoothstep(250.0, 1400.0, d0));
       col = mix(col, col * vec3(0.18, 0.12, 0.2), edge * uInk);
     } else {
-      float wpx = max(uRes.y / 1080.0 * 1.45, 1.0);
+      float wpx = max(uRes.y / uRefH * 1.45, 1.0);
       // the pen thins with distance and wavers a little
       vec2 wob = (vec2(sin(vUv.y * 190.0 + vUv.x * 37.0), sin(vUv.x * 170.0 - vUv.y * 41.0))) * 0.22;
       vec2 o = px * wpx;
@@ -368,7 +368,7 @@ void main(){
       float e = max(max(dl, dr), max(dd, du)) - d0;
       float sil = smoothstep(0.022, 0.07, e / d0);
       // creases: z is affine across a plane in screen space, so its second difference is zero until the surface bends
-      float pxm = d0 * uPxK * 1080.0 / uRes.y * wpx;                           // size of one tap step, metres
+      float pxm = d0 * uPxK * uRefH / uRes.y * wpx;                           // size of one tap step, metres
       float k = d0 * d0 / uNear * (uFar - uNear) / uFar;     // z-buffer units to metres at this depth
       float lx = (zl + zR - 2.0 * zr) * k, ly = (zd + zu - 2.0 * zr) * k;
       float gx = (dr - dl) * 0.5 / pxm, gy = (du - dd) * 0.5 / pxm;
@@ -397,6 +397,14 @@ void main(){
   }
   vec4 c = acc / wsum;
   col = col * c.a + c.rgb;
+  // ink plate: a light contour where a cloud ends crisply against what is behind it
+  if (uInkStyle > 0.5 && uInk > 0.0) {
+    vec2 ct = 1.6 / uCloudRes;
+    float gx = texture(tCloud, vUv + vec2(ct.x, 0.0)).a - texture(tCloud, vUv - vec2(ct.x, 0.0)).a;
+    float gy = texture(tCloud, vUv + vec2(0.0, ct.y)).a - texture(tCloud, vUv - vec2(0.0, ct.y)).a;
+    float cl = smoothstep(0.30, 0.62, length(vec2(gx, gy)));
+    col = mix(col, col * vec3(0.42, 0.36, 0.52), cl * 0.42 * uInk);
+  }
   if (!(col.r == col.r && col.g == col.g && col.b == col.b)) col = vec3(0.6, 0.55, 0.6);
   fragColor = vec4(min(col, vec3(60.0)), 1.0);
 }`;
@@ -795,6 +803,7 @@ export class Pipeline {
     this.cloudScale = 0.5;
     this.steps = 48;
     this.ink = 0.55;
+    this.refH = 1080;   // pen marks are sized for this output height (the test harness lowers it to preview crops)
     this.ao = 0.75; this.taa = true; this.contact = 1;
     this.prevVP = new THREE.Matrix4(); this.hasPrev = false; this.prevCam = new THREE.Vector3(); this.histIdx = 0;
     this.halton = [];
@@ -812,7 +821,7 @@ export class Pipeline {
     U.uCloudShadow.value = this.csRT.texture;
     this.compMat = mk(COMPOSITE_FS, {
       tScene: { value: null }, tDepth: { value: null }, tCloud: { value: null }, tAO: { value: null }, uRes: { value: new THREE.Vector2() }, uCloudRes: { value: new THREE.Vector2() },
-      uAORes: { value: new THREE.Vector2() }, uNear: { value: 0.5 }, uFar: { value: 20000 }, uInk: { value: this.ink }, uInkStyle: { value: 1 }, uPxK: U.uHatchK, uAOStr: { value: 0 },
+      uAORes: { value: new THREE.Vector2() }, uNear: { value: 0.5 }, uFar: { value: 20000 }, uInk: { value: this.ink }, uInkStyle: { value: 1 }, uPxK: U.uHatchK, uRefH: { value: 1080 }, uAOStr: { value: 0 },
       uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uSunView: { value: new THREE.Vector3() }, uContact: { value: 1 }, uFrame: { value: 0 },
     });
     this.aoMat = mk(AO_FS, { tDepth: { value: null }, uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2() }, uFrame: { value: 0 }, uRadius: { value: 1 } });
@@ -985,7 +994,8 @@ export class Pipeline {
     pu.tAO.value = T.ao.texture; pu.uAOStr.value = this.ao;
     pu.tScene.value = T.scene.texture; pu.tDepth.value = T.scene.depthTexture; pu.tCloud.value = T.cloud.texture;
     pu.uNear.value = camera.near; pu.uFar.value = camera.far; pu.uInk.value = this.ink; pu.uInkStyle.value = U.uStyle.value;
-    U.uHatchK.value = 2 * Math.tan(camera.fov * Math.PI / 360) / 1080;
+    U.uHatchK.value = 2 * Math.tan(camera.fov * Math.PI / 360) / this.refH;
+    pu.uRefH.value = this.refH;
     pu.uProj.value.copy(camera.projectionMatrix); pu.uInvProj.value.copy(camera.projectionMatrixInverse);
     pu.uSunView.value.copy(U.uSunDir.value).transformDirection(camera.matrixWorldInverse);
     pu.uContact.value = this.contact * U.uSunVis.value * (1 - U.uNight.value * 0.8);

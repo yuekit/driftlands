@@ -60,8 +60,8 @@ export class UI {
     $('keys-done').onclick = () => this.showKeys(false);
     $('keys-reset').onclick = () => { game.resetKeys(); this.renderKeys(); this.keyLabels(); $('keys-note').textContent = 'Keys reset.'; };
     $('p-ending').onclick = () => game.startEnding(true);
-    $('e-next').onclick = () => this.showCredits();
-    $('e-fly').onclick = () => this.hideEnding();
+    $('e-next').onclick = () => this.endingAdvance(false);
+    $('e-fly').onclick = () => this.endingAdvance(false);
     this.keyLabels();
     document.querySelectorAll('.seg').forEach((seg) => {
       const key = seg.dataset.set;
@@ -87,6 +87,7 @@ export class UI {
     const off = (e) => { e.preventDefault(); game.input.lensTouch = false; lb.classList.remove('on'); };
     lb.addEventListener('touchstart', on, { passive: false }); lb.addEventListener('touchend', off); lb.addEventListener('touchcancel', off);
     if (this.isTouch) { $('jkey').hidden = true; }
+    $('pause-btn').onclick = () => game.pause(true);
   }
   bindNew() {
     const wrap = $('p-newwrap');
@@ -180,13 +181,6 @@ export class UI {
     clearTimeout(this.recT); this.recT = setTimeout(() => r.classList.remove('on'), 3600);
     this.newPip = sp.id;
   }
-  complete() {
-    $('event-k').textContent = 'Survey complete';
-    $('event-h').textContent = `All ${SPECIES.length} recorded`;
-    $('event-b').textContent = 'Your field journal is full. The air is still warm — fly on for as long as you like.';
-    const e = $('event'); e.classList.add('on');
-    clearTimeout(this.eventT); this.eventT = setTimeout(() => e.classList.remove('on'), 9000);
-  }
   updateJournalBadge(j) {
     const ids = SPECIES.map((s) => s.id);
     $('pips').innerHTML = ids.map((id) => `<i class="${j.recorded[id] ? (this.newPip === id ? 'new' : 'on') : ''}"></i>`).join('');
@@ -241,8 +235,9 @@ export class UI {
       const km = l.d > 999 ? `${(l.d / 1000).toFixed(1)} km` : `${Math.round(l.d / 10) * 10} m`;
       const pend = l.pending > 0 ? ` · <b>${l.pending} unrecorded</b>` : '';
       if (l.on && l.d > 330 && h.lens < 0.3) {
-        el.className = 'isl'; el.style.opacity = 1;
-        el.style.transform = `translate(${(l.x * 0.5 + 0.5) * W}px, ${(0.5 - l.y * 0.5) * H}px) translate(-50%, -100%)`;
+        const lx = (l.x * 0.5 + 0.5) * W, ly = (0.5 - l.y * 0.5) * H;
+        el.className = 'isl'; el.style.opacity = ly < 124 && (lx < 340 || lx > W - 240) ? 0 : 1;   // keep clear of the journal badge and the clock
+        el.style.transform = `translate(${lx}px, ${ly}px) translate(-50%, -100%)`;
         const html = `<span class="n">${esc(l.name)}</span><span class="d">${km}${pend}</span>`;
         if (el._h !== html) { el.innerHTML = html; el._h = html; }
       } else el.style.opacity = 0;
@@ -382,7 +377,7 @@ export class UI {
       return;
     }
     d.innerHTML = `<article class="paper ${l.kind === 'page' ? 'page' : ''}">
-      ${l.kind === 'letter' ? '<svg class="seal" viewBox="60 46 180 300" aria-hidden="true"><use href="#dl-mark"/></svg>' : ''}
+      ${l.kind === 'letter' ? '<svg class="seal" aria-hidden="true"><use href="#dl-mark"/></svg>' : ''}
       <div class="from"><span>${esc(l.from)}</span></div>
       <h3>${esc(l.title)}</h3>
       ${l.body.map((t) => `<p>${esc(t)}</p>`).join('')}
@@ -413,7 +408,9 @@ export class UI {
   }
   // Enter or Space: show the whole letter, then the credits, then fly on. Escape skips straight out.
   endingAdvance(skip) {
-    const el = $('ending');
+    const el = $('ending'), now = performance.now();
+    if (now - (this.endAdvT || 0) < 450) return;      // one key press, one step (a key that moves focus onto a button would otherwise also click it)
+    this.endAdvT = now;
     if (skip) { this.hideEnding(); return; }
     if (el.classList.contains('credits')) this.hideEnding();
     else if ($('e-next').hidden) this.endReveal && this.endReveal();

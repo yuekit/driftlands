@@ -66,8 +66,16 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`;
 const BEAM_VS = /* glsl */ `
+uniform vec3 uCamPos; uniform float uHatchK; uniform float uRad; uniform float uMinPx;
 varying vec3 vWorld; varying vec3 vN; varying float vY;
-void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vWorld = wp.xyz; vN = normalize(mat3(modelMatrix) * normal); vY = position.y + 0.5; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+void main(){
+  // a beam never gets thinner than a few pixels, however far away it is
+  vec4 c = modelMatrix * vec4(0.0, position.y, 0.0, 1.0);
+  vec3 radial = normalize(mat3(modelMatrix) * vec3(position.x, 0.0, position.z));
+  float r = max(uRad, length(uCamPos - c.xyz) * uHatchK * uMinPx);
+  vWorld = c.xyz + radial * r; vN = radial; vY = position.y + 0.5;
+  gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
+}`;
 const BEAM_FS = /* glsl */ `
 varying vec3 vWorld; varying vec3 vN; varying float vY;
 ${COMMON}
@@ -75,12 +83,26 @@ uniform float uBeam;
 void main(){
   vec3 V = normalize(uCamPos - vWorld);
   float facing = abs(dot(normalize(vN), V));
-  float core = pow(facing, 5.0), halo = pow(facing, 1.6) * 0.22;
+  float core = pow(facing, 14.0), halo = pow(facing, 2.2) * 0.3;
   float fade = smoothstep(0.0, 0.012, vY) * (1.0 - smoothstep(0.55, 1.0, vY));
   float flow = 0.8 + 0.2 * sin(vWorld.y * 0.06 - uTime * 5.0);
   vec3 c = vec3(0.42, 1.0, 0.84) * (core * 5.0 + halo) * flow * fade * uBeam;
   vec3 dir; float f = fogAmount(vWorld, dir);
   gl_FragColor = vec4(c * (1.0 - f * 0.75), 1.0);
+}`;
+
+// the solid heart of a beam. It writes depth, so the cloud sea behind it cannot paint over it (the soft halo around
+// it is additive and does get covered, which reads as the beam passing into the cloud)
+const CORE_FS = /* glsl */ `
+varying vec3 vWorld; varying vec3 vN; varying float vY;
+${COMMON}
+uniform float uBeam;
+void main(){
+  // fades by dither (TAA resolves it): out toward the top, and in as the Chord begins
+  float a = (1.0 - smoothstep(0.5, 1.0, vY)) * smoothstep(0.04, 0.3, uBeam);
+  float dn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)) + uTime * 0.37));
+  if (a <= dn) discard;
+  gl_FragColor = vec4(vec3(0.42, 1.0, 0.84) * (1.5 + 6.0 * uBeam), 1.0);
 }`;
 
 function postGeometry() {
@@ -183,13 +205,16 @@ export class Landmarks {
       const crystal = new THREE.Mesh(crystalGeo, mat); crystal.position.y = 18.3;
       const r1 = new THREE.Mesh(ringGeo[0], mat), r2 = new THREE.Mesh(ringGeo[1], mat);
       r1.position.y = r2.position.y = 18.3;
-      const beamMat = new THREE.ShaderMaterial({ vertexShader: BEAM_VS, fragmentShader: BEAM_FS, uniforms: { ...U, uBeam: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      const beamMat = new THREE.ShaderMaterial({ vertexShader: BEAM_VS, fragmentShader: BEAM_FS, uniforms: { ...U, uBeam: { value: 0 }, uRad: { value: 4.5 }, uMinPx: { value: 7 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
       const beam = new THREE.Mesh(beamGeo, beamMat);
-      beam.scale.set(1.5, 1500, 1.5); beam.position.y = 18.3 + 750; beam.renderOrder = 4; beam.visible = false; beam.frustumCulled = false;
-      g.add(body, crystal, r1, r2, beam);
+      beam.scale.set(1, 1500, 1); beam.position.y = 18.3 + 750; beam.renderOrder = 4; beam.visible = false; beam.frustumCulled = false;
+      const coreMat = new THREE.ShaderMaterial({ vertexShader: BEAM_VS, fragmentShader: CORE_FS, uniforms: { ...U, uBeam: beamMat.uniforms.uBeam, uRad: { value: 0.7 }, uMinPx: { value: 3.2 } } });
+      const core = new THREE.Mesh(beamGeo, coreMat);
+      core.scale.copy(beam.scale); core.position.copy(beam.position); core.visible = false; core.frustumCulled = false;
+      g.add(body, crystal, r1, r2, beam, core);
       isl.group.add(g);
       markCaster(body);
-      const post = { isl, idx, g, mat, crystal, r1, r2, beam, beamMat, active: 0, target: 0, local: new THREE.Vector3(site.x, site.y, site.z) };
+      const post = { isl, idx, g, mat, crystal, r1, r2, beam, beamMat, core, active: 0, target: 0, local: new THREE.Vector3(site.x, site.y, site.z) };
       this.posts.push(post);
       if (CAMP_ISLANDS.includes(isl.spec.key)) {
         // the camp sits a few metres from the post, on the flattest side
@@ -206,8 +231,8 @@ export class Landmarks {
           const cm = mk();
           const cairn = new THREE.Mesh(cairnGeometry(idx + 1), cm);
           const page = new THREE.Mesh(pageGeo, cm); page.position.set(0, 5.2, 0);
-          const glintMat = new THREE.ShaderMaterial({ vertexShader: BEAM_VS, fragmentShader: BEAM_FS, uniforms: { ...U, uBeam: { value: 0.16 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-          const glint = new THREE.Mesh(beamGeo, glintMat); glint.scale.set(0.35, 60, 0.35); glint.position.y = 5.2 + 30; glint.renderOrder = 4;
+          const glintMat = new THREE.ShaderMaterial({ vertexShader: BEAM_VS, fragmentShader: BEAM_FS, uniforms: { ...U, uBeam: { value: 0.3 }, uRad: { value: 0.5 }, uMinPx: { value: 2.5 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+          const glint = new THREE.Mesh(beamGeo, glintMat); glint.scale.set(1, 60, 1); glint.position.y = 5.2 + 30; glint.renderOrder = 4;
           cg.add(cairn, page, glint);
           isl.group.add(cg);
           markCaster(cairn);
@@ -233,7 +258,7 @@ export class Landmarks {
       p.crystal.position.y = 18.3 + Math.sin(time * 0.8 + p.idx) * 0.18 * (0.3 + p.active);
       p.r1.rotation.set(1.15 + Math.sin(time * 0.31 + p.idx) * 0.25, time * sp, 0.3);
       p.r2.rotation.set(1.75, -time * sp * 0.7, 0.9 + Math.cos(time * 0.23 + p.idx) * 0.25);
-      p.beam.visible = this.chord > 0.01;
+      p.beam.visible = this.chord > 0.01; p.core.visible = this.chord > 0.04;
       p.beamMat.uniforms.uBeam.value = this.chord * (0.75 + 0.25 * Math.sin(time * 1.7 + p.idx * 1.9));
     }
     for (const c of this.camps) {

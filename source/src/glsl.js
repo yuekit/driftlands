@@ -223,24 +223,25 @@ float cloudShadowAt(vec3 p){
 // ---- ink plate style: pen hatching at a constant density on screen. Lines live in surface space and are
 // blended between octaves by distance, so they neither swim nor crowd as the camera moves.
 float hatchPlane(float u, float f, float hw){
-  float fu = fract(u);
+  // lines at whole numbers always, lines at halves fade out as the octave ends: the next octave picks up exactly where this one stops
   float aa = hw * 0.6 + 1e-4;
-  float la = 1.0 - smoothstep(hw - aa, hw + aa, abs(fu - 0.25));
-  float lb = (1.0 - smoothstep(hw - aa, hw + aa, abs(fu - 0.75))) * (1.0 - smoothstep(0.3, 0.9, f));
+  float la = 1.0 - smoothstep(hw - aa, hw + aa, abs(fract(u + 0.5) - 0.5));
+  float lb = (1.0 - smoothstep(hw - aa, hw + aa, abs(fract(u) - 0.5))) * (1.0 - smoothstep(0.3, 0.9, f));
   return max(la, lb);
 }
 float penHatch(vec3 hp, vec3 n, float dist, float spacingPx, float widthPx, vec2 cs){
   float s = max(dist * uHatchK * spacingPx, 1e-4);
-  float l = log2(s), fl = floor(l), f = l - fl;
-  vec3 q = hp / exp2(fl + 1.0);
+  float l = log2(s), fl = floor(l), f = l - fl, sc = exp2(fl);
+  vec3 q = hp / (sc * 2.0);
   float hw = 0.25 * widthPx / spacingPx * exp2(f);
   vec3 w = pow(abs(n), vec3(6.0)); w /= (w.x + w.y + w.z + 1e-5);
-  float wob = (vnoise(hp * 0.35 / exp2(fl)) - 0.5) * 0.18;     // a slightly unsteady hand
   float h = 0.0;
-  if (w.x > 0.02) h += w.x * hatchPlane(q.y * cs.x + q.z * cs.y + wob, f, hw);
-  if (w.y > 0.02) h += w.y * hatchPlane(q.x * cs.x + q.z * cs.y + wob, f, hw);
-  if (w.z > 0.02) h += w.z * hatchPlane(q.y * cs.x + q.x * cs.y + wob, f, hw);
-  return h;
+  if (w.x > 0.02) h += w.x * hatchPlane(q.y * cs.x + q.z * cs.y, f, hw);
+  if (w.y > 0.02) h += w.y * hatchPlane(q.x * cs.x + q.z * cs.y, f, hw);
+  if (w.z > 0.02) h += w.z * hatchPlane(q.y * cs.x + q.x * cs.y, f, hw);
+  // strokes break off and start again, in patches a few strokes wide (blended across octaves like the lines)
+  float brk = mix(vnoise(hp * 0.55 / sc + 11.0), vnoise(hp * 0.275 / sc + 11.0), f);
+  return h * smoothstep(0.40, 0.52, brk);
 }
 vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   sunVis *= dynShadow(wp, n) * cloudShadowAt(wp);
@@ -248,22 +249,25 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   float ndl = dot(n, uSunDir);
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
   float penInk = 0.0;
+  float dv = diff * sunVis;      // direct diffuse, shadowed
   if (uStyle > 0.0) {
     // three flat tones (light, half tone, shade) with a little of the smooth falloff left in
     float L = diff * sunVis;
     float lit = smoothstep(0.30, 0.37, L), half_ = smoothstep(0.035, 0.085, L);
     float Lb = (half_ * 0.36 + lit * 0.64) * (0.86 + 0.14 * L);
     float Ls = mix(L, Lb, uStyle * 0.85);
-    diff = Ls; sunVis = 1.0;
+    dv = Ls;
     ao = mix(ao, smoothstep(0.25, 0.75, ao) * 0.75 + 0.25 * ao, uStyle * 0.5);
     if (gHatch > 0.0) {
       float dist = length(uCamPos - wp);
-      float fade = gHatch * uStyle * (1.0 - smoothstep(380.0, 900.0, dist));
+      float shade = 1.0 - half_;
+      float fade = gHatch * uStyle * (1.0 - smoothstep(380.0, 900.0, dist)) * shade;
       if (fade > 0.01) {
-        float h1 = penHatch(gHatchPos, gHatchN, dist, 7.0, 1.15, vec2(0.819, 0.574));
-        float deep = (1.0 - half_) * smoothstep(0.75, 0.35, ao);
-        float h2 = deep > 0.02 ? penHatch(gHatchPos + 3.7, gHatchN, dist, 7.0, 1.15, vec2(0.342, -0.940)) : 0.0;
-        penInk = clamp(h1 * (1.0 - lit) * (0.55 + 0.45 * (1.0 - half_)) + h2 * deep, 0.0, 1.0) * fade;
+        // one set of strokes in the shade, a second set crossing it only where the surface is also deeply occluded
+        float h1 = penHatch(gHatchPos, gHatchN, dist, 10.0, 1.35, vec2(0.819, 0.574));
+        float deep = smoothstep(0.62, 0.3, ao);
+        float h2 = deep > 0.02 ? penHatch(gHatchPos + 3.7, gHatchN, dist, 10.0, 1.35, vec2(0.342, -0.940)) : 0.0;
+        penInk = clamp(h1 + h2 * deep, 0.0, 1.0) * fade;
       }
     }
   }
@@ -277,13 +281,13 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   vec3 Fenv = f0 * ab.x + ab.y;
   float specOcc = clamp(pow(NoV + ao, exp2(-16.0 * a - 1.0)) - 1.0 + ao, 0.0, 1.0);
   vec3 kd = 1.0 - Fenv;
-  vec3 col = albedo * kd * (uSunColor * diff * sunVis + ambientLight(ambN) * ao);
+  vec3 col = albedo * kd * (uSunColor * dv + ambientLight(ambN) * ao);
   col += uSunColor * spec * sunVis;
   col += albedo * glowLight(wp, ambN) * ao;
   col += envLight(reflect(-V, n), rough) * Fenv * specOcc;
   float rim = pow(1.0 - NoV, 4.0);
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
-  col *= mix(vec3(1.0), vec3(0.30, 0.24, 0.36), penInk * 0.62);
+  col *= mix(vec3(1.0), vec3(0.30, 0.24, 0.36), penInk * 0.55);
   return col;
 }
 // one hard tap of the cascades: cheap shadow for secondary effects (transmission, shafts)
