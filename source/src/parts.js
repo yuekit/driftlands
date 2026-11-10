@@ -3,17 +3,18 @@
 import * as THREE from 'three';
 import { InstHistory } from './velocity.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { assetBuffer } from './assetbuf.js';
 import partsB64 from './assets/parts.glb';
 import ANCHORS from './assets/parts_anchors.json';
 import { U, COMMON } from './glsl.js';
 import { SKIN_GLSL } from './skins.js';
 
 export { ANCHORS };
-function b64ToBuffer(b64) { const bin = atob(b64); const o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o.buffer; }
 
-export function loadParts() {
+export async function loadParts() {
+  const buf = await assetBuffer(partsB64);
   return new Promise((resolve) => {
-    new GLTFLoader().parse(b64ToBuffer(partsB64), '', (gltf) => {
+    new GLTFLoader().parse(buf, '', (gltf) => {
       const geos = {}; let mat = null;
       gltf.scene.updateMatrixWorld(true);
       gltf.scene.traverse((o) => {

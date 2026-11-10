@@ -95,7 +95,7 @@ export class PhotoMode {
     }, { passive: false });
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
-      if (k === 'o' && !e.repeat) {
+      if (k === this.game.input.bind.photo && !e.repeat) {
         if (this.on) this.exit(); else if (this.game.state === 'play' || this.game.state === 'paused') this.enter();
         return;
       }

@@ -5,15 +5,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import rocksB64 from './assets/rocks.glb';
 import floraB64 from './assets/flora.glb';
 import { U, COMMON, srgb } from './glsl.js';
+import { assetBuffer } from './assetbuf.js';
 
-function b64ToBuffer(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out.buffer;
-}
-function parse(b64) {
-  return new Promise((resolve, reject) => new GLTFLoader().parse(b64ToBuffer(b64), '', resolve, reject));
+async function parse(asset) {
+  const buf = await assetBuffer(asset);
+  return new Promise((resolve, reject) => new GLTFLoader().parse(buf, '', resolve, reject));
 }
 function collect(gltf) {
   const meshes = {}; let mat = null;
@@ -105,6 +101,7 @@ void main(){
     alb = mix(alb, uUnder * (0.8 + 0.4 * rh), und * 0.6);
   }
   float occ = ao * (1.0 - rcav * 0.3);
+  gHatchPos = vLocal; gHatchN = N; gHatch = 0.85 - 0.4 * mossAmt;
   vec3 col = litSurface(alb, n, vWorld, vSun, occ, 0.12);
   if (uNight > 0.01) {
     float sp = vnoise(p * 1.4) * 0.7 + vnoise(p * 4.1) * 0.3;

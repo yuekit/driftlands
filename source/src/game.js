@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { U } from './glsl.js';
 import { SPECIES } from './creatures.js';
+import { LETTERS, PAGES, letterById } from './story.js';
+import { DEFAULT_KEYS, keyName } from './input.js';
 import { Audio } from './audio.js';
 import { Debris } from './debris.js';
 import { DayCycle } from './cycle.js';
@@ -13,6 +15,8 @@ import { CONVERGENCES, convergenceReady, convergenceFor } from './convergence.js
 import { Guide } from './guide.js';
 
 const STORE_KEY = 'driftlands-journal-v1';
+// what a creature is doing when it is doing nothing in particular: a plate needs more than this for its third star
+const IDLE_TAGS = new Set(['rest', 'walk', 'open', 'flock', 'crawl', 'drift', 'circle']);
 const SETTINGS_KEY = 'driftlands-settings-v1';
 const TAG_TEXT = {
   walk: 'walking on stilt legs', graze: 'lowering its neck to graze', alert: 'raising its head to watch the glider', rest: 'standing still',
@@ -62,12 +66,13 @@ export class Game {
     this.audio.setListener(this.camera);
     this.debris = new Debris(this.scene);
     this.quality = { dprScale: 1, level: 2, lastChange: 0 };
-    this.settings = Object.assign({ invert: false, ink: true, sound: true, quality: 'auto', time: 'cycle' }, load(SETTINGS_KEY, {}));
+    this.settings = Object.assign({ invert: false, style: 'ink', sound: true, quality: 'auto', time: 'cycle', fov: 'normal', shake: true, motion: 'full', text: 'normal', keys: {} }, load(SETTINGS_KEY, {}));
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches && !load(SETTINGS_KEY, {}).motion) this.settings.motion = 'reduced';
     this.cycle = new DayCycle();
     this.cycle.setMode(this.settings.time);
     this.night = this.cycle.night;
     this.input.invert = this.settings.invert;
-    this.pipe.ink = this.settings.ink ? 0.55 : 0;
+    this.applyStyle(); this.applyComfort();
     this.j = this.freshJournal();
     const saved = load(STORE_KEY, null);
     if (saved && saved.recorded) this.j = Object.assign(this.freshJournal(), saved);
@@ -94,11 +99,12 @@ export class Game {
     this.weather.onArrive = (type, text) => { if (this.state === 'play') { this.ui.toast(text); this.audio.whoosh && this.audio.whoosh(); } };
     this._sunBase = U.uSunColor.value.clone(); this._sunOut = new THREE.Vector3(-1, -1, -1);
     this.guide = new Guide(this);
+    this.syncLandmarks(true);
   }
   onGuideDone() { if (!this.weather.front) this.weather.calm = Math.min(this.weather.calm, 45); }
 
   freshJournal() {
-    return { recorded: {}, progress: {}, tags: {}, notes: {}, conv: {}, started: false, flightTime: 0 };
+    return { recorded: {}, progress: {}, tags: {}, notes: {}, conv: {}, letters: {}, read: {}, ended: false, started: false, flightTime: 0 };
   }
   persist() { save(STORE_KEY, this.j); }
 
@@ -162,6 +168,7 @@ export class Game {
     this.glider.roll = 0;
     if (!this.guide.active) { this.hint('steer'); this.after(14, () => this.hint('thermal')); }
     this.checkConvergences(12);
+    this.after(this.guide.active ? 40 : 9, () => this.checkStory());
   }
   newJournal() {
     this.j = this.freshJournal();
@@ -170,14 +177,132 @@ export class Game {
     this.eco.removeHybrids();
     this.guide.reset(); this.ui.goal(null);
     this.timers = [];
+    this.syncLandmarks(true);
     this.ui.updateJournalBadge(this.j);
+  }
+
+  // render style: 'ink' = the drawn plate look (banded light, pen hatching, ink line), 'painted' = the softer v13 look
+  applyStyle() {
+    const ink = this.settings.style !== 'painted';
+    U.uStyle.value = ink ? 1 : 0;
+    this.pipe.ink = ink ? 1 : 0.55;
+  }
+  // comfort settings: field of view, camera shake, reduced motion, text size, key bindings
+  applyComfort() {
+    const st = this.settings, reduced = st.motion === 'reduced';
+    this.chase.fovBias = st.fov === 'narrow' ? -8 : st.fov === 'wide' ? 10 : 0;
+    this.chase.shakeScale = st.shake && !reduced ? 1 : 0;
+    this.chase.speedFov = reduced ? 0.25 : 1;
+    this.reducedMotion = reduced;
+    document.getElementById('dl-root').classList.toggle('big-text', st.text === 'large');
+    Object.assign(this.input.bind, DEFAULT_KEYS, st.keys || {});
+  }
+  rebind(action, key) {
+    const err = this.input.setKey(action, key);
+    if (err) return err;
+    this.settings.keys = { ...this.input.bind }; save(SETTINGS_KEY, this.settings);
+    return null;
+  }
+  resetKeys() { this.settings.keys = {}; Object.assign(this.input.bind, DEFAULT_KEYS); save(SETTINGS_KEY, this.settings); }
+  key(action) { return keyName(this.input.bind[action]); }
+
+  // ---------------------------------------------------------------- story: letters, listening posts, the Chord
+  islandDone(idx) { const sp = SPECIES.filter((s) => s.island === idx); return sp.length > 0 && sp.every((s) => this.j.recorded[s.id]); }
+  syncLandmarks(instant = false) {
+    const L = this.landmarks; if (!L) return;
+    for (const p of L.posts) { p.target = this.islandDone(p.idx) ? 1 : 0; if (instant) p.active = p.target; }
+    for (const pg of PAGES) L.setFound(pg.camp, !!this.j.letters[pg.id]);
+    L.chordTarget = this.j.ended ? 0.3 : 0; if (instant) L.chord = L.chordTarget;
+  }
+  unreadLetters() { return LETTERS.filter((l) => this.j.letters[l.id] && !this.j.read[l.id]).length; }
+  deliver(id, quiet = false) {
+    if (this.j.letters[id]) return false;
+    this.j.letters[id] = { at: Date.now(), flight: Math.round(this.j.flightTime) };
+    this.persist();
+    this.ui.updateJournalBadge(this.j);
+    if (!quiet) { this.audio.page(); this.ui.toast(`A letter from the Institute. ${this.input.mode === 'pad' ? 'Press Y' : this.input.mode === 'touch' ? 'Tap the journal' : 'Press ' + this.key('journal')} to read it.`); }
+    return true;
+  }
+  // letters from the Institute arrive when their condition is met (the last one arrives with the ending)
+  checkStory() {
+    for (const l of LETTERS) if (l.kind === 'letter' && l.id !== 'chord' && !this.j.letters[l.id] && l.when(this.j)) { this.deliver(l.id); return; }
+  }
+  updateCamps() {
+    const L = this.landmarks; if (!L) return;
+    const g = this.glider.pos;
+    for (const c of L.camps) {
+      if (c.found) continue;
+      const d = g.distanceTo(c.world);
+      if (d < 150 && !this.guide.active) this.hint('cairn');
+      if (d < 24) {
+        const pg = PAGES.find((x) => x.camp === c.key);
+        if (!pg || this.j.letters[pg.id]) continue;
+        this.j.letters[pg.id] = { at: Date.now(), flight: Math.round(this.j.flightTime) };
+        this.persist(); L.setFound(c.key, true);
+        this.audio.page(); this.audio.discover();
+        this.input.rumble(0.1, 0.4, 200);
+        this.ui.found(pg, this.key('journal'));
+        this.ui.updateJournalBadge(this.j);
+      }
+    }
+  }
+  // every post sings at once: beams, a held chord, then the closing letter and the credits
+  beginChord() {
+    if (this.j.ended || this.chordOn || this.state !== 'play') { if (this.state !== 'play' && !this.j.ended) this.after(3, () => this.beginChord()); return; }
+    this.chordOn = true;
+    this.landmarks && (this.landmarks.chordTarget = 1);
+    this.audio.chord && this.audio.chord();
+    const fu = this.pipe.finalMat.uniforms; fu.uFlash.value = this.reducedMotion ? 0.08 : 0.3; fu.uFlashColor.value.set(0.6, 1, 0.88);
+    this.input.rumble(0.4, 0.8, 1200);
+    this.ui.event('Every listening post is singing at once.', 'Hold your course and look around.', 'The Chord', 11000);
+    this.after(13, () => this.startEnding());
+  }
+  startEnding(replay = false) {
+    if (this.state === 'journal') this.openJournal(false);
+    if (this.state === 'paused') this.pause(false);
+    if (this.state === 'photo') this.photo.exit();
+    this.state = 'ending'; this.endT = 0; this.endReplay = replay;
+    this.landmarks && (this.landmarks.chordTarget = 1);
+    this.weather.hold();
+    this.ui.showHUD(false);
+    this.deliver('chord', true); this.j.read.chord = true;
+    this.j.ended = true; this.persist();
+    this.ui.showEnding(letterById('chord'));
+  }
+  finishEnding() {
+    if (this.state !== 'ending') return;
+    this.chordOn = false;
+    this.state = 'play';
+    this.landmarks && (this.landmarks.chordTarget = 0.3);
+    const I0 = this.world.islands[0];
+    const p = new THREE.Vector3(I0.pos.x + 150, I0.pos.y + 95, I0.pos.z - 70);
+    this.glider.place(p, Math.atan2(I0.pos.x - p.x, I0.pos.z - p.z)); this.glider.speed = 26;
+    this.chase.snap(this.glider);
+    this.ui.showHUD(true);
+    this.ui.updateJournalBadge(this.j);
+    if (!this.endReplay) this.after(4, () => this.ui.toast('The survey is complete. The air is still warm: fly on for as long as you like.'));
+  }
+  endingFrame(dt) {
+    this.endT += dt;
+    // the glider circles its home thermal while the camera takes a long, slow arc around the whole archipelago
+    this.circleGlider(dt);
+    let cx = 0, cy = 0, cz = 0; const n = this.world.islands.length;
+    for (const I of this.world.islands) { cx += I.pos.x / n; cy += I.pos.y / n; cz += I.pos.z / n; }
+    const a = 2.4 + this.endT * 0.022, r = 1500 - Math.min(380, this.endT * 5), h = 430 + Math.sin(this.endT * 0.05) * 40;
+    const cam = this.camera;
+    cam.position.set(cx + Math.cos(a) * r, h, cz + Math.sin(a) * r);
+    cam.up.set(0, 1, 0);
+    cam.lookAt(cx, cy + 150, cz);
+    cam.fov = 44; cam.updateProjectionMatrix();
+    this.chase.pos.copy(cam.position);
   }
 
   setSetting(k, v) {
     if (k === 'time') this.cycle.setMode(v);
     this.settings[k] = v; save(SETTINGS_KEY, this.settings);
     if (k === 'invert') this.input.invert = v;
-    if (k === 'ink') this.pipe.ink = v ? 0.55 : 0;
+    if (k === 'style') this.applyStyle();
+    if (k === 'fov' || k === 'shake' || k === 'motion' || k === 'text') this.applyComfort();
     if (k === 'sound') this.audio.setEnabled(v);
     if (k === 'quality') { this.quality.lastChange = 0; this.applyQuality(v === 'low' ? 0 : v === 'high' ? 3 : 2); }
   }
@@ -239,7 +364,10 @@ export class Game {
       if (pe.start || pe.b || pe.a) this.pause(false);
     } else if (st === 'journal') {
       if (pe.y || pe.b || pe.back || pe.start) this.openJournal(false);
-      else if (pe.up || pe.down) { const n = SPECIES.length; this.ui.select((this.ui.sel + (pe.down ? 1 : n - 1)) % n); }
+      else if (pe.up || pe.down) this.ui.step(pe.down ? 1 : -1);
+      else if (pe.left || pe.right) this.ui.setTab(this.ui.jtab === 'plates' ? 'letters' : 'plates');
+    } else if (st === 'ending') {
+      if (pe.a || pe.start) this.ui.endingAdvance(false); else if (pe.b) this.ui.endingAdvance(true);
     } else if (st === 'photo') {
       if (pe.b || pe.start) this.photo.exit();
       else if (pe.a) this.photo.save();
@@ -254,14 +382,15 @@ export class Game {
     save('driftlands-hints-v1', [...this.hints]);
     const mode = this.input.mode;
     const T = {
-      steer: mode === 'pad' ? 'The left stick steers. Push it down to dive and gain speed, up to climb.' : mode === 'touch' ? 'Drag anywhere to steer. Drag down to dive and gain speed, up to climb.' : mode === 'keys' ? 'A and D bank, W climbs, S dives. Dive to gain speed, climb to trade it for height.' : 'Move the mouse to steer. Point below the centre to dive and gain speed, above it to climb.',
+      steer: mode === 'pad' ? 'The left stick steers. Push it down to dive and gain speed, up to climb.' : mode === 'touch' ? 'Drag anywhere to steer. Drag down to dive and gain speed, up to climb.' : mode === 'keys' ? `${this.key('left')} and ${this.key('right')} bank, ${this.key('up')} climbs, ${this.key('down')} dives. Dive to gain speed, climb to trade it for height.` : 'Move the mouse to steer. Point below the centre to dive and gain speed, above it to climb.',
       thermal: 'Rising spores mark warm air. Circle inside a column to climb.',
-      lens: mode === 'pad' ? 'Hold LT to raise your lens. Keep a creature inside the circle; the right stick aims it.' : mode === 'touch' ? 'Hold the lens button to study a creature. Keep it inside the circle.' : 'Hold the right mouse button or Space to raise your lens. Keep a creature inside the circle to study it.',
+      lens: mode === 'pad' ? 'Hold LT to raise your lens. Keep a creature inside the circle; the right stick aims it.' : mode === 'touch' ? 'Hold the lens button to study a creature. Keep it inside the circle.' : `Hold the right mouse button or ${this.key('lens')} to raise your lens. Keep a creature inside the circle to study it.`,
       lensuse: mode === 'pad' ? 'Time slows while the lens is up. Aim with the right stick, press A or RT for a photo.' : 'Time slows while the lens is up. Move the mouse to look around.',
-      journal: mode === 'pad' ? 'Press Y to open your field journal.' : mode === 'touch' ? 'Tap the journal to read your notes.' : 'Press J to open your field journal.',
-      land: mode === 'pad' ? 'You landed. Press A to launch again.' : mode === 'touch' ? 'You landed. Tap to launch again.' : 'You landed. Click or press W to launch again.',
+      journal: mode === 'pad' ? 'Press Y to open your field journal.' : mode === 'touch' ? 'Tap the journal to read your notes.' : `Press ${this.key('journal')} to open your field journal.`,
+      land: mode === 'pad' ? 'You landed. Press A to launch again.' : mode === 'touch' ? 'You landed. Tap to launch again.' : `You landed. Click or press ${this.key('up')} to launch again.`,
       stall: 'Too slow. Let the nose drop to pick up speed.',
       ridge: 'Wind hitting a cliff is pushed upward. Fly along the windward face of an island to climb without a thermal.',
+      cairn: 'Something pale is fluttering beside the listening post. Fly close to pick it up.',
       night: 'At night some species sleep, glow or swarm. Open the journal to see which behaviours you still need.',
     };
     if (T[id]) this.ui.hint(T[id]);
@@ -353,6 +482,7 @@ export class Game {
     const inp = this.input.read();
     this.padNav(inp.pad);
     if (this.state === 'title' && !this.debugCam) this.titleFrame(dtReal);
+    if (this.state === 'ending' && !this.debugCam) this.endingFrame(dtReal);
 
     // lens
     const lensWanted = playing && inp.lens && this.rescueT < 0;
@@ -365,7 +495,7 @@ export class Game {
     const dt = dtReal * this.timeScale;
     this.time += dt;
     U.uTime.value = this.time;
-    if (this.state === 'play' || this.state === 'title') this.cycle.update(this.state === 'title' ? 0 : dt);
+    if (this.state === 'play' || this.state === 'title' || this.state === 'ending') this.cycle.update(this.state === 'play' ? dt : 0);
     const prevPhase = this.phaseName;
     this.phaseName = this.cycle.phase;
     this.night = this.cycle.night;
@@ -393,6 +523,7 @@ export class Game {
       for (const e of this.events) this.onEvent(e);
       if (this.glider.stall > 0.6) this.hint('stall');
       this.checkRescue(dtReal);
+      this.updateCamps();
     } else if (this.state !== 'title') {
       // frozen
     }
@@ -408,6 +539,7 @@ export class Game {
     U.uSunColor.value.copy(this._sunOut);
     this.audio.wx = this.weather.here;
     this.world.rocks.update(this.time);
+    if (this.landmarks) this.landmarks.update(this.time, dtReal);
     // the cloud pass shades and mists only around the islands nearest the camera
     const cp = this.camera.position, uI = this.pipe.cloudMat.uniforms.uIsl.value;
     const near = this.world.islands.slice().sort((a, b) => a.pos.distanceToSquared(cp) - b.pos.distanceToSquared(cp));
@@ -418,7 +550,7 @@ export class Game {
     // camera
     if (this.debugCam) { const dc = this.debugCam, o = dc.rel ? this.glider.pos : { x: 0, y: 0, z: 0 }; this.camera.position.set(dc.p[0] + o.x, dc.p[1] + o.y, dc.p[2] + o.z); this.camera.lookAt(dc.t[0] + o.x, dc.t[1] + o.y, dc.t[2] + o.z); this.camera.fov = this.debugCam.fov || 60; this.camera.updateProjectionMatrix(); }
     else if (this.state === 'photo') this.photo.update(dtReal);
-    else if (this.state !== 'title') this.chase.update(this.glider, dtReal, inp);
+    else if (this.state !== 'title' && this.state !== 'ending') this.chase.update(this.glider, dtReal, inp);
     if (this.glider.impact > 0.2) this.chase.shake = Math.max(this.chase.shake, this.glider.impact * 0.8);
     U.uCamPos.value.copy(this.camera.position);
     this.updateWake(dt);
@@ -442,7 +574,7 @@ export class Game {
     // post uniforms
     const fu = this.pipe.finalMat.uniforms;
     fu.uLens.value = this.lens;
-    fu.uSpeedFx.value = Math.max(0, Math.min(1, (this.glider.speed - 32) / 30)) * (1 - this.lens);
+    fu.uSpeedFx.value = this.reducedMotion || this.state === 'ending' ? 0 : Math.max(0, Math.min(1, (this.glider.speed - 32) / 30)) * (1 - this.lens);
     fu.uFade.value = 1 - this.fade;
     fu.uFlash.value = Math.max(0, fu.uFlash.value - dtReal * 1.5);
     fu.uExposure.value = this.cycle.exposure();
@@ -476,7 +608,7 @@ export class Game {
     if (this.perf) this.perf.update(dtReal);
 
     // audio + HUD
-    if (this.state === 'play' || this.state === 'paused' || this.state === 'journal' || this.state === 'photo') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);
+    if (this.state === 'play' || this.state === 'paused' || this.state === 'journal' || this.state === 'photo' || this.state === 'ending') this.audio.update(this.glider, this.world, this.lens, dtReal, this.timeScale, this.night);
     if (this.realTime - this.lastHud > 0.05) { this.lastHud = this.realTime; this.updateHUD(); }
   }
 
@@ -510,6 +642,17 @@ export class Game {
 
   titleFrame(dt) {
     // glider circles a thermal while the camera drifts around it
+    const p = this.circleGlider(dt);
+    const I0 = this.world.islands[0];
+    const camA = this.realTime * 0.035 + 2.2;
+    const cam = this.camera;
+    cam.position.set(p.x + Math.cos(camA) * 34, p.y + 7, p.z + Math.sin(camA) * 34);
+    const look = p.clone().lerp(I0.pos.clone().add(new THREE.Vector3(0, 10, 0)), 0.35);
+    cam.lookAt(look);
+    cam.fov = 58; cam.updateProjectionMatrix();
+    this.chase.pos.copy(cam.position); this.chase.look.copy(look);
+  }
+  circleGlider(dt) {
     const th = this.world.thermals.list[0];
     this.titleAng += dt * 0.11;
     const a = this.titleAng;
@@ -521,14 +664,7 @@ export class Game {
     this.glider.vel.copy(this.glider.fwd).multiplyScalar(5);
     this.glider.update(0, { roll: 0.38, pitch: 0, launch: false }, this.world, []);
     this.glider.root.rotation.z = 0.38;
-    const I0 = this.world.islands[0];
-    const camA = this.realTime * 0.035 + 2.2;
-    const cam = this.camera;
-    cam.position.set(p.x + Math.cos(camA) * 34, p.y + 7, p.z + Math.sin(camA) * 34);
-    const look = p.clone().lerp(I0.pos.clone().add(new THREE.Vector3(0, 10, 0)), 0.35);
-    cam.lookAt(look);
-    cam.fov = 58; cam.updateProjectionMatrix();
-    this.chase.pos.copy(cam.position); this.chase.look.copy(look);
+    return p;
   }
 
   onEvent(e) {
@@ -612,26 +748,47 @@ export class Game {
     if (!best) return;
     const sp = best.c.sp;
     if (this.j.recorded[sp.id]) {
-      this.capture = { id: sp.id, x: best.x, y: best.y, r: best.c.radius / best.d };
-      this.ui.toast(`New field plate for the ${sp.common}.`);
+      // a retake replaces the plate only when it grades at least as well as the one in the journal
+      const g = this.gradePlate(best), rec = this.j.recorded[sp.id], old = rec.stars || 1;
+      if (g.stars >= old) {
+        rec.stars = g.stars; rec.grade = g.grade;
+        this.capture = { id: sp.id, x: best.x, y: best.y, r: best.c.radius / best.d };
+        this.ui.toast(g.stars > old ? `A better plate of the ${sp.common}: ${g.stars} of 3 stars.` : `New field plate for the ${sp.common}.`);
+        if (g.stars > old) this.audio.studyTick(1);
+        this.persist();
+      } else this.ui.toast(`The plate in your journal is better. ${g.grade.framed ? 'Catch it doing something.' : g.grade.small ? 'Get closer.' : g.grade.big ? 'Back off a little.' : 'Bring it to the middle of the lens.'}`);
     } else {
       this.j.progress[sp.id] = Math.min(1, (this.j.progress[sp.id] || 0) + 0.3);
       if (this.j.progress[sp.id] >= 1) this.record(sp, best);
     }
   }
 
+  // one to three stars for a plate: one for the record, one for framing (size and centring), one for behaviour
+  gradePlate(best) {
+    const cam = this.camera;
+    const frac = (best.c.radius / best.d) / Math.tan(cam.fov * Math.PI / 360);   // subject radius over half the frame height
+    const off = Math.hypot(best.x * cam.aspect, best.y);
+    const small = frac < 0.11, big = frac > 0.95;
+    const framed = !small && !big && off < 0.45;
+    const behaviour = !!best.c.tag && !IDLE_TAGS.has(best.c.tag);
+    return { stars: 1 + (framed ? 1 : 0) + (behaviour ? 1 : 0), grade: { framed, small, big, behaviour } };
+  }
   record(sp, best) {
-    this.j.recorded[sp.id] = { at: Date.now(), dist: Math.round(best.d), island: sp.island >= 0 ? this.world.islands[sp.island].name : 'the seam', flight: Math.round(this.j.flightTime) };
+    const g = this.gradePlate(best);
+    this.j.recorded[sp.id] = { at: Date.now(), dist: Math.round(best.d), island: sp.island >= 0 ? this.world.islands[sp.island].name : 'the seam', flight: Math.round(this.j.flightTime), stars: g.stars, grade: g.grade };
     this.capture = { id: sp.id, x: best.x, y: best.y, r: best.c.radius / best.d };
     this.persist();
     this.audio.discover();
     this.input.rumble(0.1, 0.5, 220);
     const n = Object.keys(this.j.recorded).length;
-    this.ui.recorded(sp, n, SPECIES.length);
+    this.ui.recorded(sp, n, SPECIES.length, g.stars);
     this.ui.updateJournalBadge(this.j);
     this.after(3.5, () => this.hint('journal'));
     this.checkConvergences(8);
-    if (n === SPECIES.length) this.after(4, () => this.ui.complete(this.j));
+    this.syncLandmarks();
+    if (sp.island >= 0 && this.islandDone(sp.island) && n < SPECIES.length) this.after(5, () => { this.ui.toast(`The listening post on ${this.world.islands[sp.island].name} has begun to sing.`); this.audio.postWake && this.audio.postWake(); });
+    this.after(16, () => this.checkStory());
+    if (n === SPECIES.length) this.after(7, () => this.beginChord());
   }
 
   doCapture() {
@@ -690,9 +847,17 @@ export class Game {
         this.eco.spawnHybrid(cv.hybrid, cv.I0, cv.I1, cv.seamLocal);
         this.ui.event(cv.met[0], cv.met[1]);
         this.ui.updateJournalBadge(this.j);
-        if (cv.key === 'ochre') this.after(14, () => this.ui.toast('Currents carry islands whose life is fully recorded. Finish the survey of two neighbours to bring them together.'));
+        if (cv.key === 'ochre') this.after(14, () => this.ui.toast('Islands whose life is fully recorded lean toward each other. Finish the survey of two neighbours to bring them together.'));
+        this.after(26, () => this.checkStory());
       });
     }
+  }
+  // debug: record everything and play the ending
+  debugEnding() {
+    for (const cv of this.convs) if (cv.phase !== 'done') { this.j.conv[cv.key] = true; this.applyConverged(cv); }
+    for (const sp of SPECIES) if (!this.j.recorded[sp.id]) this.j.recorded[sp.id] = { at: Date.now(), dist: 30, island: sp.island >= 0 ? this.world.islands[sp.island].name : 'the seam', flight: 0, stars: 2 };
+    this.j.ended = false; this.syncLandmarks(); this.ui.updateJournalBadge(this.j);
+    this.startEnding(true);
   }
   // debug: finish a convergence instantly
   converge(key) { const cv = this.convs.find((c) => c.key === key); if (cv && cv.phase !== 'done') { this.j.conv[key] = true; this.applyConverged(cv); } return this.convs.map((c) => c.key + ':' + c.phase); }

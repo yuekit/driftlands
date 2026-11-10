@@ -130,6 +130,23 @@ export class Audio {
     });
     this.chordIdx = (this.chordIdx + 1 + (Math.random() < 0.3 ? 1 : 0)) % CHORDS.length;
   }
+  // a listening post wakes: three rising bells
+  postWake() { if (!this.ctx) return; [62, 69, 74].forEach((m, i) => this.bell(m, i * 0.28, 0.06)); }
+  // the Chord: every post at once. A wide stack of bells over a slow swell, about twelve seconds long
+  chord() {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const notes = [38, 50, 57, 62, 66, 69, 74, 78];
+    notes.forEach((m, i) => { this.bell(m + 12, i * 0.42, 0.075); this.bell(m + 12, 4.2 + i * 0.3, 0.06); this.bell(m + 24, 8.0 + i * 0.22, 0.04); });
+    const g = ctx.createGain(); g.gain.value = 0;
+    g.gain.setTargetAtTime(0.11, t, 1.6); g.gain.setTargetAtTime(0, t + 10, 2.5);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.frequency.setTargetAtTime(2400, t, 5);
+    lp.connect(g).connect(this.music); g.connect(this.delayIn);
+    for (const m of [38, 45, 50, 57, 62, 66]) for (const det of [-7, 6]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det;
+      o.connect(lp); o.start(t); o.stop(t + 20);
+    }
+  }
   bell(m, when = 0, vol = 0.07, toDelay = true, pos = null) {
     const ctx = this.ctx, t = ctx.currentTime + when;
     const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();

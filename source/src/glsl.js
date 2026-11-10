@@ -18,6 +18,8 @@ export const U = {
   uGlowMap: { value: null }, uGlowH: { value: null }, uGlowBox: { value: new THREE.Vector4(0, 0, 220, 0) },   // bioluminescent light, see glow.js
   uFront: { value: new THREE.Vector4(1, 0, -1e5, 400) },   // weather front band: travel dir xz, position along it, half width
   uFrontK: { value: new THREE.Vector4(0, 0, 0, 0) },       // fog, rain, wind strength of the current front
+  uStyle: { value: 1 },     // 1 = ink plate (banded light, pen hatching), 0 = painted (the v13 look)
+  uHatchK: { value: 0.001 },   // metres per 1080p pixel at one metre from the camera: keeps pen marks a constant size on screen
   uPush: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, -1e4, 0, 0)) },   // glider wake: xyz, strength   // render height / 1080: keeps point sprites the same size at every quality level
 };
 
@@ -31,6 +33,9 @@ uniform vec2 uWind;
 uniform float uCloudTop;
 uniform float uNight;
 uniform float uPxScale;
+uniform float uStyle; uniform float uHatchK;
+// set by a material before it calls litSurface*: a position that moves with the surface, so pen marks stick to it
+vec3 gHatchPos = vec3(0.0); vec3 gHatchN = vec3(0.0, 1.0, 0.0); float gHatch = 0.0;
 uniform vec3 uSkyZen, uSkySun, uSkyAnti, uSkyBelow, uAmbLo, uAmbHi, uBounce, uHorGlow, uSunDisc;
 uniform float uSunVis, uMoon;
 uniform vec4 uPush[4];
@@ -82,7 +87,7 @@ float fogAmount(vec3 wp, out vec3 dir){
   vec3 v = wp - uCamPos; float dist = length(v); dir = v / max(dist, 1e-3);
   float avgH = 0.5 * (wp.y + uCamPos.y);
   float hf = exp(-max(avgH - 20.0, 0.0) * 0.0055) + 0.22;
-  float x = dist * uFogDensity * hf;
+  float x = dist * uFogDensity * hf * mix(1.0, 0.6, uStyle);
   return 1.0 - exp(-x * sqrt(x));
 }
 // aerial perspective: wavelength-dependent extinction (blue scatters first, so distant rock turns violet-blue
@@ -96,7 +101,7 @@ vec3 applyFog(vec3 col, vec3 wp){
   vec3 v = wp - uCamPos; float dist = length(v); vec3 dir = v / max(dist, 1e-3);
   float avgH = 0.5 * (wp.y + uCamPos.y);
   float hf = exp(-max(avgH - 20.0, 0.0) * 0.0055) + 0.22;
-  float x = dist * uFogDensity * hf;
+  float x = dist * uFogDensity * hf * mix(1.0, 0.6, uStyle);   // the ink plate style keeps the air clearer
   vec3 xc = x * vec3(0.74, 0.95, 1.3);
   vec3 T = exp(-xc * sqrt(xc));
   vec3 fc = skyColor(vec3(dir.x, max(dir.y, -0.05) * 0.4, dir.z));
@@ -215,11 +220,53 @@ float cloudShadowAt(vec3 p){
   float edge = smoothstep(0.5, 0.42, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
   return mix(1.0, 0.25 + 0.75 * texture(uCloudShadow, uv).r, edge);   // skylight scattered under the cloud keeps a little sun
 }
+// ---- ink plate style: pen hatching at a constant density on screen. Lines live in surface space and are
+// blended between octaves by distance, so they neither swim nor crowd as the camera moves.
+float hatchPlane(float u, float f, float hw){
+  float fu = fract(u);
+  float aa = hw * 0.6 + 1e-4;
+  float la = 1.0 - smoothstep(hw - aa, hw + aa, abs(fu - 0.25));
+  float lb = (1.0 - smoothstep(hw - aa, hw + aa, abs(fu - 0.75))) * (1.0 - smoothstep(0.3, 0.9, f));
+  return max(la, lb);
+}
+float penHatch(vec3 hp, vec3 n, float dist, float spacingPx, float widthPx, vec2 cs){
+  float s = max(dist * uHatchK * spacingPx, 1e-4);
+  float l = log2(s), fl = floor(l), f = l - fl;
+  vec3 q = hp / exp2(fl + 1.0);
+  float hw = 0.25 * widthPx / spacingPx * exp2(f);
+  vec3 w = pow(abs(n), vec3(6.0)); w /= (w.x + w.y + w.z + 1e-5);
+  float wob = (vnoise(hp * 0.35 / exp2(fl)) - 0.5) * 0.18;     // a slightly unsteady hand
+  float h = 0.0;
+  if (w.x > 0.02) h += w.x * hatchPlane(q.y * cs.x + q.z * cs.y + wob, f, hw);
+  if (w.y > 0.02) h += w.y * hatchPlane(q.x * cs.x + q.z * cs.y + wob, f, hw);
+  if (w.z > 0.02) h += w.z * hatchPlane(q.y * cs.x + q.x * cs.y + wob, f, hw);
+  return h;
+}
 vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float ao, float wrap, float rough, vec3 f0){
   sunVis *= dynShadow(wp, n) * cloudShadowAt(wp);
   vec3 V = normalize(uCamPos - wp);
   float ndl = dot(n, uSunDir);
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
+  float penInk = 0.0;
+  if (uStyle > 0.0) {
+    // three flat tones (light, half tone, shade) with a little of the smooth falloff left in
+    float L = diff * sunVis;
+    float lit = smoothstep(0.30, 0.37, L), half_ = smoothstep(0.035, 0.085, L);
+    float Lb = (half_ * 0.36 + lit * 0.64) * (0.86 + 0.14 * L);
+    float Ls = mix(L, Lb, uStyle * 0.85);
+    diff = Ls; sunVis = 1.0;
+    ao = mix(ao, smoothstep(0.25, 0.75, ao) * 0.75 + 0.25 * ao, uStyle * 0.5);
+    if (gHatch > 0.0) {
+      float dist = length(uCamPos - wp);
+      float fade = gHatch * uStyle * (1.0 - smoothstep(380.0, 900.0, dist));
+      if (fade > 0.01) {
+        float h1 = penHatch(gHatchPos, gHatchN, dist, 7.0, 1.15, vec2(0.819, 0.574));
+        float deep = (1.0 - half_) * smoothstep(0.75, 0.35, ao);
+        float h2 = deep > 0.02 ? penHatch(gHatchPos + 3.7, gHatchN, dist, 7.0, 1.15, vec2(0.342, -0.940)) : 0.0;
+        penInk = clamp(h1 * (1.0 - lit) * (0.55 + 0.45 * (1.0 - half_)) + h2 * deep, 0.0, 1.0) * fade;
+      }
+    }
+  }
   float NoV = max(dot(n, V), 1e-3), NoL = max(ndl, 0.0);
   float a = max(rough * rough, 0.02);
   vec3 H = normalize(V + uSunDir);
@@ -236,6 +283,7 @@ vec3 litSurfacePBRx(vec3 albedo, vec3 n, vec3 ambN, vec3 wp, float sunVis, float
   col += envLight(reflect(-V, n), rough) * Fenv * specOcc;
   float rim = pow(1.0 - NoV, 4.0);
   col += mix(albedo, vec3(1.0), 0.45) * uSunColor * rim * (0.03 + 0.2 * pow(max(dot(-V, uSunDir), 0.0), 2.0)) * ao * (0.4 + 0.6 * sunVis);
+  col *= mix(vec3(1.0), vec3(0.30, 0.24, 0.36), penInk * 0.62);
   return col;
 }
 // one hard tap of the cascades: cheap shadow for secondary effects (transmission, shafts)

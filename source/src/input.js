@@ -1,4 +1,8 @@
 // Mouse / keyboard / touch / gamepad input → normalized flight controls.
+export const DEFAULT_KEYS = { up: 'w', down: 's', left: 'a', right: 'd', lens: ' ', shutter: 'f', journal: 'j', photo: 'o' };
+export const KEY_ACTIONS = [['up', 'Climb'], ['down', 'Dive'], ['left', 'Bank left'], ['right', 'Bank right'], ['lens', 'Raise the lens'], ['shutter', 'Take a photo'], ['journal', 'Field journal'], ['photo', 'Photo mode']];
+const RESERVED = ['escape', 'enter', 'tab', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'h', 'f3', 'p', 'meta', 'control', 'alt'];
+export const keyName = (k) => ({ ' ': 'Space', arrowup: 'Up', arrowdown: 'Down', arrowleft: 'Left', arrowright: 'Right', shift: 'Shift' }[k] || (k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1)));
 export class Input {
   constructor(el) {
     this.el = el;
@@ -10,6 +14,15 @@ export class Input {
     this.active = false; // mouse inside the window
     this.touchStick = null; this.touchX = 0; this.touchY = 0;
     this.invert = false;
+    this.bind = { ...DEFAULT_KEYS };
+    // key rebinding: while a capture is pending the next key press goes to it and nowhere else
+    this.rebind = null;
+    window.addEventListener('keydown', (e) => {
+      if (!this.rebind) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const cb = this.rebind; this.rebind = null;
+      cb(e.key.toLowerCase());
+    }, true);
     // gamepad (standard mapping): left stick flies, right stick aims the lens or looks around
     this.pad = null; this.padPrev = []; this.padStick = [0, 0]; this.padLook = [0, 0]; this.padAim = [0, 0];
     this.lensPad = false; this.padEvents = {}; this.padTrig = [0, 0]; this.lastRead = performance.now();
@@ -36,15 +49,16 @@ export class Input {
       const k = e.key.toLowerCase();
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
       this.keys.add(k);
-      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) this.mode = 'keys';
-      if (k === ' ' || k === 'shift' || k === 'e') this.lensKey = true;
-      if (k === 'w' || k === 'arrowup' || k === 'enter') this.launchQueued = true;
-      if (k === 'f') this.shutterQueued = true;
+      const b = this.bind;
+      if ([b.up, b.down, b.left, b.right, 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) this.mode = 'keys';
+      if (k === b.lens || (k === 'shift' && !Object.values(b).includes('shift'))) this.lensKey = true;
+      if (k === b.up || k === 'arrowup' || k === 'enter') this.launchQueued = true;
+      if (k === b.shutter) this.shutterQueued = true;
     });
     window.addEventListener('keyup', (e) => {
       const k = e.key.toLowerCase();
       this.keys.delete(k);
-      if (k === ' ' || k === 'shift' || k === 'e') this.lensKey = false;
+      if (k === this.bind.lens || k === 'shift') this.lensKey = false;
     });
     // touch: left 2/3 of the screen is a floating stick
     el.addEventListener('touchstart', (e) => {
@@ -64,6 +78,13 @@ export class Input {
     }, { passive: false });
     const end = (e) => { for (const t of e.changedTouches) if (this.touchStick && t.identifier === this.touchStick.id) { this.touchStick = null; this.touchX = 0; this.touchY = 0; } };
     el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  }
+  // set one binding; returns an error string when the key cannot be used
+  setKey(action, k) {
+    if (RESERVED.includes(k)) return `${keyName(k)} is kept for menus.`;
+    for (const a in this.bind) if (a !== action && this.bind[a] === k) this.bind[a] = this.bind[action];   // swap with whatever had it
+    this.bind[action] = k;
+    return null;
   }
   get lens() { return this.lensMouse || this.lensKey || this.lensTouch || this.lensPad; }
   pollPad(dt) {
@@ -103,8 +124,9 @@ export class Input {
     let roll = 0, pitch = 0;
     const dz = (v, d = 0.07) => (Math.abs(v) < d ? 0 : (v - Math.sign(v) * d) / (1 - d));
     if (this.mode === 'keys') {
-      roll = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
-      pitch = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
+      const b = this.bind;
+      roll = (k.has(b.right) || k.has('arrowright') ? 1 : 0) - (k.has(b.left) || k.has('arrowleft') ? 1 : 0);
+      pitch = (k.has(b.up) || k.has('arrowup') ? 1 : 0) - (k.has(b.down) || k.has('arrowdown') ? 1 : 0);
     } else if (this.mode === 'pad') {
       roll = this.padStick[0]; pitch = this.padStick[1];
     } else if (this.mode === 'touch') {
