@@ -5,6 +5,7 @@ import { CONVERGENCES, convergenceFor } from './convergence.js';
 import { ISLANDS } from './islands-sdf.js';
 import { LETTERS, CREDITS } from './story.js';
 import { KEY_ACTIONS, keyName } from './input.js';
+import { TitleScreen } from './title.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -18,6 +19,7 @@ export class UI {
     this.sel = 0;
     this.isTouch = matchMedia('(pointer: coarse)').matches;
     if (this.isTouch) document.getElementById('dl-root').classList.add('touch');
+    this.title = new TitleScreen({ touch: this.isTouch });
     // lens ticks
     const ticks = $('ticks');
     let s = '';
@@ -31,25 +33,22 @@ export class UI {
     try { if (window.claude && window.claude.use) this.sampleP = window.claude.use('sample').catch(() => null); } catch { this.sampleP = null; }
   }
 
-  progress(p) {
-    $('t-bar').style.width = `${Math.round(p * 100)}%`;
-    $('t-load-text').textContent = p < 0.98 ? `Raising the islands · ${Math.round(p * 100)}%` : 'Seeding life';
-  }
+  progress(p) { this.title.progress(p); }
   fatal(msg) { const f = $('fatal'); f.textContent = msg; f.classList.add('on'); }
 
   ready(game) {
     this.game = game;
-    $('t-load').hidden = true;
-    $('t-actions').hidden = false;
     const n = Object.keys(game.j.recorded).length;
-    if (game.j.started && n > 0) { $('t-start').textContent = game.j.ended ? 'Continue · survey complete' : `Continue journal · ${n} of ${SPECIES.length}`; $('t-new').hidden = false; }
-    $('t-start').focus({ preventScroll: true });
-    $('t-start').onclick = () => this.startGame();
-    $('t-new').onclick = () => { game.newJournal(); $('t-start').textContent = 'Begin flight'; $('t-new').hidden = true; };
+    this.title.ready({
+      saved: game.j.started && n > 0 ? { n, total: SPECIES.length, ended: game.j.ended } : null,
+      onGesture: () => { game.audio.start(game.settings.sound); game.audio.whoosh(); },   // the cloud sea swelling over the plate
+      onBegin: (fresh) => { if (fresh) game.newJournal(); game.begin(); $('dl-canvas').focus && $('dl-canvas').focus(); },
+      onSettings: () => this.showSettings(true),
+    });
     $('jbadge').onclick = () => game.openJournal(true);
     $('goal-skip').onclick = () => game.guide.skip();
     $('j-close').onclick = () => game.openJournal(false);
-    $('p-resume').onclick = () => game.pause(false);
+    $('p-resume').onclick = () => (this.settingsOn ? this.showSettings(false) : game.pause(false));
     $('p-journal').onclick = () => { game.pause(false); game.openJournal(true); };
     $('p-photo').onclick = () => game.photo.enter();
     this.bindNew();
@@ -73,7 +72,7 @@ export class UI {
     this.syncSettings();
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
-      if (game.state === 'title' && (k === 'enter')) { this.startGame(); return; }
+      if (game.state === 'title') { if (k === 'escape' && this.settingsOn && !game.input.rebind) this.showSettings(false); return; }   // the title menu has its own keys (title.js)
       if (game.state === 'ending') { if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); this.endingAdvance(k === 'escape'); } return; }
       if (k === game.input.bind.journal || k === 'tab') { e.preventDefault(); if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.openJournal(true); }
       if (k === 'escape') { if (game.state === 'journal') game.openJournal(false); else if (game.state === 'play') game.pause(true); else if (game.state === 'paused') game.pause(false); }
@@ -105,12 +104,20 @@ export class UI {
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(String(s[key]) === b.dataset.v)));
     });
   }
+  // straight into flight with the current journal, past the menu
   startGame() {
     if (!this.game || this.game.state !== 'title') return;
-    $('title').classList.add('out');
-    setTimeout(() => { $('title').hidden = true; }, 900);
-    this.game.begin();
-    $('dl-canvas').focus && $('dl-canvas').focus();
+    if (this.settingsOn) this.showSettings(false);
+    this.title.begin(false);
+  }
+  // the pause panel doubles as the title screen's Settings
+  showSettings(on) {
+    const p = $('pause');
+    this.settingsOn = on;
+    this.title.pause(on);
+    if (on) { p.classList.add('from-title'); $('pause-h').textContent = 'Settings'; $('p-resume').textContent = 'Done'; }
+    this.showPause(on);
+    if (!on) setTimeout(() => { if (!this.settingsOn) { p.classList.remove('from-title'); $('pause-h').textContent = 'Paused'; $('p-resume').textContent = 'Resume'; } }, 360);
   }
   showHUD(on) { $('hud').classList.toggle('on', on); }
 
@@ -148,8 +155,7 @@ export class UI {
   keyLabels() {
     const g = this.game, k = (a) => g.key(a);
     $('k-fly').textContent = `${k('up')} ${k('left')} ${k('down')} ${k('right')}`;
-    $('k-lens').textContent = k('lens'); $('k-shutter').textContent = `Click · ${k('shutter')}`;
-    $('k-journal').textContent = k('journal'); $('k-photo').textContent = k('photo');
+    $('k-lens').textContent = k('lens'); $('k-journal').textContent = k('journal');
     $('jkey').textContent = k('journal'); $('j-close-k').textContent = k('journal');
     $('ph-leave').textContent = `${k('photo')} to leave`;
   }

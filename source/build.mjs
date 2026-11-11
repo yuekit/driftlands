@@ -6,6 +6,9 @@ const standalone = process.argv.includes('--standalone');
 const web = process.argv.includes('--web');                 // hosted build: index.html + driftlands.js + assets/ as separate, cacheable files   // bundle three.js in: runs offline from a local file
 const w = await esbuild.build({ entryPoints: ['src/worker.js'], bundle: true, format: 'iife', minify, write: false, target: 'es2020' });
 const workerSrc = w.outputFiles[0].text;
+// page.html pulls in the title screen (title.css, title.html) and the logo symbols (mark.html, wordmark-symbol.html)
+const part = (f) => fs.readFileSync('src/' + f, 'utf8').trimEnd();
+const readPage = () => fs.readFileSync('src/page.html', 'utf8').replace('/* @title-css */', () => part('title.css')).replace('<!-- @mark -->', () => part('mark.html') + '\n  ' + part('wordmark-symbol.html')).replace('<!-- @title -->', () => part('title.html'));
 const plugin = {
   name: 'v',
   setup(b) {
@@ -17,7 +20,7 @@ const plugin = {
 if (web) {
   fs.rmSync('dist/web', { recursive: true, force: true });
   await esbuild.build({ entryPoints: { driftlands: 'src/main.js' }, bundle: true, format: 'esm', minify, outdir: 'dist/web', target: 'es2020', plugins: [plugin], loader: { '.glb': 'file', '.jpg': 'file' }, assetNames: 'assets/[name]-[hash]', publicPath: '.' });
-  const pageW = fs.readFileSync('src/page.html', 'utf8');
+  const pageW = readPage();
   const cut = pageW.indexOf('<div id="dl-root">');
   const head = pageW.slice(0, cut).replace('<title>Driftlands</title>', '');
   const desc = 'Driftlands is a glider game about a naturalist surveying floating islands above a sea of cloud. Ride the warm air, study the strange life on each island, and fill your field journal.';
@@ -55,7 +58,7 @@ ${pageW.slice(cut).trim()}
 }
 const m = await esbuild.build({ entryPoints: ['src/main.js'], bundle: true, format: 'esm', minify, write: false, target: 'es2020', plugins: [plugin], loader: { '.glb': 'base64', '.jpg': 'dataurl' } });
 let js = m.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-const page = fs.readFileSync('src/page.html', 'utf8');
+const page = readPage();
 fs.mkdirSync('dist', { recursive: true });
 if (standalone) {
   const doc = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}html,body{margin:0;height:100%;background:#120f19}</style></head><body>' + page + '\n<script type="module">\n' + js + '\n</script></body></html>';

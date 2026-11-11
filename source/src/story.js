@@ -97,6 +97,6 @@ export const CREDITS = [
   ['Code, art direction, creatures, world, sound and words', 'Claude'],
   ['Models sculpted in', 'Blender'],
   ['Drawn in the browser with', 'three.js and WebGL 2'],
-  ['Typefaces', 'Bricolage Grotesque, Instrument Sans, Instrument Serif, IBM Plex Mono'],
+  ['Typefaces', 'Young Serif, Bricolage Grotesque, Instrument Sans, Instrument Serif, IBM Plex Mono'],
   ['With thanks to', 'Everyone who flew the early builds'],
 ];
