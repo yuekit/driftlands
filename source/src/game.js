@@ -358,7 +358,14 @@ export class Game {
   padNav(pe) {
     if (!pe) return;
     const st = this.state;
-    if (st === 'title') { if (pe.a || pe.start) this.ui.startGame(); return; }
+    if (st === 'title') {
+      const t = this.ui.title;
+      if (this.ui.settingsOn) { if (pe.b || pe.start) this.ui.showSettings(false); }
+      else if (pe.up || pe.down) t.move(pe.down ? 1 : -1);
+      else if (pe.a || pe.start) t.activate();
+      else if (pe.b) t.cancel();
+      return;
+    }
     if (st === 'play') {
       if (pe.start) this.pause(true);
       else if (pe.y || pe.back) this.openJournal(true);
@@ -644,7 +651,8 @@ export class Game {
   }
 
   titleFrame(dt) {
-    // glider circles a thermal while the camera drifts around it
+    // glider circles a thermal while the camera drifts around it (behind the title plate until the flight begins)
+    this.ui.title.setMode(this.input.mode === 'pad' ? 'pad' : this.input.mode === 'touch' || this.ui.isTouch ? 'touch' : 'keys');
     const p = this.circleGlider(dt);
     const I0 = this.world.islands[0];
     const camA = this.realTime * 0.035 + 2.2;

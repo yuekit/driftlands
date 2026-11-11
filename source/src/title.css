@@ -1,0 +1,147 @@
+/* ---------- title, loading and intro screen (the Floating D over the cloud sea). Markup: title.html, behaviour: title.js.
+   Lengths are in --u (1% of the screen height) and --w (1% of its width) so the whole plate scales as one drawing.
+   Steps of the reveal are classes on #title: b2 island rising, b3 mushrooms and roots, b4 wordmark and menu. */
+#title { --u: 1vh; --w: 1vw; --ts-ink: #4B2E3A; --ts-plum: #4A3B5C; --ts-violet: #6B6190; --ts-clay: #D9805F; --rise: 0; --px: 0; --py: 0;
+  padding: 0; overflow: hidden; pointer-events: auto; container-type: size; color: var(--ts-plum); color-scheme: light;
+  background: linear-gradient(180deg, #A8B2E6 0%, #BBB7E1 26%, #D2C3DA 50%, #E7CDD1 70%, #F8DDD0 90%, #FBE6DA 100%); }
+@supports (width: 1cqw) { #title { --u: 1cqh; --w: 1cqw; } }
+#title.is-gone { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
+#title svg { display: block; }
+.ts-par { translate: calc(var(--px) * var(--z) * -1.1 * var(--u)) calc(var(--py) * var(--z) * -0.7 * var(--u)); }
+
+/* sky */
+.ts-stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: 0.5; animation: ts-twinkle 4.6s ease-in-out infinite; animation-delay: var(--d); }
+.ts-planet { position: absolute; right: calc(var(--w) * 9); top: calc(var(--u) * 7); width: calc(var(--u) * 42); height: auto; opacity: 0.86; }
+.ts-lent { position: absolute; height: calc(var(--u) * 7.4); width: calc(var(--u) * 42); animation: ts-waft 46s ease-in-out infinite alternate; }
+.ts-lent i, .ts-lent::before, .ts-lent::after { content: ''; position: absolute; border-radius: 50%; background: #E5E3F4; }
+.ts-lent i { left: 0; right: 0; bottom: 0; height: 72%; }
+.ts-lent::before { left: 38%; width: 52%; top: 0; height: 74%; }
+.ts-lent::after { left: 10%; width: 46%; bottom: 0; height: 30%; background: #D9D5EE; opacity: 0.8; }
+.ts-lent-a { left: calc(var(--w) * 7); top: calc(var(--u) * 13); }
+.ts-lent-b { right: calc(var(--w) * 5); top: calc(var(--u) * 24); width: calc(var(--u) * 46); animation-duration: 58s; animation-delay: -20s; }
+.ts-lent-b::before { left: 8%; width: 40%; top: 14%; height: 60%; }
+.ts-lent-b::after { left: 44%; }
+.ts-far { position: absolute; aspect-ratio: 392 / 624; opacity: 0.48; animation: ts-bob 9s ease-in-out infinite; }
+.ts-far svg { width: 100%; height: 100%; }
+.ts-far-a { left: calc(var(--w) * 13); top: calc(var(--u) * 37); width: calc(var(--u) * 5.4); }
+.ts-far-b { right: calc(var(--w) * 13.5); top: calc(var(--u) * 41); width: calc(var(--u) * 4.4); animation-delay: -3.4s; opacity: 0.42; }
+.ts-far-c { right: calc(var(--w) * 24); top: calc(var(--u) * 63.5); width: calc(var(--u) * 2.9); animation-delay: -6.1s; opacity: 0.36; }
+.ts-glider { position: absolute; left: 0; top: calc(var(--u) * 27); width: calc(var(--u) * 7.5); animation: ts-fly 52s linear infinite; animation-delay: 5s; opacity: 0; }
+.ts-glider > div { animation: ts-arc 9s ease-in-out infinite alternate; }
+.ts-glider svg { width: 100%; height: auto; }
+
+/* cloud sea: three scalloped banks drifting at different speeds; the front two pass in front of the island */
+.ts-cl { position: absolute; left: calc(var(--u) * -3); right: calc(var(--u) * -3); bottom: 0; --h: calc(var(--u) * 18); height: var(--h); pointer-events: none; transform: translateY(var(--lift)); transition: transform 1.5s cubic-bezier(0.5, 0, 0.2, 1); will-change: transform; }
+.ts-cl i { position: absolute; top: 0; bottom: 0; left: 0; width: calc(100% + var(--h) * 3); background-repeat: repeat-x; background-size: calc(var(--h) * 3) 100.5%; animation: ts-drift var(--t) linear infinite; }
+.ts-cl::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% - 1px); height: calc(var(--u) * 130); background: var(--c); }
+.ts-cl-back { --c: #DCD5EC; --t: 150s; --h: calc(var(--u) * 15); bottom: calc(var(--u) * 7.6); --lift: calc(var(--u) * -8); opacity: 0.92; }
+.ts-cl-mid { --c: #EEE9F7; --t: 96s; bottom: calc(var(--u) * 3.4); --lift: calc(var(--u) * -11); }
+.ts-cl-front { --c: #FFFFFF; --t: 64s; --lift: calc(var(--u) * -13); }
+.ts-cl-back i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 720 240' preserveAspectRatio='none'%3E%3Cg fill='%23DCD5EC'%3E%3Ccircle cx='90' cy='112' r='64'/%3E%3Ccircle cx='250' cy='124' r='54'/%3E%3Ccircle cx='400' cy='108' r='70'/%3E%3Ccircle cx='560' cy='126' r='56'/%3E%3Ccircle cx='690' cy='116' r='50'/%3E%3Ccircle cx='-30' cy='116' r='50'/%3E%3Cpath d='M0 120h720v120H0z'/%3E%3C/g%3E%3C/svg%3E"); }
+.ts-cl-mid i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 720 240' preserveAspectRatio='none'%3E%3Cg fill='%23EEE9F7'%3E%3Ccircle cx='40' cy='120' r='62'/%3E%3Ccircle cx='760' cy='120' r='62'/%3E%3Ccircle cx='180' cy='100' r='72'/%3E%3Ccircle cx='330' cy='124' r='56'/%3E%3Ccircle cx='470' cy='102' r='70'/%3E%3Ccircle cx='610' cy='122' r='60'/%3E%3Cpath d='M0 120h720v120H0z'/%3E%3C/g%3E%3Cg fill='none' stroke='%23DDD6EE' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M135 107A48 48 0 0 1 169 55'/%3E%3Cpath d='M427 109A46 46 0 0 1 460 59'/%3E%3Cpath d='M573 128A40 40 0 0 1 601 85'/%3E%3C/g%3E%3C/svg%3E"); }
+.ts-cl-front i { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 720 240' preserveAspectRatio='none'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='70' cy='108' r='70'/%3E%3Ccircle cx='790' cy='108' r='70'/%3E%3Ccircle cx='215' cy='128' r='58'/%3E%3Ccircle cx='355' cy='104' r='76'/%3E%3Ccircle cx='505' cy='126' r='60'/%3E%3Ccircle cx='640' cy='112' r='66'/%3E%3Ccircle cx='-80' cy='112' r='66'/%3E%3Cpath d='M0 118h720v122H0z'/%3E%3C/g%3E%3Cg fill='none' stroke='%23DDD6EE' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M27 115A46 46 0 0 1 60 65'/%3E%3Cpath d='M308 111A50 50 0 0 1 344 57'/%3E%3Cpath d='M468 132A40 40 0 0 1 496 89'/%3E%3Cpath d='M599 119A44 44 0 0 1 630 71'/%3E%3Cpath d='M180 134A38 38 0 0 1 206 93'/%3E%3C/g%3E%3C/svg%3E"); }
+#title.b4 .ts-cl { --lift: 0px; }
+.ts-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.38; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .32 0 0 0 .62 -.24'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* the island: rise (loading progress) > pose (large and centred during the reveal, then the lockup) > bob */
+.ts-stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; padding: calc(var(--u) * 3.5) max(16px, env(safe-area-inset-right, 0px)) calc(var(--u) * 17.5) max(16px, env(safe-area-inset-left, 0px)); pointer-events: none; }
+.ts-isle { position: relative; flex: none; height: min(calc(var(--u) * 33), calc(var(--w) * 78)); aspect-ratio: 480 / 654; }
+.ts-rise { position: absolute; inset: 0; transform: translateY(calc((1 - var(--rise)) * var(--u) * 64)); transition: transform 1.7s cubic-bezier(0.22, 0.7, 0.2, 1); will-change: transform; }
+.ts-pose { position: absolute; inset: 0; transform-origin: 50% 0; transform: translate(var(--hx, 0px), var(--hy, calc(var(--u) * 13))) scale(var(--hs, 1.45)); transition: transform 1.3s cubic-bezier(0.5, 0, 0.2, 1); will-change: transform; }
+#title.b4 .ts-pose { transform: none; }
+.ts-bob { position: absolute; inset: 0; animation: ts-bob 7.5s ease-in-out infinite; }
+.ts-bob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ts-pop, .ts-sway, .ts-rbob { transform-box: fill-box; transform-origin: 50% 100%; }
+.ts-drip, .ts-rsway { transform-box: fill-box; transform-origin: 50% 0; }
+.ts-pop { transform: scale(0); transition: transform 0.75s cubic-bezier(0.3, 1.7, 0.5, 1) var(--d); }
+.ts-drip { transform: scaleY(0); transition: transform 1s cubic-bezier(0.3, 1.5, 0.5, 1) var(--d); }
+#title.b3 .ts-pop { transform: scale(1); }
+#title.b3 .ts-drip { transform: scaleY(1); }
+.ts-sway { animation: ts-sway 5.6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.ts-rsway { animation: ts-sway 6.8s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.ts-rbob { animation: ts-rbob 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.ts-drops, .ts-spores { opacity: 0; transition: opacity 0.6s 1.2s; }
+#title.b3 .ts-drops, #title.b3 .ts-spores { opacity: 1; }
+.ts-drop { transform-box: fill-box; transform-origin: 50% 0; opacity: 0; animation: ts-drop 5.6s cubic-bezier(0.5, 0, 1, 0.7) infinite; animation-delay: var(--d); }
+.ts-spore { opacity: 0; animation: ts-spore 7s ease-out infinite; animation-delay: var(--d); }
+
+/* wordmark, tagline, menu */
+.ts-text { display: flex; flex-direction: column; align-items: center; flex: none; max-width: 100%; }
+.ts-word { margin: calc(var(--u) * 3) 0 0; width: min(calc(var(--w) * 84), calc(var(--u) * 82)); max-width: 100%; }
+.ts-word svg { width: 100%; height: auto; overflow: visible; fill: currentColor; }
+.ts-l { opacity: 0; transform: translate(calc((var(--i) - 4.5) * 9px), 24px); transition: opacity 0.7s ease, transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); transition-delay: calc(0.45s + var(--i) * 0.055s); }
+#title.b4 .ts-l { opacity: 1; transform: none; }
+.ts-tag { margin: calc(var(--u) * 2.3) 0 0; padding-left: 0.34em; font-family: var(--f-display); font-weight: 600; font-size: clamp(10px, calc(var(--u) * 1.8), 18px); letter-spacing: 0.34em; text-transform: uppercase; color: var(--ts-violet); white-space: nowrap; }
+.ts-menu { margin-top: calc(var(--u) * 3.2); display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 0.6); pointer-events: auto; }
+.ts-tag, .ts-menu, .ts-foot { opacity: 0; transition: opacity 0.9s ease 1.25s; }
+.ts-menu { transition-delay: 1.5s; }
+.ts-foot { transition-delay: 1.9s; }
+#title.b4 .ts-tag, #title.b4 .ts-menu, #title.b4 .ts-foot { opacity: 1; }
+.ts-item { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 0.85em; cursor: pointer; padding: 0.2em 0.5em; min-height: 40px; font-family: var(--f-display); font-weight: 620; font-variation-settings: 'wdth' 96; font-size: clamp(17px, min(calc(var(--u) * 3.7), calc(var(--w) * 5.4)), 38px); letter-spacing: -0.01em; line-height: 1.15; color: var(--ts-violet); border-radius: 10px; transition: color 0.2s; -webkit-tap-highlight-color: transparent; }
+.ts-item .ts-lbl { display: flex; align-items: baseline; gap: 0.6em; }
+.ts-item small { font-family: var(--f-mono); font-weight: 500; font-size: 0.42em; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
+.ts-item::before, .ts-item::after { content: ''; width: 0.36em; height: 0.36em; background: var(--ts-clay); transform: rotate(45deg) scale(0); transition: transform 0.28s cubic-bezier(0.3, 1.6, 0.5, 1); flex: none; }
+.ts-item.sel { color: var(--ts-plum); }
+.ts-item.sel::before, .ts-item.sel::after { transform: rotate(45deg) scale(1); }
+.ts-item:focus-visible { outline: none; }   /* focus and selection are the same thing here: the diamonds mark it */
+.ts-ask { margin: 0 0 calc(var(--u) * 0.6); max-width: 30ch; text-align: center; font-family: var(--f-body); font-size: clamp(14px, calc(var(--u) * 2.1), 19px); line-height: 1.4; color: var(--ts-plum); }
+.ts-status, .ts-foot { position: absolute; left: 0; right: 0; bottom: max(calc(var(--u) * 2.4), calc(env(safe-area-inset-bottom, 0px) + 6px)); padding: 0 16px; text-align: center; font-family: var(--f-mono); font-size: clamp(10px, calc(var(--u) * 1.6), 13px); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-violet); pointer-events: none; }
+.ts-status { bottom: calc(var(--u) * 7); transition: opacity 0.5s; }
+#title.b3 .ts-status { opacity: 0; }
+.ts-foot b { font-weight: 500; color: var(--ts-plum); }
+.ts-foot i { display: inline-block; width: 4px; height: 4px; margin: 0 1.1em; background: var(--ts-clay); transform: rotate(45deg); vertical-align: 0.22em; }
+.ts-foot span { display: none; }
+#title[data-mode="keys"] .ts-foot .for-keys, #title[data-mode="touch"] .ts-foot .for-touch, #title[data-mode="pad"] .ts-foot .for-pad { display: inline; }
+
+/* leaving: the cloud sea swells over the plate, then the whole layer clears to show the world */
+#title.is-leaving .ts-text, #title.is-leaving .ts-foot { opacity: 0; transition: opacity 0.4s ease; }
+#title.is-leaving .ts-menu { pointer-events: none; }
+#title.is-leaving .ts-cl { --lift: calc(var(--u) * -112); transition: transform 1s cubic-bezier(0.6, 0, 0.9, 0.5); }
+#title.is-leaving .ts-cl-mid { transition-delay: 0.05s; }
+#title.is-leaving .ts-cl-back { --lift: calc(var(--u) * -100); }
+/* any key or click during the reveal jumps to the finished screen */
+#title.ts-skip *, #title.ts-skip *::before, #title.ts-skip *::after { transition-duration: 0.25s !important; transition-delay: 0s !important; }
+
+@keyframes ts-drift { to { transform: translateX(calc(var(--h) * -3)); } }
+@keyframes ts-bob { 0%, 100% { transform: translateY(0) rotate(-0.4deg); } 50% { transform: translateY(calc(var(--u) * -1)) rotate(0.4deg); } }
+@keyframes ts-rbob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes ts-sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+@keyframes ts-waft { from { transform: translateX(calc(var(--u) * -3)); } to { transform: translateX(calc(var(--u) * 4)); } }
+@keyframes ts-twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.75; } }
+@keyframes ts-drop { 0% { opacity: 0; transform: scale(0.2); } 14% { opacity: 1; transform: scale(1); } 22% { opacity: 1; transform: translateY(0) scale(1); } 46% { opacity: 1; transform: translateY(96px) scale(1); } 52%, 100% { opacity: 0; transform: translateY(118px) scale(1); } }
+@keyframes ts-spore { 0% { opacity: 0; transform: translate(0, 10px); } 18% { opacity: 0.9; } 100% { opacity: 0; transform: translate(14px, -58px); } }
+@keyframes ts-fly { 0% { transform: translateX(calc(var(--u) * -12)); opacity: 0.8; } 46% { transform: translateX(calc(var(--w) * 100 + var(--u) * 4)); opacity: 0.8; } 46.1%, 100% { transform: translateX(calc(var(--w) * 100 + var(--u) * 4)); opacity: 0; } }
+@keyframes ts-arc { from { transform: translateY(calc(var(--u) * -3)) rotate(-7deg); } to { transform: translateY(calc(var(--u) * 4)) rotate(5deg); } }
+
+/* short, wide screens (phones held sideways): the island beside the wordmark */
+@media (max-height: 520px) and (min-aspect-ratio: 3/2) {
+  .ts-stage { flex-direction: row; gap: calc(var(--w) * 4); padding-bottom: calc(var(--u) * 15); padding-top: calc(var(--u) * 2); }
+  .ts-isle { height: calc(var(--u) * 70); }
+  .ts-text { align-items: center; }
+  .ts-word { width: min(calc(var(--w) * 46), calc(var(--u) * 110)); }
+  .ts-tag { margin-top: calc(var(--u) * 3); font-size: clamp(9px, calc(var(--u) * 2.8), 14px); }
+  .ts-menu { margin-top: calc(var(--u) * 3.5); gap: 0; }
+  .ts-item { font-size: clamp(16px, calc(var(--u) * 5.6), 26px); min-height: 34px; }
+  .ts-cl { --h: calc(var(--u) * 20); }
+  .ts-cl-back { --h: calc(var(--u) * 16); }
+  .ts-planet { right: calc(var(--w) * -3); top: calc(var(--u) * -9); width: calc(var(--u) * 44); opacity: 0.7; }
+  .ts-lent-b { top: calc(var(--u) * 4); right: calc(var(--w) * -6); }
+  .ts-foot { display: none; }
+  .ts-status { bottom: calc(var(--u) * 5); }
+}
+/* tall, narrow screens */
+@media (max-aspect-ratio: 4/5) {
+  .ts-planet { right: calc(var(--w) * -6); top: calc(var(--u) * 2.5); width: calc(var(--w) * 50); opacity: 0.8; }
+  .ts-lent-a { left: calc(var(--w) * -14); top: calc(var(--u) * 9); }
+  .ts-lent-b { right: calc(var(--w) * -24); top: calc(var(--u) * 33); }
+  .ts-far-a { left: calc(var(--w) * 5); top: calc(var(--u) * 27); }
+  .ts-far-b { right: calc(var(--w) * 5); top: calc(var(--u) * 23); }
+  .ts-far-c { right: calc(var(--w) * 12); top: calc(var(--u) * 71); }
+  .ts-tag { letter-spacing: 0.24em; }
+  .ts-foot span { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #title *, #title *::before, #title *::after { animation: none !important; transition-delay: 0s !important; }
+  .ts-drop, .ts-spore, .ts-glider { display: none; }
+  .ts-par { translate: none; }
+}
