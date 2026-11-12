@@ -14,6 +14,8 @@ The archipelago has eight islands: Verdigris Reach, the Ochre Table and the Cora
 
 **Title screen.** The game opens on the Floating D: a striped island in the shape of the letter, with a grass top, mushrooms and hanging roots, over a lavender-to-peach sky and a white cloud sea. It is also the loading screen: the island rises out of the clouds as the world is built, the mushrooms pop and the roots drip when everything is ready, then the wordmark and the menu settle (Begin a new journal, Continue when a journal exists, Settings). Any key or click skips the reveal. The menu works with the mouse, arrow keys or W and S with Enter, touch, and a gamepad's D-pad with A. Beginning a flight lets the cloud sea swell over the plate before it clears onto the world. With reduced motion requested by the system the screen appears finished and still.
 
+**The sequel.** `driftlands2/` holds Driftlands II: The Tall City, an airship action game on the same engine, set a year after the Chord. It has its own README, build and test tools, and leaves this game untouched.
+
 ## Play
 
 Open `Driftlands.html` in a recent desktop Chrome, Edge, Safari or Firefox (WebGL 2). It is fully self-contained and runs offline; with a connection it also loads its web fonts. Progress is saved in the browser's local storage.
