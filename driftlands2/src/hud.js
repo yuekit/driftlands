@@ -23,6 +23,43 @@ export class UI {
     hold('t-fire', 'fire'); hold('t-boost', 'boost');
     $('t-bell').addEventListener('touchstart', (e) => { e.preventDefault(); game.input.touch.bell = true; }, { passive: false });
     window.addEventListener('touchstart', () => this.root.classList.add('touch'), { once: true, passive: true });
+    window.addEventListener('mousemove', () => this.root.classList.remove('pad'), { passive: true });
+  }
+  // ---------------------------------------------------------------- menus by gamepad
+  // The mouse, touch and the Tab key already work on the buttons themselves. A gamepad steps through whichever menu is
+  // up with the D-pad or the stick, A presses the chosen button, B goes back, and Start takes the main choice.
+  nav(inp) {
+    const g = this.g;
+    if (!g || !(inp.navX || inp.navY || inp.padConfirm || inp.back || inp.padStart)) return;
+    const paused = !$('pause').hidden;
+    const panel = paused ? $('pause') : !$('end').hidden ? $('end') : g.state === 'title' ? $('t-menu') : null;
+    if (!panel) return;
+    const list = () => [...panel.querySelectorAll('button:not([disabled])')];
+    let items = list(); if (!items.length) return;
+    this.root.classList.add('pad');
+    let i = items.indexOf(document.activeElement);
+    const main = () => Math.max(0, items.findIndex((b) => b.classList.contains('primary')));
+    if (inp.back && paused) {
+      if (g.state === 'title') this.pause(false); else if (this.tab !== 'pause') this.pause(true, 'pause'); else g.pause(false);
+    } else if (inp.padConfirm || (inp.padStart && !paused)) {
+      if (i < 0 || inp.padStart) i = main();
+      items[i].click();
+    } else if (inp.navX || inp.navY) {
+      if (i < 0) i = main();
+      else if (inp.navY) {
+        // up and down go to the nearest button in the next row; a menu that is all one row is stepped along instead
+        const r = items.map((b) => b.getBoundingClientRect()), cx = (k) => r[k].left + r[k].width / 2, cy = (k) => r[k].top + r[k].height / 2, dir = -inp.navY;
+        let best = -1, bd = 1e9;
+        items.forEach((b, k) => { const dy = (cy(k) - cy(i)) * dir; if (dy > 6) { const d = dy * 4 + Math.abs(cx(k) - cx(i)); if (d < bd) { bd = d; best = k; } } });
+        i = best >= 0 ? best : items.some((b, k) => Math.abs(cy(k) - cy(i)) > 6) ? i : (i + dir + items.length) % items.length;
+      } else i = (i + inp.navX + items.length) % items.length;
+      items[i].focus();
+      return;
+    } else return;
+    // the press may have rebuilt the menu or closed it: keep a button chosen if it is still up, let go of it if not
+    const still = panel === $('t-menu') ? g.state === 'title' && $('pause').hidden && $('title').style.opacity !== '0' : !panel.hidden;
+    if (!still) { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); if (!$('pause').hidden) { const b = $('pause').querySelector('button.primary') || $('pause').querySelector('button:not([disabled])'); if (b) b.focus(); } return; }
+    if (!panel.contains(document.activeElement) || document.activeElement.disabled) { items = list(); if (items.length) items[inp.back ? main() : Math.min(Math.max(i, 0), items.length - 1)].focus(); }
   }
   menu() {
     const g = this.g, m = $('t-menu'); m.textContent = '';
@@ -35,7 +72,7 @@ export class UI {
     add('Settings', () => this.pause(true, 'settings'));
     add('How to fly', () => this.pause(true, 'keys'));
   }
-  showTitle(on) { const t = $('title'); t.style.opacity = on ? 1 : 0; t.style.pointerEvents = on ? '' : 'none'; if (on) { t.hidden = false; this.menu(); } else setTimeout(() => { if (t.style.opacity === '0') t.hidden = true; }, 950); this.root.classList.toggle('menu', on); }
+  showTitle(on) { const t = $('title'); t.style.opacity = on ? 1 : 0; t.style.pointerEvents = on ? '' : 'none'; if (!on && t.contains(document.activeElement)) document.activeElement.blur(); if (on) { t.hidden = false; this.menu(); } else setTimeout(() => { if (t.style.opacity === '0') t.hidden = true; }, 950); this.root.classList.toggle('menu', on); }
   showHUD(on) { $('hud').classList.toggle('on', on); }
   // ---------------------------------------------------------------- words on screen
   objective(k, t, done = 0, total = 0) {
@@ -157,7 +194,7 @@ export class UI {
   // ---------------------------------------------------------------- pause, settings, chapters
   pause(on, tab = 'pause') {
     const g = this.g, el = $('pause');
-    el.hidden = !on; this.root.classList.toggle('menu', on || g.state === 'title');
+    el.hidden = !on; this.root.classList.toggle('menu', on || g.state === 'title'); this.tab = tab;
     if (!on) return;
     const body = $('p-body'); body.textContent = '';
     const h = (html) => { const d = document.createElement('div'); d.innerHTML = html; body.appendChild(d); return d; };
@@ -176,7 +213,7 @@ export class UI {
         <kbd>Shift</kbd><span>Open the drive for speed, while the gauge lasts.</span>
         <kbd>Ctrl · C</kbd><span>Slow down for tight places and for landing.</span>
         <kbd>Esc · P</kbd><span>Pause.</span>
-        <kbd>Gamepad</kbd><span>Left stick steers, right trigger fires, A drives, B slows, X rings the Bell.</span></div>`);
+        <kbd>Gamepad</kbd><span>Left stick steers, right trigger fires, A drives, B slows, X rings the Bell, Start pauses. In menus: D-pad or stick, A to choose, B to go back.</span></div>`);
     } else {
       const S = g.settings, opts = document.createElement('div'); opts.className = 'opts'; body.appendChild(opts);
       const seg = (label, key, vals) => { const o = document.createElement('div'); o.className = 'opt'; o.innerHTML = `<span>${label}</span>`; const s = document.createElement('div'); s.className = 'seg'; o.appendChild(s); opts.appendChild(o);

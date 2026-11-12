@@ -27,6 +27,9 @@ After the ending the world opens for free flight.
 | Slow down (and land) | Ctrl or C | B | Slow |
 | Pause, settings, chapters | Esc or P | Start | Pause button |
 
+Menus work with the mouse, touch, the Tab key, or a gamepad: D-pad or stick to move, A to choose, B to go back, and
+Start to take the main choice on the title.
+
 ## Building
 
 ```
@@ -93,4 +96,6 @@ to run the sound engine as well. The pilot itself is in `tools/bot.cjs`.
 slow). A view can set the time of day, place the ship, place a debug camera, start a chapter, hand the helm to the
 robot pilot and run game code first. `window.__dl` is the game: `__dl.startChapter(2)`, `__dl.sim(5)` and so on.
 
-Both need `node build.mjs --dev` first; they load `dist/test.html`.
+`node tools/menus.cjs` works the menus with a made-up gamepad and checks that dialogue waits while the game is paused.
+
+All three need `node build.mjs --dev` first; they load `dist/test.html`.

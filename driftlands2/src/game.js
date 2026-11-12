@@ -332,6 +332,7 @@ export class Game {
     this.adaptQuality(dtReal);
     const inp = this.input.read(dtReal), fx = this.fx, ship = this.ship, fu = this.pipe.finalMat.uniforms;
     if (inp.pause && (this.state === 'play' || this.state === 'paused')) this.pause(this.state === 'play');
+    this.ui.nav(inp);
     const playing = this.state === 'play', frozen = this.state === 'paused';
     const slow = this.dead > 0 ? 0.35 : 1;
     const dt = frozen ? 0 : dtReal * slow;
@@ -359,7 +360,7 @@ export class Game {
     this.cityLights(dt);
     if (this.timers.length && dt > 0) { for (const tm of this.timers) tm.t -= dt; const due = this.timers.filter((tm) => tm.t <= 0); this.timers = this.timers.filter((tm) => tm.t > 0); due.forEach((tm) => tm.fn()); }
     if (playing) this.mission.update(dt);
-    this.ui.tick(dtReal);
+    if (!frozen) this.ui.tick(dtReal);          // words on screen wait with everything else while the game is paused
 
     // ---- the ship
     const events = [];

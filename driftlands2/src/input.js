@@ -53,7 +53,7 @@ export class Input {
     try { p.vibrationActuator.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) }); } catch { /* optional */ }
   }
   read(dt = 1 / 60) {
-    const out = { x: 0, y: 0, fire: false, bell: false, boost: false, brake: false, pause: false, aimX: 0, aimY: 0, lookX: 0, lookY: 0, any: false, confirm: false, back: false, navX: 0, navY: 0 };
+    const out = { x: 0, y: 0, fire: false, bell: false, boost: false, brake: false, pause: false, aimX: 0, aimY: 0, lookX: 0, lookY: 0, any: false, confirm: false, back: false, navX: 0, navY: 0, padConfirm: false, padStart: false };
     // gamepad
     let pad = null;
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -68,7 +68,11 @@ export class Input {
       if (px || py || b(7) || b(0)) this.mode = 'pad';
       out.fire = b(7) || b(5); out.boost = b(0) || b(10); out.brake = b(6) || b(1); out.bell = edge(2) || edge(4);
       out.pause = edge(9); out.confirm = edge(0); out.back = edge(1);
-      out.navY = (edge(12) ? 1 : 0) - (edge(13) ? 1 : 0); out.navX = (edge(15) ? 1 : 0) - (edge(14) ? 1 : 0);
+      out.padConfirm = out.confirm; out.padStart = out.pause;
+      // menus are stepped through with the D-pad, or a flick of the left stick
+      const fx = Math.abs(px) > 0.6 ? Math.sign(px) : 0, fy = Math.abs(py) > 0.6 ? Math.sign(py) : 0;
+      out.navY = (edge(12) ? 1 : 0) - (edge(13) ? 1 : 0) || (fy !== this.flickY ? fy : 0); this.flickY = fy;
+      out.navX = (edge(15) ? 1 : 0) - (edge(14) ? 1 : 0) || (fx !== this.flickX ? fx : 0); this.flickX = fx;
     }
     const kx = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), ky = (this.down('up') ? 1 : 0) - (this.down('down') ? 1 : 0);
     const A = this.aim;

@@ -26,7 +26,7 @@ body { background: var(--ink); color: var(--bone); font-family: var(--f-body); o
 button { font: inherit; color: inherit; }
 .label { font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone-dim); }
 .btn { pointer-events: auto; cursor: pointer; border: 1px solid var(--bone-faint); background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 999px; font-size: var(--s-3); font-weight: 500; transition: background 0.2s, border-color 0.2s, transform 0.2s; }
-.btn:hover { border-color: var(--bone-dim); } .btn:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; }
+.btn:hover { border-color: var(--bone-dim); } .btn:focus-visible, .pad .btn:focus { outline: 2px solid var(--sun); outline-offset: 3px; }
 .btn.primary { background: var(--bone); color: var(--ink); border-color: var(--bone); } .btn.primary:hover { background: #fff; transform: translateY(-1px); }
 .btn.small { padding: 8px 14px; font-size: var(--s-2); }
 .btn[aria-pressed="true"] { background: var(--bone); color: var(--ink); }
