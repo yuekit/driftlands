@@ -296,9 +296,9 @@ export class Game {
     if (this.landmarks) this.landmarks.chordTarget = 1;
     this.setTime(400, 20);
     const I = this.world.islands[0].pos, d = this.dirCity;
-    const wide = new THREE.Vector3(C.x - d.x * 1350 + d.z * 520, 430, C.z - d.z * 1350 - d.x * 520), home = new THREE.Vector3(I.x - d.x * 330 + d.z * 90, I.y + 110, I.z - d.z * 330 - d.x * 90);
+    const wide = new THREE.Vector3(C.x - d.x * 1120 + d.z * 430, 400, C.z - d.z * 1120 - d.x * 430), home = new THREE.Vector3(I.x - d.x * 330 + d.z * 90, I.y + 110, I.z - d.z * 330 - d.x * 90);
     const mid = B ? B.base.clone().setY(B.base.y + B.height * 0.45) : s.pos.clone();
-    const from = s.pos.clone().add(_v.set(-58, 16, 34)), look = new THREE.Vector3();
+    const from = s.pos.clone().add(_v.set(-60, 45, -25)), to = s.pos.clone().add(_v.set(-160, 140, 20)), look = new THREE.Vector3();
     this.cine = (dt) => {
       const f = this.fin, cam = this.camera; f.t += dt;
       // the waking light climbs through the city from the foot of the Bell
@@ -306,15 +306,17 @@ export class Game {
       if (f.t > 24) U.uCityGlow.value = Math.min(1, U.uCityGlow.value + dt * 0.3);
       const cut = (n, fn) => { if (f.shot < n) { f.shot = n; this.fade = 1; this.fadeTo(0, 1.2); this.pipe.hasPrev = false; fn && fn(); } };
       if (f.t < 10) {
-        // in the square: past the ship to the Bell as it fills, the camera rising and drawing back
+        // over the square: past the ship to the Bell as it fills, the camera rising and drawing back off the western face
         const k = ss(f.t / 10);
-        cam.position.copy(from).add(_v.set(-26 * k, 38 * k, 10 * k));
-        look.copy(s.pos).setY(s.pos.y + 12).lerp(mid, 0.25 + 0.6 * k); look.y += 30 * k;
-        cam.up.set(0, 1, 0); cam.lookAt(look); cam.fov = 58 - 6 * k; cam.updateProjectionMatrix();
+        cam.position.lerpVectors(from, to, k);
+        const cd = this.col.sdf(cam.position.x, cam.position.y, cam.position.z);
+        if (cd < 10) cam.position.addScaledVector(this.col.grad(cam.position.x, cam.position.y, cam.position.z), 10 - cd);
+        look.copy(s.pos).setY(s.pos.y + 12).lerp(mid, 0.25 + 0.5 * k); look.y += 78 * k;
+        cam.up.set(0, 1, 0); cam.lookAt(look); cam.fov = 58; cam.updateProjectionMatrix();
       } else if (f.t < 26) {
         cut(1);
         const k = (f.t - 10) / 16;
-        cam.position.copy(wide).addScaledVector(_v.set(d.z, 0.1, -d.x), k * 240);
+        cam.position.copy(wide).addScaledVector(_v.set(d.z, 0.1, -d.x), k * 200);
         cam.up.set(0, 1, 0); cam.lookAt(C.x, C.y + 60 + k * 50, C.z); cam.fov = 44 - k * 5; cam.updateProjectionMatrix();
       } else {
         cut(2, () => { this.setTime(545, 24); });
@@ -538,7 +540,7 @@ export class Game {
       if (cp.distanceTo(l.p) < 1400) fx.glow(l.p, 5, [2.6, 1.6, 0.6], 0.0016);
       if (near) {
         if (!l.light) l.light = fx.light(l.p, [0, 0, 0], 120, Infinity);
-        const L = 5 + 9 * night; l.light.col = [L, L * 0.62, L * 0.26];
+        const L = 2.5 + 4 * night; l.light.col = [L, L * 0.62, L * 0.26];
         if (!fx.lights.includes(l.light)) fx.lights.push(l.light);
       } else if (l.light) { l.light.life = 0; l.light = null; }
     }

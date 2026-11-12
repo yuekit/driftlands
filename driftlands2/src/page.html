@@ -47,7 +47,7 @@ button { font: inherit; color: inherit; }
 .speed .v { font-family: var(--f-display); font-size: var(--s-5); font-weight: 600; line-height: 1; } .speed .u { display: block; }
 #sub { position: absolute; left: 50%; bottom: calc(var(--bot) + 64px); transform: translateX(-50%); width: min(720px, 86vw); text-align: center; opacity: 0; transition: opacity 0.35s; }
 #sub.on { opacity: 1; }
-@media (max-width: 1300px) { #sub { bottom: calc(var(--bot) + 122px); } }
+@media (min-width: 700px) and (max-width: 1300px) { #dl-root:not(.touch) #sub { left: calc(var(--gut) + 276px); right: calc(var(--gut-r) + 100px); bottom: var(--bot); width: auto; transform: none; } }
 #sub .who { font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sun); } #sub.wren .who { color: var(--verd); } #sub.city .who { color: var(--chord); }
 #sub .line { font-family: var(--f-serif); font-size: clamp(19px, 2.3vw, 27px); line-height: 1.28; margin-top: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 22px rgba(0,0,0,0.75); text-wrap: balance; }
 #hint { position: absolute; left: 50%; top: 21%; transform: translateX(-50%); padding: 9px 16px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--bone-faint); font-size: var(--s-2); opacity: 0; transition: opacity 0.4s; white-space: nowrap; }

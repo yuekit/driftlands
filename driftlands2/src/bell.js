@@ -28,11 +28,13 @@ void main(){
     alb = mix(alb, alb * vec3(1.0, 0.93, 0.82), smoothstep(0.25, 0.0, h01) * 0.5);
     rough = 0.30 + 0.25 * streak; f0 = vec3(0.05);
   } else if (uKind < 1.5) {
-    // glass: black until the Bell is rung, then light climbs it
+    // glass: dark, with a low light asleep at its foot, until the Bell is rung; then light climbs it pane by pane
     alb = vec3(0.015, 0.02, 0.025); rough = 0.07; f0 = vec3(0.07);
+    float pane = 1.0 - 0.85 * smoothstep(0.44, 0.5, abs(fract(vWorld.y / 7.5) - 0.5));
     float front = smoothstep(0.0, 0.08, uLit * 1.12 - h01);
     float flow = 0.7 + 0.3 * sin(vWorld.y * 0.55 - uTime * 4.0);
-    em = vec3(0.45, 1.0, 0.88) * (0.035 + 7.0 * front * flow * (0.4 + 0.6 * uLit));
+    float idle = 0.028 * (0.25 + 0.75 * smoothstep(0.45, 0.0, h01)) * (0.75 + 0.25 * sin(uTime * 0.9 - vWorld.y * 0.06));
+    em = vec3(0.45, 1.0, 0.88) * pane * (idle + 6.0 * front * flow * (0.4 + 0.6 * uLit));
   } else {
     alb = vec3(0.93, 0.66, 0.30) * (0.85 + 0.3 * vnoise(vObj * 40.0)); metal = 1.0; rough = 0.28;
   }
