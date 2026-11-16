@@ -1,0 +1,80 @@
+{
+ "name": "SpliceB",
+ "note": "A spliced house: a Weaver hall lifted off the ground on Windwright rotors, with a landing stage slung beneath.",
+ "parts": [
+  {
+   "kit": "gae",
+   "model": "BldgMD_H",
+   "centre": true,
+   "ground": true,
+   "at": [
+    0,
+    6,
+    0
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropDock_A",
+   "centre": true,
+   "hang": true,
+   "at": [
+    0,
+    6.5,
+    0
+   ],
+   "scale": 1.6,
+   "remap": {
+    "/^Metal/": "gae:WoodPlankA"
+   }
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 0.9,
+   "at": [
+    -17.0,
+    9,
+    -12
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 0.9,
+   "at": [
+    17.0,
+    9,
+    -12
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 0.9,
+   "at": [
+    -17.0,
+    9,
+    14
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 0.9,
+   "at": [
+    17.0,
+    9,
+    14
+   ]
+  }
+ ]
+}

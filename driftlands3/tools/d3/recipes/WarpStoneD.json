@@ -1,0 +1,45 @@
+{
+ "name": "WarpStoneD",
+ "note": "The broad warp stone: two houses and a gate.",
+ "parts": [
+  {
+   "glb": "Tianzi Mountains/converted/pillars.glb",
+   "node": "pillar_4",
+   "stone": true,
+   "centre": true,
+   "ground": true,
+   "socket": "top"
+  },
+  {
+   "kit": "gae",
+   "model": "BldgMD_D",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    0,
+    -10,
+    0
+   ],
+   "scale": 0.85
+  },
+  {
+   "kit": "gae",
+   "model": "Gate_A",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    16,
+    -8,
+    10
+   ],
+   "scale": 1.2,
+   "rot": [
+    0,
+    0.8,
+    0
+   ]
+  }
+ ]
+}

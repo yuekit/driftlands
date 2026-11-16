@@ -76,6 +76,30 @@ Input is the kit as converted by `3d-library/_pipeline/kb3d` on the Mac (one GLB
 - 700 to 900 draw calls, 8 to 15 M triangles a frame including shadow passes.
 - The robot pilot finishes the chapters in about 75, 85, 200 and 280 game seconds.
 
+## Kit-bash pass (second half of 2026-11-16)
+
+Yue-Kit's full brief arrived after the first build: do not apply the kits as they come; cut, repurpose, combine and
+merge them into a world of its own, and use the other library packs too. What changed:
+
+- **Recipes** (`tools/d3/recipes`, `kit_geo.mjs --recipe=`): parts from either kit or any library GLB, each with scale,
+  rotation, position, `centre` / `ground` / `hang` / `middle` (so a recipe needs no knowledge of a model's origin), a
+  `clip` box, a material `remap` (names or /regex/ to `gae:X`, `csk:X`, `stone`, `drop`), `socket` (records the part's
+  highest point) and `on` (place relative to an earlier socket), plus a `disc` primitive that caps a rock turned over.
+  The merged model goes through the same detail levels, occlusion bake (so parts shade each other), distance field and
+  rotor detection as a plain kit model.
+- **One material numbering** for both kits (Gaea 0..27, City in the Sky 28..112; kit models are offset at load,
+  recipe models are written already shared). Material 255 is the game's own banded stone: Tianzi pillars and limestone
+  crags are used for their shape only.
+- **Per-house colour**: `KitObject.setTint({ wall, roof, cloth, k })` recolours wall, thatch and cloth kinds.
+- **New things in the world**: the Great Loom on the Loom's terrace with six warp lines (the splice lines for the Loom
+  leave its arm tips: `SPLICE` table `'great'`), nine warp stones with lantern lines to the nearest table, six kite
+  houses on loops, crags along the route, and after the splice two stone kites and two spliced houses (`Strays`).
+- Gotchas: `THREE.Color(hex)` is already linear (do not convert again); a rock must be `ground`-ed before turning it
+  over or it ends point-up; Halyard's forward stations reach 700 m ahead of its hub, so the mooring is 1,080 m west of
+  the Loom; hybrids are placed on the flanks of the lines, clear of the houses.
+- Numbers now: 90 models, 375 MB of derived assets, 416 MB hosted build. Chapter IV is the heaviest view: about
+  18 ms a frame at 2592 x 1676 in the harness, 46 fps with the real loop at retina size.
+
 ## Not done yet
 
 - Menus were not re-tested with a gamepad (II's `menus.cjs` was not ported).

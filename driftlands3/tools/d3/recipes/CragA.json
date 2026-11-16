@@ -1,0 +1,27 @@
+{
+ "name": "CragA",
+ "note": "A bare floating crag in banded stone (a limestone crag turned over and capped).",
+ "parts": [
+  {
+   "glb": "Floating Rocks Asia/converted/crags.glb",
+   "node": "crag_8",
+   "stone": true,
+   "centre": true,
+   "rot": [
+    3.141592653589793,
+    0,
+    0
+   ],
+   "ground": true
+  },
+  {
+   "disc": 24,
+   "stone": true,
+   "at": [
+    0,
+    0.6,
+    0
+   ]
+  }
+ ]
+}

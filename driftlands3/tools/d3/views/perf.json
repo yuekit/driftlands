@@ -1,0 +1,6 @@
+[
+  { "name": "p_base", "pre": "g.startChapter(3)", "bot": "god", "sim": 30, "ui": true, "frames": 60, "dt": 0.016 },
+  { "name": "p_noshadow", "js": "g.shadow.enabled=false", "ui": true, "frames": 60, "dt": 0.016 },
+  { "name": "p_nokits", "js": "g.shadow.enabled=true; for (const o of [...g.loom.objects, ...g.halyard.houses.map(h=>h.o), ...g.halyard.boats.map(b=>b.o)]) o.group.visible=false", "ui": true, "frames": 60, "dt": 0.016 },
+  { "name": "p_L1", "js": "for (const o of [...g.loom.objects, ...g.halyard.houses.map(h=>h.o), ...g.halyard.boats.map(b=>b.o)]) { o.group.visible=true; const old=o.lod.bind(o); o.lod=(c,k,dt)=>old(c,0.01,dt); }", "ui": true, "frames": 60, "dt": 0.016 }
+]

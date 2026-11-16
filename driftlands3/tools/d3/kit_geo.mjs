@@ -14,46 +14,128 @@ import { ALL_EXTENSIONS, EXTMeshoptCompression, KHRMeshQuantization } from '@glt
 import { quantize, reorder } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 
-const [kitDir, model, outDir, ...rest] = process.argv.slice(2);
-const opt = Object.fromEntries(rest.map((a) => a.replace(/^--/, '').split('=')));
-const CAP = +(opt.cap || 450000), R1 = +(opt.l1 || 0.14), R2 = +(opt.l2 || 0.012), RAYS = +(opt.rays || 20);
+// Two ways in:  <kit folder> <Model> <out dir> [options]      one kit model as it comes
+//               --recipe=<file.json> <out dir> [options]      a new model bashed together from pieces (see recipes/)
+const argv = process.argv.slice(2);
+const opt = Object.fromEntries(argv.filter((a) => a.startsWith('--')).map((a) => a.replace(/^--/, '').split('=')));
+const posArgs = argv.filter((a) => !a.startsWith('--'));
+const recipe = opt.recipe ? JSON.parse(fs.readFileSync(opt.recipe, 'utf8')) : null;
+const LIB = opt.lib || path.join(process.env.HOME, 'Documents/GitHub/supercollider/3d-library');
+const KITDIR = { gae: path.join(LIB, 'Kitbash3D/kb3d_gaea/converted'), csk: path.join(LIB, 'Kitbash3D/kb3d_cityinthesky/converted') };
+const [kitDir, modelArg, outArg] = recipe ? [null, recipe.name, posArgs[0]] : posArgs;
+const model = modelArg, outDir = outArg;
+const CAP = +(opt.cap || (recipe && recipe.cap) || 450000), R1 = +(opt.l1 || 0.14), R2 = +(opt.l2 || 0.012), RAYS = +(opt.rays || 20);
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const kit = JSON.parse(fs.readFileSync(path.join(kitDir, 'kit.json'), 'utf8'));
-const MATS = kit.materials.map((m) => m.name);
 const t0 = Date.now(), log = (...a) => console.log(`[${model}]`, ...a, `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+const STONE = 255;      // a material of the game's own: banded stone drawn in the shader, no pictures
+// material names and facts. One kit model keeps its kit's own numbering (the game adds the kit's offset when it loads);
+// a recipe uses the shared numbering of both kits: Gaea first, then City in the Sky.
+let MATS, matFacts, kit;
+if (recipe) {
+  const cache = opt.cache || 'tools/d3/.cache';
+  const g = JSON.parse(fs.readFileSync(`${cache}/gae/mats.json`, 'utf8')), c = JSON.parse(fs.readFileSync(`${cache}/csk/mats.json`, 'utf8'));
+  matFacts = [...g, ...c]; MATS = matFacts.map((m) => m.name);
+  kit = { materials: matFacts.map((m) => ({ name: m.name, emissive: m.emis > 0 })) };
+} else {
+  kit = JSON.parse(fs.readFileSync(path.join(kitDir, 'kit.json'), 'utf8'));
+  MATS = kit.materials.map((m) => m.name);
+  matFacts = opt.mats ? JSON.parse(fs.readFileSync(opt.mats, 'utf8')) : null;
+}
+const gid = (name) => { const full = /^(gae|csk):/.test(name) ? `KB3D_${name.slice(0, 3).toUpperCase()}_${name.slice(4)}` : name; const i = MATS.indexOf(full); if (i < 0) throw new Error('unknown material ' + name); return i; };
 
-// ---------------------------------------------------------------- read and merge
-const doc = await io.read(path.join(kitDir, 'models', model + '.glb'));
-let nV = 0, nI = 0;
-const prims = [];
-for (const node of doc.getRoot().listNodes()) {
-  const mesh = node.getMesh(); if (!mesh) continue;
-  const M = new THREE.Matrix4().fromArray(node.getWorldMatrix());
-  for (const p of mesh.listPrimitives()) { prims.push({ p, M }); nV += p.getAttribute('POSITION').getCount(); nI += p.getIndices() ? p.getIndices().getCount() : p.getAttribute('POSITION').getCount(); }
-}
-let pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), mat = new Uint8Array(nV), idx = new Uint32Array(nI);
-{
-  let v0 = 0, i0 = 0; const a = new THREE.Vector3(), nm = new THREE.Matrix3();
-  for (const { p, M } of prims) {
-    const P = p.getAttribute('POSITION'), N = p.getAttribute('NORMAL'), T = p.getAttribute('TEXCOORD_0'), I = p.getIndices();
-    const id = MATS.indexOf(p.getMaterial() ? p.getMaterial().getName() : '');
-    if (id < 0) throw new Error('unknown material ' + (p.getMaterial() && p.getMaterial().getName()));
-    nm.getNormalMatrix(M);
-    const n = P.getCount(), el = [0, 0, 0];
-    for (let i = 0; i < n; i++) {
-      P.getElement(i, el); a.set(el[0], el[1], el[2]).applyMatrix4(M); pos[(v0 + i) * 3] = a.x; pos[(v0 + i) * 3 + 1] = a.y; pos[(v0 + i) * 3 + 2] = a.z;
-      if (N) { N.getElement(i, el); a.set(el[0], el[1], el[2]).applyMatrix3(nm).normalize(); } else a.set(0, 1, 0);
-      nrm[(v0 + i) * 3] = a.x; nrm[(v0 + i) * 3 + 1] = a.y; nrm[(v0 + i) * 3 + 2] = a.z;
-      if (T) { T.getElement(i, el); uv[(v0 + i) * 2] = el[0]; uv[(v0 + i) * 2 + 1] = el[1]; }
-      mat[v0 + i] = id;
+// ---------------------------------------------------------------- read (and, for a recipe, cut, re-skin and merge)
+// one GLB's meshes as flat arrays in metres; matOf(materialName) gives the id each primitive's vertices carry
+async function readGlb(file, matOf, nodeName = null) {
+  const doc = await io.read(file);
+  const P = [], N = [], T = [], M = [], I = [];
+  let v0 = 0; const a = new THREE.Vector3(), nm = new THREE.Matrix3(), el = [0, 0, 0];
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh(); if (!mesh || (nodeName && node.getName() !== nodeName)) continue;
+    const W = new THREE.Matrix4().fromArray(node.getWorldMatrix()); nm.getNormalMatrix(W);
+    for (const p of mesh.listPrimitives()) {
+      const Pa = p.getAttribute('POSITION'), Na = p.getAttribute('NORMAL'), Ta = p.getAttribute('TEXCOORD_0'), Ia = p.getIndices();
+      const id = matOf(p.getMaterial() ? p.getMaterial().getName() : '');
+      const n = Pa.getCount();
+      for (let i = 0; i < n; i++) {
+        Pa.getElement(i, el); a.set(el[0], el[1], el[2]).applyMatrix4(W); P.push(a.x, a.y, a.z);
+        if (Na) { Na.getElement(i, el); a.set(el[0], el[1], el[2]).applyMatrix3(nm).normalize(); } else a.set(0, 1, 0);
+        N.push(a.x, a.y, a.z);
+        if (Ta) { Ta.getElement(i, el); T.push(el[0], el[1]); } else T.push(0, 0);
+        M.push(id);
+      }
+      if (Ia) { const arr = Ia.getArray(); for (let i = 0; i < arr.length; i++) I.push(arr[i] + v0); } else for (let i = 0; i < n; i++) I.push(v0 + i);
+      v0 += n;
     }
-    if (I) { const arr = I.getArray(); for (let i = 0; i < arr.length; i++) idx[i0 + i] = arr[i] + v0; i0 += arr.length; }
-    else { for (let i = 0; i < n; i++) idx[i0 + i] = v0 + i; i0 += n; }
-    v0 += n;
   }
+  return { P, N, T, M, I };
 }
-log('read', nV, 'verts', nI / 3, 'tris', prims.length, 'prims');
+let pos, nrm, uv, mat, idx, nV = 0;
+const sockets = {};
+if (!recipe) {
+  const r = await readGlb(path.join(kitDir, 'models', model + '.glb'), (name) => { const i = MATS.indexOf(name); if (i < 0) throw new Error('unknown material ' + name); return i; });
+  pos = new Float32Array(r.P); nrm = new Float32Array(r.N); uv = new Float32Array(r.T); mat = new Uint8Array(r.M); idx = new Uint32Array(r.I); nV = mat.length;
+} else {
+  const P = [], N = [], T = [], M = [], I = [];
+  const v = new THREE.Vector3(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  for (const part of recipe.parts) {
+    // remap: { 'Old material (short name, or a /regex/)': 'gae:New' | 'csk:New' | 'stone' | 'drop' }
+    const rules = Object.entries(part.remap || {}).map(([k, to]) => [k.startsWith('/') ? new RegExp(k.slice(1, -1)) : k, to]);
+    const kitOf = part.kit, prefix = kitOf ? `KB3D_${kitOf.toUpperCase()}_` : '';
+    const matOf = (name) => {
+      if (part.stone) return STONE;
+      const short = name.replace(/^KB3D_[A-Z]+_/, '');
+      for (const [k, to] of rules) if (k instanceof RegExp ? k.test(short) : k === short) return to === 'drop' ? -1 : to === 'stone' ? STONE : gid(to);
+      return gid(name.startsWith('KB3D_') ? name : prefix + name);
+    };
+    const file = part.disc ? null : part.glb ? path.join(LIB, part.glb) : path.join(KITDIR[part.kit], 'models', `KB3D_${part.kit.toUpperCase()}_${part.model}.glb`);
+    let r;
+    if (part.disc) {
+      // a cap of turf-topped stone, slightly domed: closes the cut face of a rock turned upside down
+      const R = part.disc, rings = 6, seg = 56, P2 = [0, 0, 0], N2 = [0, 1, 0], T2 = [0, 0], M2 = [STONE], I2 = [];
+      for (let j = 1; j <= rings; j++) for (let i = 0; i < seg; i++) { const a2 = i / seg * 6.2832, rr = R * j / rings, wob = 1 + 0.06 * Math.sin(a2 * 5 + 1) + 0.04 * Math.sin(a2 * 9); P2.push(Math.cos(a2) * rr * wob, -(part.dome ?? 0.06) * R * (j / rings) ** 2, Math.sin(a2) * rr * wob); N2.push(0, 1, 0); T2.push(0, 0); M2.push(STONE); }
+      for (let i = 0; i < seg; i++) I2.push(0, 1 + (i + 1) % seg, 1 + i);
+      for (let j = 1; j < rings; j++) for (let i = 0; i < seg; i++) { const a2 = 1 + (j - 1) * seg + i, b2 = 1 + (j - 1) * seg + (i + 1) % seg, c2 = a2 + seg, d2 = b2 + seg; I2.push(a2, b2, c2, b2, d2, c2); }
+      r = { P: P2, N: N2, T: T2, M: M2, I: I2 };
+    } else r = await readGlb(file, matOf, part.node || null);
+    const sc = part.scale ?? 1, S = Array.isArray(sc) ? sc : [sc, sc, sc], rot = part.rot || [0, 0, 0], at = (part.at || [0, 0, 0]).slice();
+    // on: a socket left by an earlier part (the top of a rock, the tip of a crane); 'at' is then measured from it
+    if (part.on) { const sk = sockets[part.on] && sockets[part.on][part.onIndex || 0]; if (!sk) throw new Error('no socket ' + part.on); for (let k = 0; k < 3; k++) at[k] += sk[k]; }
+    q.setFromEuler(e.set(rot[0], rot[1], rot[2], 'YXZ'));
+    // the part's own bounds, so a recipe can say "stand it on the ground" or "centre it" without knowing the model
+    const bb = [[1e9, 1e9, 1e9], [-1e9, -1e9, -1e9]];
+    for (let i = 0; i < r.P.length; i += 3) for (let k = 0; k < 3; k++) { bb[0][k] = Math.min(bb[0][k], r.P[i + k]); bb[1][k] = Math.max(bb[1][k], r.P[i + k]); }
+    const off = [0, 0, 0];
+    if (part.centre) { off[0] = -(bb[0][0] + bb[1][0]) / 2; off[2] = -(bb[0][2] + bb[1][2]) / 2; }
+    if (part.ground) off[1] = -bb[0][1]; else if (part.hang) off[1] = -bb[1][1]; else if (part.middle) off[1] = -(bb[0][1] + bb[1][1]) / 2;
+    const clip = part.clip;      // [minx, miny, minz, maxx, maxy, maxz] in the part's own metres (after centring): keep triangles whose middle is inside
+    const base = P.length / 3, keepV = new Int32Array(r.M.length).fill(-1);
+    let top = null;
+    const push = (i) => {
+      if (keepV[i] >= 0) return keepV[i];
+      v.set((r.P[i * 3] + off[0]) * S[0], (r.P[i * 3 + 1] + off[1]) * S[1], (r.P[i * 3 + 2] + off[2]) * S[2]).applyQuaternion(q); v.x += at[0]; v.y += at[1]; v.z += at[2];
+      P.push(v.x, v.y, v.z);
+      if (!top || v.y > top[1]) top = [v.x, v.y, v.z];
+      v.set(r.N[i * 3] / S[0], r.N[i * 3 + 1] / S[1], r.N[i * 3 + 2] / S[2]).normalize().applyQuaternion(q); N.push(v.x, v.y, v.z);
+      const us = part.uvScale ?? 1; T.push(r.T[i * 2] * us, r.T[i * 2 + 1] * us); M.push(r.M[i]);
+      return (keepV[i] = base + (P.length / 3 - 1 - base));
+    };
+    for (let i = 0; i < r.I.length; i += 3) {
+      const a = r.I[i], b = r.I[i + 1], c = r.I[i + 2];
+      if (r.M[a] < 0) continue;
+      if (clip) {
+        const cx = (r.P[a * 3] + r.P[b * 3] + r.P[c * 3]) / 3 + off[0], cy = (r.P[a * 3 + 1] + r.P[b * 3 + 1] + r.P[c * 3 + 1]) / 3 + off[1], cz = (r.P[a * 3 + 2] + r.P[b * 3 + 2] + r.P[c * 3 + 2]) / 3 + off[2];
+        if (cx < clip[0] || cy < clip[1] || cz < clip[2] || cx > clip[3] || cy > clip[4] || cz > clip[5]) continue;
+      }
+      I.push(push(a), push(b), push(c));
+    }
+    if (part.socket && top) (sockets[part.socket] = sockets[part.socket] || []).push(top.map((x) => +x.toFixed(2)));
+    log('part', part.model || part.node || 'disc', 'size', bb[1].map((x, k) => (x - bb[0][k]).toFixed(0)).join('x'), 'kept', (P.length / 3 - base), 'verts');
+  }
+  pos = new Float32Array(P); nrm = new Float32Array(N); uv = new Float32Array(T); mat = new Uint8Array(M); idx = new Uint32Array(I); nV = mat.length;
+}
+const nI = idx.length;
+log('read', nV, 'verts', nI / 3, 'tris');
 
 // drop degenerate triangles
 {
@@ -120,7 +202,7 @@ if (L1.length > Math.floor(t2) * 3) { const [o] = MeshoptSimplifier.simplifySlop
 log('L1', L1.length / 3, 'L2', L2.length / 3);
 
 // ---------------------------------------------------------------- area per material, lamps
-const area = new Float64Array(MATS.length);
+const area = new Float64Array(256);
 const lampCells = new Map();
 const EMIS = new Set(kit.materials.map((m, i) => (m.emissive && /Lamp|Light|Lantern|Bulb/i.test(m.name) ? i : -1)).filter((i) => i >= 0));
 {
@@ -298,9 +380,9 @@ const spinOf = new Uint8Array(nV), spin = [];
 }
 
 // ---------------------------------------------------------------- write
-const matInfo = opt.mats ? JSON.parse(fs.readFileSync(opt.mats, 'utf8')) : null;
-const avg = kit.materials.map((m, i) => (matInfo && matInfo[i] ? matInfo[i].avg : [0.5, 0.5, 0.5]));
-const glowOf = (name) => (/RicePaper/.test(name) ? 1 : /Glass|Lamps/.test(name) ? 0.8 : 0);
+const avg = kit.materials.map((m, i) => (matFacts && matFacts[i] ? matFacts[i].avg : [0.5, 0.5, 0.5]));
+avg[STONE] = [0.62, 0.36, 0.27]; MATS[STONE] = 'stone';
+const glowOf = (name) => (/RicePaper/.test(name || '') ? 1 : /Glass|Lamps/.test(name || '') ? 0.8 : 0);
 const out = new Document(); const buf = out.createBuffer();
 const scene = out.createScene();
 function addLevel(name, indices, far) {
@@ -341,6 +423,6 @@ const r3 = (a) => a.map((x) => +x.toFixed(3));
 fs.writeFileSync(path.join(outDir, model + '.json'), JSON.stringify({
   model, min: r3(bmin), max: r3(bmax), tris: counts.map((c) => c[1]), verts: counts.map((c) => c[0]),
   sdf: { dims, voxel, origin: r3(origin), dmax }, uv: [...uvMin, ...uvRange].map((x) => +x.toFixed(5)),
-  area: Object.fromEntries([...area].map((a, i) => [MATS[i], +a.toFixed(1)]).filter((e) => e[1] > 0)), lamps, spin,
+  area: Object.fromEntries([...area].map((a, i) => [MATS[i] || 'm' + i, +a.toFixed(1)]).filter((e) => e[1] > 0)), lamps, spin, global: !!recipe, sockets,
 }));
 log('wrote', (fs.statSync(path.join(outDir, model + '.glb')).size / 1048576).toFixed(2), 'MB');

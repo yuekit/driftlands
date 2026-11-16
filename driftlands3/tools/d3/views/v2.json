@@ -1,0 +1,10 @@
+[
+  { "name": "v2_loom_wide", "pre": "g.startChapter(0)", "time": 70, "js": "const L=g.loom.tables.loom.pos; g.loom.setLit(1); g.debugCam={p:[L.x+760,L.y+260,L.z+640],t:[L.x+60,L.y+40,L.z-120],fov:50}", "frames": 30 },
+  { "name": "v2_great", "time": 70, "js": "const c=g.loom.great.centre; g.debugCam={p:[c.x+120,c.y+50,c.z+150],t:[c.x,c.y+5,c.z],fov:50}", "frames": 30 },
+  { "name": "v2_stones", "time": 300, "js": "const o=g.loom.warpStones[0], c=o.centre; g.debugCam={p:[c.x+260,c.y+120,c.z+300],t:[c.x,c.y+60,c.z],fov:50}", "frames": 30 },
+  { "name": "v2_kite", "time": 70, "js": "const k=g.loom.kites[0].o.centre; g.debugCam={p:[k.x+40,k.y+14,k.z+50],t:[k.x,k.y,k.z],fov:50}", "frames": 30 },
+  { "name": "v2_halyard", "pre": "g.startChapter(1)", "time": 90, "js": "const c=g.halyard.hub.o.centre; g.debugCam={p:[c.x+420,c.y+140,c.z+560],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "v2_free", "pre": "g.startChapter(-1)", "time": 330, "js": "g.freeTime=false; g.setTime(332); const L=g.loom.tables.loom.pos, H=g.halyard.anchor; g.debugCam={p:[L.x-200,L.y+330,L.z+760],t:[(L.x+H.x)/2,L.y+60,(L.z+H.z)/2],fov:55}", "frames": 30 },
+  { "name": "v2_hybrid", "time": 330, "js": "const o=g.strays.hybrids[0], c=o.centre; g.debugCam={p:[c.x+110,c.y+60,c.z+140],t:[c.x,c.y+10,c.z],fov:50}", "frames": 30 },
+  { "name": "v2_night", "time": 385, "js": "g.setTime(385); const L=g.loom.tables.loom.pos, H=g.halyard.anchor; g.debugCam={p:[L.x-200,L.y+330,L.z+760],t:[(L.x+H.x)/2,L.y+60,(L.z+H.z)/2],fov:55}", "frames": 30 }
+]

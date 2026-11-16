@@ -1,0 +1,5 @@
+[
+  { "name": "hero_dusk", "pre": "g.startChapter(3)", "bot": "god", "sim": 150, "ui": false, "frames": 40 },
+  { "name": "hero_fair", "bot": "god", "sim": 118, "frames": 40 },
+  { "name": "hero_c2", "pre": "g.startChapter(1)", "bot": "god", "sim": 34, "ui": true, "frames": 40 }
+]

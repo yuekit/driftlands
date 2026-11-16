@@ -29,7 +29,7 @@ After the ending the world opens for free flight, with both towns lit and moored
 ## Building
 
 The two towns are built from two purchased KitBash3D kits, Gaea and City in the Sky. Their derived files are large
-(about 340 MB) and are **not** in this repository: `src/assets/d3/` is ignored. They are made from the converted kits in
+(about 375 MB) and are **not** in this repository: `src/assets/d3/` is ignored. They are made from the converted kits in
 the 3D library on the Mac (`3d-library/Kitbash3D/kb3d_gaea/converted`, `kb3d_cityinthesky/converted`):
 
 ```
@@ -38,6 +38,7 @@ L=~/Documents/GitHub/supercollider/3d-library/Kitbash3D
 node tools/d3/kit_tex.mjs $L/kb3d_gaea/converted tools/d3/.cache/gae            # two maps a material, at source size
 node tools/d3/kit_tex.mjs $L/kb3d_cityinthesky/converted tools/d3/.cache/csk
 node tools/d3/kit_geo.mjs <kit folder> <Model> tools/d3/.cache/geo/<gae|csk> --mats=tools/d3/.cache/<kit>/mats.json [--cap=N]
+ls tools/d3/recipes/*.json | xargs -P 8 -I{} node tools/d3/kit_geo.mjs --recipe={} tools/d3/.cache/geo/mix   # the bashed models
 node tools/d3/gen_index.mjs                                                     # src/assets/d3/ + src/d3assets.js
 node build.mjs --web          # dist/web/, the folder to host (index.html, driftlands3.js, assets/)
 node build.mjs --web --dev    # the same, not minified (what the tools below load)
@@ -48,6 +49,25 @@ node build.mjs --web --dev    # the same, not minified (what the tools below loa
 (`dist/test.html`, `--standalone`) are not practical at this size; use `--web`.
 
 `?q=low` or `?q=high` on the address forces a quality level; `?debug` shows timings.
+
+## The kits are raw material
+
+Neither kit is used as it comes. `tools/d3/recipes/*.json` are recipes that cut pieces out of the kits and other packs,
+re-skin them and merge them into models that exist only here (`node tools/d3/kit_geo.mjs --recipe=<file> tools/d3/.cache/geo/mix`):
+
+| Model | Made from |
+| --- | --- |
+| The Great Loom | Six City in the Sky cranes re-cut in Gaea bamboo and rope, in a ring round the Gaea dome hall, a rice-paper rotor turning above as its swift. The lines of the splice leave its arms. |
+| Kite houses (2) | Weaver huts slung under Windwright lift rotors rebuilt in bamboo and rice paper. They fly errands round the tables. |
+| Warp stones (4) | Tianzi Mountains pillars drawn in the islands' own banded stone (no photographed rock), each with Gaea houses, gates or a windmill on its head. Nine stand round the tables. |
+| Floating crags (3) | Floating Rocks Asia crags turned over, capped with turf and drawn in the same stone. They replace Driftlands II's skerries along the way in. |
+| Stone kite | A crag turned over, a Weaver hall on its back, Windwright rotors round its rim: the first thing the two towns build together. |
+| Spliced houses (2) | A Halyard tenement re-clad in the Weavers' weave and thatch with a round hut on its roof; a Weaver hall lifted on rotors with a landing stage beneath. |
+
+Stone kites and spliced houses do not exist until the fair: they come up out of the cloud during the ending and stay
+for free flight. Both kits share one numbering of materials so any piece can wear either kit's surfaces, plus a
+material of the game's own (banded stone, id 255). Every house also carries its own colours: Halyard's five liveries
+painted on its wall materials, and each table's dye in its thatch.
 
 ## What is new in the engine
 

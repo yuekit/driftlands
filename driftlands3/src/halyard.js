@@ -30,7 +30,7 @@ const STATIONS = [
   ['BldgSmSmallFactory', 410, -20, 650, 1.0, 'the Forge'],
   ['BldgSmWeatherStation', -380, 300, 100, -1.9, 'the Vane'],
 ];
-export const HALYARD_MODELS = [...new Set(STATIONS.map((s) => s[0])), 'PropFlyingBoat'];
+const LIVERY = ['#5f9c8f', '#d9a441', '#a8453a', '#e6d9b8', '#5c7696'];      // verdigris, ochre, oxblood, cream, slate
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export class Halyard {
@@ -39,7 +39,8 @@ export class Halyard {
     this.anchor = new THREE.Vector3(); this.heading = 0; this.spread = 1; this.speed = 0;
     this.group = new THREE.Group(); scene.add(this.group);
     this.houses = STATIONS.map(([model, x, y, z, yaw, name], i) => {
-      const o = kit.make(model, { scale: this.S, glow: [1.0, 0.7, 0.36] });
+      // every house is painted in one of the town's five liveries
+      const o = kit.make(model, { scale: this.S, glow: [1.0, 0.7, 0.36], tint: { wall: LIVERY[i % LIVERY.length], cloth: LIVERY[(i + 2) % LIVERY.length], k: [0.5, 0, 0.45] } });
       this.group.add(o.group);
       const h = { o, name, station: new THREE.Vector3(x, y, z), yaw, ph: i * 2.37, sink: 0, sinkGoal: 0, moor: 0, pos: o.group.position, i };
       o.house = h;

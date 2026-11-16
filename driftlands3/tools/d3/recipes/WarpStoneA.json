@@ -1,0 +1,40 @@
+{
+ "name": "WarpStoneA",
+ "note": "A warp stone: a Tianzi pillar re-cut in the islands' banded stone, a Weaver house on its head.",
+ "parts": [
+  {
+   "glb": "Tianzi Mountains/converted/pillars.glb",
+   "node": "pillar_1",
+   "stone": true,
+   "centre": true,
+   "ground": true,
+   "socket": "top"
+  },
+  {
+   "kit": "gae",
+   "model": "BldgMD_F",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    -2,
+    -9,
+    0
+   ],
+   "scale": 0.9
+  },
+  {
+   "kit": "gae",
+   "model": "Flag_F",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    9,
+    -4,
+    7
+   ],
+   "scale": 1.6
+  }
+ ]
+}

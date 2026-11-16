@@ -10,7 +10,7 @@ const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
 const bellKey = (g) => (g.input.mode === 'pad' ? 'X rings the ship\'s bell' : g.input.mode === 'touch' ? 'Bell rings the ship\'s bell' : `${K('Right click')} or ${K('E')} rings the ship's bell`);
 // the lines of the long splice: which table each is made fast to, and which house it holds
-export const SPLICE = [['loom', 'the Gate'], ['loom', 'the Yard'], ['shuttle', 'the Wind Works'], ['loom', 'the Wayhouse'], ['shuttle', 'the Stacks']];
+export const SPLICE = [['great', 'the Gate'], ['great', 'the Yard'], ['shuttle', 'the Wind Works'], ['great', 'the Wayhouse'], ['shuttle', 'the Stacks']];
 
 export const CHAPTERS = [
   {
@@ -45,7 +45,7 @@ export const CHAPTERS = [
       g.say(W, 'I stayed for the whales. I stayed on for the soup.');
       yield () => n() >= 3;
       mark(); g.objective(`Hail the ${WORD[N]} great houses of the Loom`, n(), N);
-      g.say(V, 'Woven. All of it. The walls, the roofs, I believe the very stairs.');
+      g.say(V, 'Woven. All of it. The walls, the roofs, I believe the very stairs. And houses on the heads of the stones, like hats.');
       g.say(W, 'And the islands, they will tell you, if you let them. They say they weave the roots so the tables keep company. I have stopped arguing.');
       yield () => n() >= 4;
       mark(); g.objective(`Hail the ${WORD[N]} great houses of the Loom`, n(), N);
@@ -221,10 +221,10 @@ export const CHAPTERS = [
       if (!g.tied()) { ui.card('Chapter IV', 'The Long Splice', 'Five lines before the light goes', 5.5); yield 4.5; }
       g.spliceOn = true;
       if (!g.tied()) {
-        g.say(W, 'One line became five while you were crossing. The Weavers do nothing by halves once they have started. The coils are at the gates on the rims: take one up and carry it across.');
+        g.say(W, 'One line became five while you were crossing. The Weavers do nothing by halves once they have started. The Great Loom has been turning since noon: take a line from its arms, or from the gates on the Shuttle, and carry it across.');
         g.say(P, 'And quickly, if you would. We are holding her up on habit.');
       }
-      ui.hint('Fly close to a marked gate to take up a line, then carry it to the house it names', 11);
+      ui.hint('Fly close to a marked line to take it up, then carry it to the house it names', 11);
       let n = g.tied(), state = '', failT = 26;
       g.objective('Carry five lines from the Loom to Halyard', n, total);
       while (g.tied() < total) {
@@ -269,7 +269,8 @@ export const CHAPTERS = [
       yield 6; g.say(W, 'Lanterns. Both towns at once, and neither asked the other. Oh, look at that.');
       yield 9; g.say(P, 'Halyard is fast, all lines. First time since anyone began keeping the log.');
       yield 10; g.say(W, 'They are singing the splice home, Idris. Two crews, and neither knows the other\'s words.');
-      yield 10; g.say(V, 'Plate twenty two. No. I shall not hang this one. Some things the Institute may simply be told.');
+      yield 10; g.say(P, 'There is talk already of building together. A stone that flies, with a garden on it. Our rotors, their roots.');
+      yield 9; g.say(V, 'Two islands together make something neither could. Halloway wrote that, on day fifty eight. Plate twenty two. No. I shall not hang this one. Some things the Institute may simply be told.');
       yield g.talkDone; yield 6;
       g.finish();
     },
@@ -283,7 +284,7 @@ export const FREE = {
     g.setupSplice(SPLICE);
     for (const sp of g.splices) { sp.state = 2; sp.rope.mesh.visible = true; sp.rope.litGoal = 1; sp.rope.lit = 1; sp.h.moor = 1; }
     for (const h of g.halyard.houses) h.moor = Math.max(h.moor, 0.5);
-    g.loom.setLit(1); g.halyard.setLit(1);
+    g.loom.setLit(1); g.halyard.setLit(1); g.strays.riseGoal = 1; g.strays.rise = 1;
     const D = g.sites.dock.approach;
     g.ship.place(D.pos.clone(), D.yaw);
     U.uCityGlow.value = 1;

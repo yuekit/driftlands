@@ -5,16 +5,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { U, COMMON } from './glsl.js';
+import { U, COMMON, srgb } from './glsl.js';
 import { assetBuffer, assetBitmap } from './assetbuf.js';
 import { CASTER_LAYER } from './shadow.js';
-import { KITS, GAE, CSK } from './d3assets.js';
-
-const SRC = { gae: GAE, csk: CSK };
+import { KITS, D3 } from './d3assets.js';
 const KIND = { '': 0, paper: 1, glass: 2, water: 3, lamp: 4, leaf: 5, thatch: 6, cloth: 7, decal: 8, wall: 9, weave: 10 };
 
 U.uKitFlat = { value: 0.22 };    // how far the photographed textures are pulled toward their flat local colour (the plate look)
-U.uLampK = { value: 0 };         // 0 by day .. 1 at night: how strongly lit paper, windows and lamps show
+U.uLampK = { value: 0 };
+// the banded stone of the Weavers' country, for rock that is part of a bashed model (material 255)
+const v3c = (hex) => srgb(hex).clone();
+U.uStoneA = { value: v3c('#e8c7a2') }; U.uStoneB = { value: v3c('#cf8f78') }; U.uStoneC = { value: v3c('#f6e8d2') }; U.uStoneTop = { value: v3c('#79b596') };         // 0 by day .. 1 at night: how strongly lit paper, windows and lamps show
 
 const VS = /* glsl */ `
 attribute vec4 aData;
@@ -53,6 +54,8 @@ varying vec3 vWorld; varying vec3 vN; varying vec3 vObj; varying vec2 vUv; varyi
 uniform sampler2DArray tCA; uniform sampler2DArray tNA; uniform sampler2DArray tCB; uniform sampler2DArray tNB;
 uniform sampler2D tInfo;
 uniform float uLit; uniform float uSeed; uniform vec3 uGlowCol; uniform float uKitFlat; uniform float uLampK; uniform float uSink;
+uniform vec3 uStoneA; uniform vec3 uStoneB; uniform vec3 uStoneC; uniform vec3 uStoneTop;
+uniform vec3 uTintWall; uniform vec3 uTintRoof; uniform vec3 uTintCloth; uniform vec3 uTintK;
 ${COMMON}
 void main(){
   int id = int(vData.g * 255.0 + 0.5);
@@ -74,7 +77,8 @@ void main(){
   vec3 dp2p = cross(dp2, Ng), dp1p = cross(Ng, dp1);
   vec3 T = dp2p * gx.x + dp1p * gy.x, B = dp2p * gx.y + dp1p * gy.y;
   float im = inversesqrt(max(max(dot(T, T), dot(B, B)), 1e-12));
-  vec2 tn = (nt.xy * 2.0 - 1.0) * vec2(1.0, -1.0);
+  bool stone = id == 255;
+  vec2 tn = stone ? vec2(0.0) : (nt.xy * 2.0 - 1.0) * vec2(1.0, -1.0);
   tn *= 1.0 - 0.7 * smoothstep(250.0, 900.0, dist);
   vec3 n = normalize(T * im * tn.x + B * im * tn.y + Ng * sqrt(max(1.0 - dot(tn, tn), 0.0)));
   float rough = clamp(nt.b, 0.06, 1.0);
@@ -82,6 +86,23 @@ void main(){
   vec3 alb = c.rgb;
   // the plate look: local colour first, photographed grit second
   alb = mix(alb, I1.yzw * (0.6 + 0.8 * dot(alb, vec3(0.33)) / max(dot(I1.yzw, vec3(0.33)), 0.02)), uKitFlat);
+  // each house wears its own colours: paint on the walls, dye in the thatch, dye in the cloth
+  if (kind == 9) alb = mix(alb, uTintWall * (0.35 + 2.0 * dot(alb, vec3(0.33))), uTintK.x);
+  else if (kind == 6) alb = mix(alb, uTintRoof * (0.3 + 2.4 * dot(alb, vec3(0.33))), uTintK.y);
+  else if (kind == 7 || kind == 1) alb = mix(alb, uTintCloth * (0.3 + 1.6 * dot(alb, vec3(0.33))), uTintK.z);
+  if (stone) {
+    // rock cut from other packs, drawn in the islands' own banded stone with turf on its flats
+    vec3 p = vObj;
+    float warp = vnoise(p * vec3(0.02, 0.05, 0.02)) * 7.0, band = p.y * 0.36 + warp, s1 = fract(band * 0.155);
+    vec3 rock = mix(uStoneA, uStoneB, smoothstep(0.52, 0.6, s1) * 0.8);
+    rock = mix(rock, uStoneC, smoothstep(0.80, 0.84, s1) * 0.55);
+    rock *= 0.92 + 0.08 * sin(band * 3.3);
+    float streak = vnoise(vec3(p.x * 0.35, p.y * 0.018, p.z * 0.35));
+    rock *= mix(1.0, 0.8, smoothstep(0.55, 0.9, streak) * (1.0 - Ng.y * Ng.y));
+    float top = smoothstep(0.55, 0.82, Ng.y + (vnoise(p * 0.06) - 0.5) * 0.5);
+    alb = mix(rock, uStoneTop * (0.8 + 0.4 * vnoise(p * 0.3)), top);
+    rough = 0.9; metal = 0.0; ao = vData.r; kind = 0;
+  }
   float wrap = 0.0, thin = 0.0;
   vec3 f0 = mix(vec3(0.04), alb, metal);
   vec3 em = vec3(0.0);
@@ -192,7 +213,7 @@ async function makeArray(renderer, assets, size, srgb, onLayer) {
 }
 
 export class Kit {
-  constructor(key) { this.key = key; this.info = KITS[key]; this.src = SRC[key]; this.geo = {}; this.sdfs = {}; this.seed = 0; }
+  constructor() { this.key = 'd3'; this.info = KITS.d3; this.src = D3; this.geo = {}; this.sdfs = {}; this.seed = 0; }
   // names: the models to load (all of them if left out)
   async load(renderer, quality = 2, names = null, onProgress = () => {}) {
     const info = this.info, src = this.src;
@@ -205,7 +226,7 @@ export class Kit {
       makeArray(renderer, src.texA.map((t) => t.c), sA, true, tick), makeArray(renderer, src.texA.map((t) => t.n), sA, false, tick),
       makeArray(renderer, src.texB.map((t) => t.c), sB, true, tick), makeArray(renderer, src.texB.map((t) => t.n), sB, false, tick),
     ]);
-    const M = info.materials, W = 128, data = new Float32Array(W * 2 * 4);
+    const M = info.materials, W = 256, data = new Float32Array(W * 2 * 4);
     M.forEach((m, i) => {
       data.set([m.set, m.layer, m.cut ? 1 : m.flat ? 2 : 0, m.metal], i * 4);
       data.set([KIND[m.kind] || 0, m.avg[0], m.avg[1], m.avg[2]], (W + i) * 4);
@@ -241,7 +262,12 @@ export class Kit {
           const g = o.geometry, src = g.attributes.position, M = o.matrixWorld, arr = new Float32Array(src.count * 3), v = new THREE.Vector3();
           for (let i = 0; i < src.count; i++) { v.fromBufferAttribute(src, i).applyMatrix4(M); arr[i * 3] = v.x; arr[i * 3 + 1] = v.y; arr[i * 3 + 2] = v.z; }
           g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-          if (g.attributes.color) { g.setAttribute('aData', g.attributes.color); g.deleteAttribute('color'); }
+          if (g.attributes.color) {
+            // a kit's own model numbers its materials from nought: move them to their place in the shared numbering
+            const base = info.models[name].base || 0, lvl = +o.name.slice(1), c = g.attributes.color;
+            if (base && lvl < 2) { const arr = c.array; for (let i = 1; i < arr.length; i += 4) arr[i] += base; }
+            g.setAttribute('aData', c); g.deleteAttribute('color');
+          }
           g.computeBoundingSphere(); g.computeBoundingBox();
           levels[+o.name.slice(1)] = g;
         });
@@ -260,7 +286,8 @@ export class Kit {
   // many copies of a small model drawn together (no collision, one level)
   instanced(name, count, level = 1) {
     const g = this.geo[name][level] || this.geo[name][0];
-    const own = { uLit: { value: 1 }, uSeed: { value: 0 }, uGlowCol: { value: new THREE.Vector3(1.0, 0.62, 0.3) }, uObjScale: { value: 1 }, uSink: { value: 0 }, uUvT: { value: new THREE.Vector4(...this.info.models[name].uv) }, uSpinRow: { value: this.spinRow[name] }, uSpinAng: { value: 0 } };
+    const own = { uLit: { value: 1 }, uSeed: { value: 0 }, uGlowCol: { value: new THREE.Vector3(1.0, 0.62, 0.3) }, uObjScale: { value: 1 }, uSink: { value: 0 }, uUvT: { value: new THREE.Vector4(...this.info.models[name].uv) }, uSpinRow: { value: this.spinRow[name] }, uSpinAng: { value: 0 },
+      uTintWall: { value: new THREE.Vector3(1, 1, 1) }, uTintRoof: { value: new THREE.Vector3(1, 1, 1) }, uTintCloth: { value: new THREE.Vector3(1, 1, 1) }, uTintK: { value: new THREE.Vector3(0, 0, 0) } };
     const mesh = new THREE.InstancedMesh(g, this.material(false, own), count);
     mesh.frustumCulled = false; mesh.userData.own = own;
     return mesh;
@@ -269,11 +296,13 @@ export class Kit {
 
 const _p = new THREE.Vector3(), _m = new THREE.Matrix4();
 export class KitObject {
-  constructor(kit, name, { scale = 1, glow = [1.0, 0.62, 0.3], cast = true } = {}) {
+  constructor(kit, name, { scale = 1, glow = [1.0, 0.62, 0.3], cast = true, tint = null } = {}) {
     this.kit = kit; this.name = name; this.meta = kit.info.models[name];
     if (!this.meta || !kit.geo[name]) throw new Error(`kit model ${kit.key}/${name} is not loaded`);
     this.group = new THREE.Group(); this.group.scale.setScalar(scale); this.scale = scale;
-    this.own = { uLit: { value: 0 }, uSeed: { value: (kit.seed += 7.31) % 97 }, uGlowCol: { value: new THREE.Vector3(...glow) }, uObjScale: { value: scale }, uSink: { value: 0 }, uUvT: { value: new THREE.Vector4(...this.meta.uv) }, uSpinRow: { value: kit.spinRow[name] }, uSpinAng: { value: 0 } };
+    this.own = { uLit: { value: 0 }, uSeed: { value: (kit.seed += 7.31) % 97 }, uGlowCol: { value: new THREE.Vector3(...glow) }, uObjScale: { value: scale }, uSink: { value: 0 }, uUvT: { value: new THREE.Vector4(...this.meta.uv) }, uSpinRow: { value: kit.spinRow[name] }, uSpinAng: { value: 0 },
+      uTintWall: { value: new THREE.Vector3(1, 1, 1) }, uTintRoof: { value: new THREE.Vector3(1, 1, 1) }, uTintCloth: { value: new THREE.Vector3(1, 1, 1) }, uTintK: { value: new THREE.Vector3(0, 0, 0) } };
+    if (tint) this.setTint(tint);
     const near = kit.material(false, this.own), far = kit.material(true, this.own);
     const G = kit.geo[name];
     this.levels = G.map((g, i) => { const m = new THREE.Mesh(g, i === 2 ? far : near); m.visible = false; m.matrixAutoUpdate = false; this.group.add(m); return m; });
@@ -288,6 +317,13 @@ export class KitObject {
     this.inv = new THREE.Matrix4(); this.level = -1; this.lit = 0; this.litGoal = 0; this.spin = 1; this.spinGoal = 1;
     this.sdfData = kit.sdfs[name];
   }
+  // tint: { wall, roof, cloth: '#hex', k: [wall, roof, cloth] strengths 0..1 }
+  setTint(t) {
+    const set = (u, hex) => { if (hex) u.value.copy(srgb(hex)); };
+    set(this.own.uTintWall, t.wall); set(this.own.uTintRoof, t.roof); set(this.own.uTintCloth, t.cloth);
+    const k = t.k || [t.wall ? 0.55 : 0, t.roof ? 0.6 : 0, t.cloth ? 0.6 : 0]; this.own.uTintK.value.set(k[0], k[1], k[2]);
+    return this;
+  }
   // call after moving the group
   sync() {
     const g = this.group; g.updateMatrixWorld(true);
@@ -298,7 +334,7 @@ export class KitObject {
   place(x, y, z, yaw = 0) { this.group.position.set(x, y, z); this.group.rotation.set(0, yaw, 0); this.sync(); return this; }
   // which level to show from this camera; lodK > 1 keeps detail further out
   lod(cam, lodK = 1, dt = 0.016) {
-    const d = Math.max(0, cam.distanceTo(this.centre) - this.radius), r = this.radius;
+    const d = Math.max(0, cam.distanceTo(this.centre) - this.radius), r = Math.min(this.radius, 75);      // a tall stone is not finer-grained for being tall
     let want = d < (60 + r * 1.6) * lodK ? 0 : d < (420 + r * 5) * lodK ? 1 : 2;
     // a little stickiness so a level does not flicker at its boundary
     if (this.level >= 0 && want !== this.level) { const edge = want < this.level ? 0.9 : 1.1; const d2 = d / edge; const w2 = d2 < (60 + r * 1.6) * lodK ? 0 : d2 < (420 + r * 5) * lodK ? 1 : 2; if (w2 === this.level) want = this.level; }

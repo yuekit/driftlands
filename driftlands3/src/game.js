@@ -69,6 +69,7 @@ export class Game {
       const lm = g.loom, hy = g.halyard;
       if (lm) { const c = lm.centre, dx = x - c.x, dz = z - c.z; if (dx * dx + dz * dz < 1e6) d = Math.min(d, lm.sdf(x, y, z)); }
       if (hy) { const a = hy.anchor, dx = x - a.x, dz = z - a.z, r = hy.radius + 300; if (dx * dx + dz * dz < r * r) d = Math.min(d, hy.sdf(x, y, z)); }
+      if (g.strays) d = Math.min(d, g.strays.sdf(x, y, z));
       return d;
     };
     const out = new THREE.Vector3();
@@ -97,7 +98,7 @@ export class Game {
     // the lamp square, and the pose the ship settles into
     // Driftlands III: where Halyard is met, the way it is led in, and where it comes to rest in the lee of the Loom
     const LT = this.loom.tables.loom.basePos;
-    const moor = new THREE.Vector3(LT.x - 790, 300, LT.z + 130);
+    const moor = new THREE.Vector3(LT.x - 1080, 300, LT.z + 150);
     this.route = [new THREE.Vector3(moor.x - 3900, 330, moor.z - 1900), new THREE.Vector3(moor.x - 2300, 310, moor.z - 1000), new THREE.Vector3(moor.x - 950, 300, moor.z - 380), moor];
     this.routeLen = [0]; for (let i = 1; i < this.route.length; i++) this.routeLen.push(this.routeLen[i - 1] + this.route[i].distanceTo(this.route[i - 1]));
     // the Long Gallery's berth: off the western rim of the Loom, where the Hall can see her
@@ -105,6 +106,16 @@ export class Game {
     const out = new THREE.Vector3(rw.x - LT.x, 0, rw.z - LT.z).normalize();
     const dockPos = rw.clone().addScaledVector(out, 46);
     const dockYaw = Math.atan2(-out.z, out.x);
+    {
+      const w = new THREE.Vector3(moor.x - LT.x, 0, moor.z - LT.z).normalize(), sd = new THREE.Vector3(w.z, 0, -w.x);
+      const at = (along, side, y) => new THREE.Vector3(LT.x + w.x * along + sd.x * side, y, LT.z + w.z * along + sd.z * side);
+      this.strays.placeHybrids([
+        { name: 'StoneKite', pos: at(330, 420, 330), yaw: 0.4, scale: 1.3, tint: { roof: '#3f8f78', cloth: '#e07a3a', k: [0, 0.5, 0.5] } },
+        { name: 'StoneKite', pos: at(350, -450, 240), yaw: 2.2, scale: 1.0, tint: { roof: '#a85f74', cloth: '#d9b23c', k: [0, 0.5, 0.5] } },
+        { name: 'SpliceA', pos: at(500, 250, 400), yaw: 1.1, scale: 1.5, tint: { wall: '#e6d9b8', roof: '#3f8f78', k: [0.4, 0.5, 0] } },
+        { name: 'SpliceB', pos: at(470, -270, 330), yaw: -0.6, scale: 1.4, tint: { roof: '#4c5fa0', k: [0, 0.5, 0] } },
+      ]);
+    }
     this.sites = { hearts, grapples, moor, dock: { pos: dockPos, yaw: dockYaw, approach: { pos: dockPos.clone().addScaledVector(out, 620).setY(dockPos.y + 120), yaw: Math.atan2(-out.x, -out.z) } } };
     // cables: Verdigris's three to the first heart; the other islands shared among the rest
     const byHeart = [[], [], [], []], all = [], verd = [];
@@ -129,7 +140,8 @@ export class Game {
         if (pts.some((p) => Math.hypot(p.x - pos.x, p.z - pos.z) < r + 45 && p.y > y - 40 && p.y < y + 14 * scale + 40)) continue;
         spots.push({ pos, scale, yaw });
       }
-      this.skerries.place(spots);
+      this.skerries.place([]);
+      this.strays.placeCrags(spots.map((sp) => ({ pos: sp.pos.clone().setY(sp.pos.y + 150), scale: 0.7 + sp.scale / 14, yaw: sp.yaw })));
     }
     // lights on the city: beacons on its highest masts and domes, and the lamps of the square
     const seen = [];
@@ -242,8 +254,11 @@ export class Game {
   // ---- the lines of the long splice: each runs from a gate on a table's rim to a house of Halyard
   setupSplice(pairs) {
     for (const sp of this.splices || []) sp.rope.dispose();
+    this._arm = 0;
     this.splices = pairs.map(([table, house]) => {
-      const h = this.halyard.house(house), anchor = this.loom.rimToward(table, h.o.centre, 10);
+      // a line leaves either the rim of a table or, for the Loom itself, the tip of one of the Great Loom's arms
+      const h = this.halyard.house(house), arm = table === 'great' ? this._arm = (this._arm || 0) + 1 : 0;
+      const anchor = arm ? { world: (out = new THREE.Vector3()) => this.loom.armTip(arm * 2, out) } : this.loom.rimToward(table, h.o.centre, 10);
       const rope = new Rope(this.scene, { radius: 0.62, sag: 0.075, sway: 2.2, lanterns: 16 });
       rope.mesh.visible = false;
       return { table, h, anchor, rope, state: 0 };      // 0 coiled at the gate, 1 on the ship, 2 fast
@@ -298,6 +313,7 @@ export class Game {
     U.uLampK.value = Math.max(0, Math.min(1, 0.1 + 1.25 * (this.night || 0) + 0.45 * storm));
     this.convoyFrame(dt);
     this.loom.update(dt, cam, this.fx, lodK);
+    this.strays.update(dt, cam, lodK, this.time);
     this.halyard.update(dt, cam, this.fx, lodK);
     this.hookFrame();
     this.lanternFrame(dt);
@@ -329,8 +345,9 @@ export class Game {
     this.hooks = []; this.hooksLeft = 0; this.hailed = this.loom.posts.map(() => false); this.hailOn = false; this.spliceOn = false; this.fair = null; this.restarted = 0; this.bellCount = 0;
     for (const sp of this.splices || []) sp.rope.dispose(); this.splices = null; this.carrying = null;
     for (const h of this.halyard.houses) { h.sink = 0; h.sinkGoal = 0; h.moor = 0; h.failing = false; h.hooked = false; }
-    this.halyard.spread = 1; this.halyard.setLit(0.35); this.loom.setLit(0.3);
+    this.halyard.spread = 1; this.halyard.setLit(0.35); this.loom.setLit(0.3); this.strays.riseGoal = 0; this.strays.rise = 0;
     for (const o of [...this.loom.objects, ...this.halyard.houses.map((h) => h.o)]) o.lit = o.litGoal;
+    for (const o of this.loom.kites) o.o.litGoal = 1;
     for (const c of this.cables.all) { c.slackGoal = 1; c.slack = 1; c.u.uLive.value = 0; }
     this.setConvoy(0);
     U.uCityGlow.value = 1; U.uCityWave.value.w = -1; U.uCityAlarm.value = 0; U.uBolt.value = 0;
@@ -440,6 +457,7 @@ export class Game {
     hy.setLit(1); lm.setLit(1);
     for (const h of hy.houses) { h.failing = false; h.sinkGoal = 0; h.moor = Math.max(h.moor, 0.6); }
     this.fair = { t: 0, acc: 0 };
+    this.after(14, () => { this.strays.riseGoal = 1; });
     this.setTime(385, 26);
     const L = lm.tables.loom.pos, H = hy.anchor, mid = L.clone().lerp(H, 0.5);
     const west = new THREE.Vector3(H.x - L.x, 0, H.z - L.z).normalize(), side = new THREE.Vector3(west.z, 0, -west.x);
@@ -581,6 +599,9 @@ export class Game {
       this.camera.updateMatrixWorld();
       fr.setFromProjectionMatrix(pm.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
       for (const isl of this.world.islands) if (isl.lod) isl.lod(this.camera.position, focus, this.shadow ? this.shadow.extent : 0, fr);
+      // the Tall City is a far landmark here: it casts no shadow this side of the horizon and is skipped when out of view
+      if (!this._citySph) { this._citySph = new THREE.Sphere(this.city.centre.clone(), this.city.radius); for (const m of this.city.meshes) m.layers.disable(3); }
+      this.city.group.visible = fr.intersectsSphere(this._citySph);
       this.renderer.info.reset();
       if (this.motes) this.motes.update();
       if (this.glow) this.glow.update(this.camera.position, this.world.islands, this.world.eco, this.night || 0);

@@ -1,0 +1,47 @@
+{
+ "name": "SpliceA",
+ "note": "A spliced house: a Halyard tenement re-clad in the Weavers' weave and thatch, a round hut grown on its roof.",
+ "parts": [
+  {
+   "kit": "csk",
+   "model": "BldgMdResClusterA_A",
+   "centre": true,
+   "ground": true,
+   "remap": {
+    "/^MetalPanel(?!.*Trim)/": "gae:WallWeaveA",
+    "/^MetalPaneledOverlap/": "gae:ThatchRoofA",
+    "/^MetalCorrugated/": "gae:ThatchRoofC",
+    "/^WoodPlankPainted/": "gae:WallWeaveC",
+    "/^MetalPaint(Sand|White|Gray)/": "gae:WallWeaveB",
+    "/^Fabric(Old|Scraps)/": "gae:VerticalFlags"
+   },
+   "socket": "roof"
+  },
+  {
+   "kit": "gae",
+   "model": "BldgSM_B",
+   "centre": true,
+   "ground": true,
+   "on": "roof",
+   "at": [
+    -4,
+    -9,
+    2
+   ],
+   "scale": 0.8
+  },
+  {
+   "kit": "gae",
+   "model": "Flag_F",
+   "centre": true,
+   "ground": true,
+   "on": "roof",
+   "at": [
+    5,
+    -8,
+    -3
+   ],
+   "scale": 1.5
+  }
+ ]
+}

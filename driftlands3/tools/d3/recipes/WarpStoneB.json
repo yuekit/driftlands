@@ -1,0 +1,46 @@
+{
+ "name": "WarpStoneB",
+ "note": "A warp stone with a tall house on its head and a lookout lower down.",
+ "parts": [
+  {
+   "glb": "Tianzi Mountains/converted/pillars.glb",
+   "node": "pillar_2",
+   "stone": true,
+   "centre": true,
+   "ground": true,
+   "socket": "top"
+  },
+  {
+   "kit": "gae",
+   "model": "BldgLG_J",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    0,
+    -10,
+    0
+   ],
+   "scale": 0.8
+  },
+  {
+   "kit": "csk",
+   "model": "PropWindmillA_A",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    10,
+    -6,
+    -8
+   ],
+   "scale": 1.2,
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   }
+  }
+ ]
+}

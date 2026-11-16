@@ -24,8 +24,8 @@ import { loadShip, Airship, ShipCam } from './ship.js';
 import { BellSpire } from './bell.js';
 import { Skerries } from './skerries.js';
 import { Kit } from './kits.js';
-import { Loom, LOOM_MODELS } from './loom.js';
-import { Halyard, HALYARD_MODELS } from './halyard.js';
+import { Loom, Strays } from './loom.js';
+import { Halyard } from './halyard.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -52,12 +52,12 @@ async function main() {
   const partsP = loadParts();
   // the city and the ship load while the islands are being raised
   let pw = 0, pc = 0, pg = 0, ph = 0;
-  const report = () => ui.progress(pw * 0.4 + pc * 0.1 + pg * 0.2 + ph * 0.3, pw < 1 ? 'Raising the islands' : pg < 1 ? 'Weaving the Loom' : ph < 1 ? 'Rigging Halyard' : 'Lighting the lamps');
+  const report = () => ui.progress(pw * 0.4 + pc * 0.1 + pg * 0.2 + ph * 0.3, pw < 1 ? 'Raising the islands' : pg < 0.5 ? 'Weaving the Loom' : ph < 1 ? 'Rigging Halyard' : 'Lighting the lamps');
   const city = new City();
   const cityP = city.load(renderer, (p) => { pc = p; report(); }, Math.min(quality, 1));
-  // the two kits load one after the other so their pictures are not all being decoded at once
-  const gae = new Kit('gae'), csk = new Kit('csk');
-  const kitsP = gae.load(renderer, quality, LOOM_MODELS, (p) => { pg = p; report(); }).then(() => csk.load(renderer, quality, HALYARD_MODELS, (p) => { ph = p; report(); }));
+  // both towns' models and the pieces bashed from them, in one shared set of materials
+  const d3kit = new Kit();
+  const kitsP = d3kit.load(renderer, quality, null, (p) => { pg = ph = p; report(); });
   const shipP = loadShip(renderer);
   const data = await generateWorld((p) => { pw = p; report(); });
   await skinP;
@@ -78,11 +78,12 @@ async function main() {
   const bell = await new BellSpire().load(scene, city.toWorld(-25.5, 1.0, -17.5), 300, 26);
   const skerries = await new Skerries().load(scene);
   await kitsP;
-  const loom = new Loom(scene, gae, islands);
-  const halyard = new Halyard(scene, csk);
+  const loom = new Loom(scene, d3kit, islands);
+  const halyard = new Halyard(scene, d3kit);
+  const strays = new Strays(scene, d3kit);
   {
     // the same corridor the game leads Halyard in by (see Game.setupSites)
-    const LT = islands.find((I) => I.spec.key === 'loom').basePos, mx = LT.x - 790, mz = LT.z + 130, keep = [city.centre];
+    const LT = islands.find((I) => I.spec.key === 'loom').basePos, mx = LT.x - 1080, mz = LT.z + 150, keep = [city.centre];
     for (let k = 0; k <= 6; k++) keep.push({ x: mx - 3900 * (k / 6) - 300, z: mz - 1900 * (k / 6) - 100, r: 1900 });
     distantIslands(scene, islands, keep);
   }
@@ -113,7 +114,7 @@ async function main() {
   if (kit) for (const m of rocks.meshes) markCaster(m);
   const input = new Input(canvas);
 
-  const game = new Game({ renderer, scene, camera, pipe, shadow, world, ship, cam, city, bell, skerries, loom, halyard, input, ui, canvas, landmarks, debug: DEBUG, mirror, glow: new GlowMap(renderer), motes: new Motes(scene, islands) });
+  const game = new Game({ renderer, scene, camera, pipe, shadow, world, ship, cam, city, bell, skerries, loom, halyard, strays, input, ui, canvas, landmarks, debug: DEBUG, mirror, glow: new GlowMap(renderer), motes: new Motes(scene, islands) });
   await game.combat.load(renderer, quality);
   game.applyQuality(game.quality.level);
   window.__dl = game; window.__U = U; window.__THREE = THREE;

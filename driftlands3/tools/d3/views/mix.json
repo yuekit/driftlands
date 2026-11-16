@@ -1,0 +1,8 @@
+[
+  { "name": "m_kites", "pre": "g.startChapter(0)", "time": 80, "js": "const P=g.ship.pos; window.__P=P.clone(); window.__pv=(n,dx,dy=300,s=1.35)=>{const o=g.loom.kit.make(n,{scale:s}); g.scene.add(o.group); o.place(__P.x+dx,__P.y+dy,__P.z,0.5); o.litGoal=1; g.loom.objects.push(o); return o;}; __pv('KiteA',-20); __pv('KiteB',25); g.debugCam={p:[P.x+10,P.y+322,P.z+70],t:[P.x,P.y+310,P.z],fov:45}", "frames": 30 },
+  { "name": "m_loom", "time": 80, "js": "const P=__P; __pv('GreatLoom',300); g.debugCam={p:[P.x+300+110,P.y+300+75,P.z+140],t:[P.x+300,P.y+300+25,P.z],fov:45}", "frames": 30 },
+  { "name": "m_spliceA", "time": 80, "js": "const P=__P; __pv('SpliceA',600,300,1.6); g.debugCam={p:[P.x+600+60,P.y+300+40,P.z+80],t:[P.x+600,P.y+300+28,P.z],fov:45}", "frames": 30 },
+  { "name": "m_spliceB", "time": 80, "js": "const P=__P; __pv('SpliceB',800,300,1.5); g.debugCam={p:[P.x+800+55,P.y+300+38,P.z+75],t:[P.x+800,P.y+300+18,P.z],fov:45}", "frames": 30 },
+  { "name": "m_stonekite", "time": 80, "js": "const P=__P; __pv('StoneKite',1100,340,1.4); g.debugCam={p:[P.x+1100+110,P.y+340+50,P.z+150],t:[P.x+1100,P.y+340-30,P.z],fov:45}", "frames": 30 },
+  { "name": "m_stones", "time": 80, "js": "const P=__P; __pv('WarpStoneB',1500,0,1.3); __pv('WarpStoneC',1620,0,1.3); __pv('WarpStoneD',1780,0,1.3); __pv('CragA',1400,330,1); __pv('CragB',1900,330,1); g.debugCam={p:[P.x+1650,P.y+330,P.z+520],t:[P.x+1650,P.y+170,P.z],fov:45}", "frames": 30 }
+]

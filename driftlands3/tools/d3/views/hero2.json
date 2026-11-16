@@ -1,0 +1,6 @@
+[
+  { "name": "title_clean", "frames": 60 },
+  { "name": "h_great", "pre": "g.startChapter(0)", "time": 75, "js": "g.loom.setLit(1); const c=g.loom.great.centre; g.debugCam={p:[c.x+105,c.y+34,c.z+135],t:[c.x-10,c.y+12,c.z],fov:48}", "frames": 40 },
+  { "name": "h_stones", "time": 318, "js": "g.setTime(318); const o=g.loom.warpStones[1], c=o.centre, L=g.loom.tables.loom.pos; const d=[c.x-L.x,c.z-L.z], l=Math.hypot(d[0],d[1]); g.debugCam={p:[c.x+d[0]/l*330,c.y+90,c.z+d[1]/l*330],t:[L.x,L.y+40,L.z],fov:50}", "frames": 40 },
+  { "name": "h_c4", "pre": "g.startChapter(3)", "bot": "god", "sim": 75, "ui": true, "frames": 40 }
+]

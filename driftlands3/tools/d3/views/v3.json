@@ -1,0 +1,6 @@
+[
+  { "name": "v3_free", "pre": "g.startChapter(-1)", "time": 330, "js": "g.freeTime=false; g.setTime(332); const L=g.loom.tables.loom.pos, H=g.halyard.anchor; g.debugCam={p:[L.x-300,L.y+420,L.z+900],t:[(L.x+H.x)/2,L.y+60,(L.z+H.z)/2],fov:55}; window.__near=g.strays.hybrids.map(o=>Math.min(...g.halyard.houses.map(h=>h.o.centre.distanceTo(o.centre)-h.o.radius-o.radius)).toFixed(0)).join(' ')", "frames": 30 },
+  { "name": "v3_kite_stone", "time": 330, "js": "const o=g.strays.hybrids[0], c=o.centre; g.debugCam={p:[c.x+90,c.y+70,c.z+130],t:[c.x,c.y+30,c.z],fov:50}", "frames": 30 },
+  { "name": "v3_spliceA", "time": 330, "js": "const o=g.strays.hybrids[2], c=o.centre; g.debugCam={p:[c.x+70,c.y+20,c.z+90],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "v3_great_dusk", "time": 330, "js": "const c=g.loom.great.centre; g.debugCam={p:[c.x-150,c.y+30,c.z+120],t:[c.x,c.y+10,c.z],fov:50}", "frames": 30 }
+]

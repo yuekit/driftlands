@@ -1,0 +1,177 @@
+{
+ "name": "GreatLoom",
+ "note": "The Great Loom: six cranes re-cut in bamboo and rope standing in a ring round the dome hall, with a rice-paper swift turning above. The lines of the splice are spun here.",
+ "cap": 520000,
+ "parts": [
+  {
+   "kit": "gae",
+   "model": "BldgLG_A",
+   "centre": true,
+   "ground": true,
+   "scale": 0.82
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -0.26,
+    0
+   ],
+   "at": [
+    31.89,
+    0,
+    8.48
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -1.3071975511965976,
+    0
+   ],
+   "at": [
+    8.6,
+    0,
+    31.86
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -2.3543951023931955,
+    0
+   ],
+   "at": [
+    -23.29,
+    0,
+    23.38
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -3.401592653589793,
+    0
+   ],
+   "at": [
+    -31.89,
+    0,
+    -8.48
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -4.44879020478639,
+    0
+   ],
+   "at": [
+    -8.6,
+    0,
+    -31.86
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropCraneD_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.15,
+   "rot": [
+    0,
+    -5.495987755982989,
+    0
+   ],
+   "at": [
+    23.29,
+    0,
+    -23.38
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "arm"
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerA_A",
+   "centre": true,
+   "ground": true,
+   "scale": 1.25,
+   "at": [
+    0,
+    44,
+    0
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   },
+   "socket": "swift"
+  }
+ ]
+}

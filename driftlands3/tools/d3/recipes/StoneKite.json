@@ -1,0 +1,121 @@
+{
+ "name": "StoneKite",
+ "note": "A stone kite: a limestone crag turned over and capped with turf, a Weaver house on its back, Windwright rotors round its rim. The first thing the two towns build together.",
+ "parts": [
+  {
+   "glb": "Floating Rocks Asia/converted/crags.glb",
+   "node": "crag_9",
+   "stone": true,
+   "centre": true,
+   "rot": [
+    3.141592653589793,
+    0,
+    0
+   ],
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    0.75,
+    1
+   ],
+   "ground": true
+  },
+  {
+   "disc": 26,
+   "stone": true,
+   "at": [
+    0,
+    0.6,
+    0
+   ]
+  },
+  {
+   "kit": "gae",
+   "model": "BldgMD_B",
+   "centre": true,
+   "ground": true,
+   "at": [
+    0,
+    0.2,
+    0
+   ],
+   "scale": 0.9
+  },
+  {
+   "kit": "gae",
+   "model": "Lantern_B",
+   "centre": true,
+   "ground": true,
+   "at": [
+    14,
+    0.2,
+    10
+   ],
+   "scale": 1.2
+  },
+  {
+   "kit": "gae",
+   "model": "Lantern_B",
+   "centre": true,
+   "ground": true,
+   "at": [
+    -15,
+    0.2,
+    -9
+   ],
+   "scale": 1.2
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 1.0,
+   "at": [
+    -27,
+    -3,
+    0
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 1.0,
+   "at": [
+    27,
+    -3,
+    0
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 1.0,
+   "at": [
+    0,
+    -3,
+    -34
+   ]
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "hang": true,
+   "scale": 1.0,
+   "at": [
+    0,
+    -3,
+    34
+   ]
+  }
+ ]
+}

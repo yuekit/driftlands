@@ -1,0 +1,52 @@
+{
+ "name": "WarpStoneC",
+ "note": "A warp stone with a lantern house.",
+ "parts": [
+  {
+   "glb": "Tianzi Mountains/converted/pillars.glb",
+   "node": "pillar_3",
+   "stone": true,
+   "centre": true,
+   "ground": true,
+   "socket": "top"
+  },
+  {
+   "kit": "gae",
+   "model": "BldgSM_C",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    0,
+    -8,
+    0
+   ]
+  },
+  {
+   "kit": "gae",
+   "model": "Lantern_B",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    8,
+    -5,
+    3
+   ],
+   "scale": 1.5
+  },
+  {
+   "kit": "gae",
+   "model": "Lantern_B",
+   "centre": true,
+   "ground": true,
+   "on": "top",
+   "at": [
+    -7,
+    -6,
+    -5
+   ],
+   "scale": 1.5
+  }
+ ]
+}

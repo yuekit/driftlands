@@ -1,0 +1,70 @@
+{
+ "name": "KiteB",
+ "note": "A kite house: a wide thatched hut under twin rotors.",
+ "parts": [
+  {
+   "kit": "gae",
+   "model": "BldgSM_E",
+   "centre": true,
+   "ground": true
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerA_A",
+   "centre": true,
+   "ground": true,
+   "scale": 0.42,
+   "at": [
+    -5,
+    13.2,
+    0
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   }
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerA_A",
+   "centre": true,
+   "ground": true,
+   "scale": 0.42,
+   "at": [
+    5,
+    14.4,
+    0
+   ],
+   "rot": [
+    0,
+    0.5,
+    0
+   ],
+   "remap": {
+    "/^Metal(?!Propellers)/": "gae:Bamboo",
+    "/^Wood/": "gae:WoodA",
+    "/^(Steel|Rubber|Rusted)/": "gae:RopeA",
+    "FabricPropellersA": "gae:RicePaperBright"
+   }
+  },
+  {
+   "kit": "csk",
+   "model": "PropPropellerB_A",
+   "centre": true,
+   "middle": true,
+   "scale": 0.5,
+   "rot": [
+    1.5707963267948966,
+    0,
+    0
+   ],
+   "at": [
+    0,
+    5,
+    -8
+   ]
+  }
+ ]
+}
