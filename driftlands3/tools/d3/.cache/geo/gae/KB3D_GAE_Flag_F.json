@@ -1,0 +1,1 @@
+{"model":"KB3D_GAE_Flag_F","min":[-0.211,0.315,-1.754],"max":[0.211,8.624,1.754],"tris":[3992,3992,2445],"verts":[2515,2515,1153],"sdf":{"dims":[17,25,20],"voxel":1,"origin":[-8.211,-7.685,-9.754],"dmax":8},"uv":[-0.49658,-7.69392,7.32341,8.6861],"area":{"KB3D_GAE_Bamboo":5.6,"KB3D_GAE_RopeA":0.5,"KB3D_GAE_VerticalFlags":8.1},"lamps":[],"spin":[]}

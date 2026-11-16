@@ -1,3 +1,5 @@
 node_modules/
 dist/
 *.png
+tools/d3/.cache/
+driftlands3/src/assets/d3/

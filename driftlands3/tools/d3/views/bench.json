@@ -1,0 +1,8 @@
+[
+  { "name": "b_title", "ui": true, "frames": 80, "dt": 0.016 },
+  { "name": "b_c1", "pre": "g.startChapter(0)", "bot": "god", "sim": 40, "ui": true, "frames": 80, "dt": 0.016 },
+  { "name": "b_c2", "pre": "g.startChapter(1)", "bot": "god", "sim": 40, "ui": true, "frames": 80, "dt": 0.016 },
+  { "name": "b_c3", "pre": "g.startChapter(2)", "bot": "god", "sim": 100, "ui": true, "frames": 80, "dt": 0.016 },
+  { "name": "b_c4", "pre": "g.startChapter(3)", "bot": "god", "sim": 60, "ui": true, "frames": 80, "dt": 0.016 },
+  { "name": "b_fin", "bot": "god", "sim": 190, "frames": 80, "dt": 0.016 }
+]

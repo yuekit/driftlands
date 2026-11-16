@@ -1,0 +1,46 @@
+{
+ "StiltHead": {
+  "eye": [
+   0.43,
+   0.2,
+   0.62
+  ],
+  "eyeR": 0.2,
+  "collar": 0.46
+ },
+ "HybridHead": {
+  "eye": [
+   0.43,
+   0.2,
+   0.62
+  ],
+  "eyeR": 0.2,
+  "collar": 0.46
+ },
+ "CrawlerHead": {
+  "eye": [
+   0.66,
+   0.24,
+   0.98
+  ],
+  "eyeR": 0.27,
+  "antenna": [
+   0.5,
+   0.28,
+   1.2
+  ],
+  "collar": 1.0
+ },
+ "WhaleHead": {
+  "eye": [
+   0.9,
+   0.02,
+   0.24
+  ],
+  "eyeR": 0.085,
+  "collar": 1.0
+ },
+ "WhaleFin": {},
+ "WhaleFluke": {},
+ "PolypPetal": {}
+}

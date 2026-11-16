@@ -1,0 +1,4 @@
+[
+  { "name": "n_hub", "pre": "g.startChapter(-1)", "time": 380, "js": "g.freeTime=false; g.setTime(380); const c=g.halyard.hub.o.centre; g.debugCam={p:[c.x+110,c.y+20,c.z+130],t:[c.x,c.y,c.z],fov:50}; window.__dbg=[__U.uLampK.value, g.halyard.hub.o.own.uLit.value, g.night, g.halyard.hub.o.level]", "frames": 40 },
+  { "name": "n_loom", "time": 380, "js": "g.freeTime=false; g.setTime(380); const c=g.loom.hall.centre; g.debugCam={p:[c.x+70,c.y+10,c.z+80],t:[c.x,c.y,c.z],fov:50}", "frames": 40 }
+]

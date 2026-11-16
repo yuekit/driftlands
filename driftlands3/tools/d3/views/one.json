@@ -1,0 +1,1 @@
+[{ "name": "loom_wide", "time": 60, "pre": "g.startChapter(0)", "js": "const L=g.loom.tables.loom.pos; g.debugCam={p:[L.x+520,L.y+260,L.z+560],t:[L.x,L.y+20,L.z],fov:50}", "frames": 30 }]

@@ -1,0 +1,1 @@
+{"model":"KB3D_GAE_Pergola_A","min":[-3.25,0,-1.75],"max":[3.25,3.5,1.75],"tris":[964,964,964],"verts":[1031,1031,1031],"sdf":{"dims":[23,20,20],"voxel":1,"origin":[-11.25,-8,-9.75],"dmax":8},"uv":[-5.25,-11.47527,11.49956,13.75733],"area":{"KB3D_GAE_Bamboo":27.3,"KB3D_GAE_RicePaperBright":5.7,"KB3D_GAE_RicePaperBrightBrown":6.5},"lamps":[],"spin":[]}

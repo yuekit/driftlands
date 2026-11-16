@@ -1,0 +1,5 @@
+[
+  { "name": "title_ui", "ui": true, "frames": 40, "js": "g.ui.showTitle(true)" },
+  { "name": "thumb", "time": 330, "js": "g.setTime(336); g.loom.setLit(1); g.halyard.setLit(1); for(const o of [...g.loom.objects, ...g.halyard.houses.map(h=>h.o)]) o.lit=1; const L=g.loom.tables.loom.pos, H=g.halyard.anchor; g.ship.place(new __THREE.Vector3(L.x-330,L.y+120,L.z+250), -1.9); g.debugCam={p:[L.x-250,L.y+150,L.z+330],t:[L.x-520,L.y+80,L.z+60],fov:46}", "frames": 40 },
+  { "name": "pause_keys", "pre": "g.startChapter(0)", "ui": true, "sim": 3, "js": "g.pause(true); g.ui.pause(true,'keys')", "frames": 10 }
+]

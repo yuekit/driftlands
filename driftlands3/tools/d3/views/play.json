@@ -1,0 +1,13 @@
+[
+  { "name": "c1_start", "pre": "g.startChapter(0)", "bot": "god", "sim": 9, "ui": true, "frames": 30 },
+  { "name": "c1_mid", "bot": "god", "sim": 30, "ui": true, "frames": 30 },
+  { "name": "c2_meet", "pre": "g.startChapter(1)", "bot": "god", "sim": 26, "ui": true, "frames": 30 },
+  { "name": "c2_fight", "bot": "god", "sim": 14, "ui": true, "frames": 30 },
+  { "name": "c3_storm", "pre": "g.startChapter(2)", "bot": "god", "sim": 60, "ui": true, "frames": 30 },
+  { "name": "c3_boss", "bot": "god", "sim": 45, "ui": true, "frames": 30 },
+  { "name": "c4_line", "pre": "g.startChapter(3)", "bot": "god", "sim": 42, "ui": true, "frames": 30 },
+  { "name": "c4_late", "bot": "god", "sim": 100, "ui": true, "frames": 30 },
+  { "name": "c4_finale_a", "bot": "god", "sim": 100, "frames": 30 },
+  { "name": "c4_finale_b", "bot": "god", "sim": 14, "frames": 30 },
+  { "name": "c4_finale_c", "bot": "god", "sim": 16, "frames": 30 }
+]

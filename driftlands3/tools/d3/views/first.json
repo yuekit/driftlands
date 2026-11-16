@@ -1,0 +1,8 @@
+[
+  { "name": "title", "ui": true, "frames": 30 },
+  { "name": "loom_wide", "time": 60, "pre": "g.startChapter(0)", "js": "const L=g.loom.tables.loom.pos; g.debugCam={p:[L.x+520,L.y+260,L.z+560],t:[L.x,L.y+20,L.z],fov:50}", "frames": 30 },
+  { "name": "loom_top", "time": 60, "js": "const L=g.loom.tables.loom.pos; g.debugCam={p:[L.x+1,L.y+700,L.z],t:[L.x,L.y,L.z],fov:50}", "frames": 30 },
+  { "name": "loom_close", "time": 60, "js": "const c=g.loom.hall.centre; g.debugCam={p:[c.x+90,c.y+10,c.z+110],t:[c.x,c.y,c.z],fov:55}", "frames": 30 },
+  { "name": "halyard_wide", "time": 90, "pre": "g.startChapter(1)", "js": "const a=g.halyard.anchor; g.debugCam={p:[a.x+900,a.y+350,a.z+1300],t:[a.x,a.y,a.z],fov:50}", "frames": 30 },
+  { "name": "halyard_close", "time": 90, "js": "const c=g.halyard.house('the Wayhouse').o.centre; g.debugCam={p:[c.x+80,c.y+20,c.z+90],t:[c.x,c.y,c.z],fov:55}", "frames": 30 }
+]

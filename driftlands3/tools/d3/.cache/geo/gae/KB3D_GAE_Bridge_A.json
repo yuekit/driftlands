@@ -1,0 +1,1 @@
+{"model":"KB3D_GAE_Bridge_A","min":[-6.123,0.001,-1.053],"max":[6.123,2.089,1.053],"tris":[34100,5701,2198],"verts":[21881,4992,1156],"sdf":{"dims":[29,19,19],"voxel":1,"origin":[-14.123,-7.999,-9.053],"dmax":8},"uv":[-0.16642,-121.32658,6.11353,124.60945],"area":{"KB3D_GAE_RopeA":8.8,"KB3D_GAE_WoodA":16.9,"KB3D_GAE_WoodB":25,"KB3D_GAE_WoodPlankA":22},"lamps":[],"spin":[]}

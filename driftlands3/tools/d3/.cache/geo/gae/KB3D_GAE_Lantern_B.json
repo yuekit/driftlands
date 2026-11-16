@@ -1,0 +1,1 @@
+{"model":"KB3D_GAE_Lantern_B","min":[-0.512,0,-0.512],"max":[0.512,6.538,0.512],"tris":[3904,3904,2352],"verts":[2838,2838,1055],"sdf":{"dims":[18,23,18],"voxel":1,"origin":[-8.512,-8,-8.512],"dmax":8},"uv":[0.00293,-2.26896,6.12849,3.26114],"area":{"KB3D_GAE_Bamboo":4.3,"KB3D_GAE_ItemTrimA":0.1,"KB3D_GAE_WoodA":2.2},"lamps":[],"spin":[]}

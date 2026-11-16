@@ -1,0 +1,377 @@
+{
+"boat": {
+"cut": false,
+"metal": 0.103,
+"rough": 0.614,
+"avg": [
+0.07,
+0.044,
+0.044
+]
+},
+"border": {
+"cut": false,
+"metal": 0.214,
+"rough": 0.666,
+"avg": [
+0.119,
+0.101,
+0.092
+]
+},
+"border_dwn": {
+"cut": false,
+"metal": 0.06,
+"rough": 0.64,
+"avg": [
+0.02,
+0.02,
+0.02
+]
+},
+"bridge_1": {
+"cut": false,
+"metal": 0.107,
+"rough": 0.645,
+"avg": [
+0.257,
+0.105,
+0.078
+]
+},
+"cableprobe": {
+"cut": false,
+"metal": 0.183,
+"rough": 0.484,
+"avg": [
+0.066,
+0.066,
+0.065
+]
+},
+"control": {
+"cut": false,
+"metal": 0.11,
+"rough": 0.758,
+"avg": [
+0.091,
+0.04,
+0.04
+]
+},
+"doorwindow": {
+"cut": false,
+"metal": 0.078,
+"rough": 0.664,
+"avg": [
+0.191,
+0.122,
+0.093
+]
+},
+"exhaus": {
+"cut": false,
+"metal": 0.133,
+"rough": 0.684,
+"avg": [
+0.152,
+0.111,
+0.091
+]
+},
+"ground_1": {
+"cut": false,
+"metal": 0.002,
+"rough": 0.708,
+"avg": [
+0.022,
+0.022,
+0.022
+]
+},
+"ground_2": {
+"cut": false,
+"metal": 0.002,
+"rough": 0.712,
+"avg": [
+0.018,
+0.018,
+0.018
+]
+},
+"ground_tile": {
+"cut": false,
+"metal": 0.002,
+"rough": 0.715,
+"avg": [
+0.014,
+0.014,
+0.013
+]
+},
+"holder_12": {
+"cut": true,
+"metal": 0.128,
+"rough": 0.731,
+"avg": [
+0.052,
+0.052,
+0.052
+]
+},
+"holder_14": {
+"cut": true,
+"metal": 0.144,
+"rough": 0.697,
+"avg": [
+0.055,
+0.055,
+0.055
+]
+},
+"holder_15": {
+"cut": true,
+"metal": 0.117,
+"rough": 0.729,
+"avg": [
+0.048,
+0.048,
+0.048
+]
+},
+"lamp": {
+"cut": false,
+"metal": 0.336,
+"rough": 0.599,
+"avg": [
+0.11,
+0.11,
+0.111
+],
+"emissive": [
+4,
+4,
+4
+]
+},
+"motor_1": {
+"cut": false,
+"metal": 0.039,
+"rough": 0.707,
+"avg": [
+0.06,
+0.037,
+0.037
+]
+},
+"motor_2": {
+"cut": false,
+"metal": 0.043,
+"rough": 0.735,
+"avg": [
+0.059,
+0.033,
+0.028
+]
+},
+"motor_3": {
+"cut": false,
+"metal": 0.194,
+"rough": 0.591,
+"avg": [
+0.079,
+0.064,
+0.056
+]
+},
+"probe_24": {
+"cut": false,
+"metal": 0.689,
+"rough": 0.398,
+"avg": [
+0.233,
+0.233,
+0.233
+]
+},
+"probe_base": {
+"cut": false,
+"metal": 0.213,
+"rough": 0.637,
+"avg": [
+0.076,
+0.076,
+0.076
+]
+},
+"probe_tube_1": {
+"cut": false,
+"metal": 0.812,
+"rough": 0.327,
+"avg": [
+0.739,
+0.305,
+0.047
+]
+},
+"probe_tube_2": {
+"cut": false,
+"metal": 0.0,
+"rough": 0.174,
+"avg": [
+0.012,
+0.012,
+0.012
+]
+},
+"probe_tube_3": {
+"cut": false,
+"metal": 0.0,
+"rough": 0.396,
+"avg": [
+0.046,
+0.014,
+0.014
+]
+},
+"sphere": {
+"cut": false,
+"metal": 0.47,
+"rough": 0.47,
+"avg": [
+0.157,
+0.157,
+0.157
+]
+},
+"wall_01": {
+"cut": false,
+"metal": 0.1,
+"rough": 0.679,
+"avg": [
+0.115,
+0.082,
+0.069
+]
+},
+"wall_02": {
+"cut": false,
+"metal": 0.111,
+"rough": 0.653,
+"avg": [
+0.183,
+0.088,
+0.07
+]
+},
+"wall_03": {
+"cut": false,
+"metal": 0.091,
+"rough": 0.693,
+"avg": [
+0.144,
+0.1,
+0.078
+]
+},
+"wall_04": {
+"cut": false,
+"metal": 0.067,
+"rough": 0.688,
+"avg": [
+0.131,
+0.088,
+0.069
+]
+},
+"wall_05": {
+"cut": false,
+"metal": 0.127,
+"rough": 0.661,
+"avg": [
+0.131,
+0.096,
+0.08
+]
+},
+"wall_06": {
+"cut": false,
+"metal": 0.087,
+"rough": 0.759,
+"avg": [
+0.04,
+0.04,
+0.04
+]
+},
+"wall_07": {
+"cut": false,
+"metal": 0.177,
+"rough": 0.657,
+"avg": [
+0.11,
+0.091,
+0.082
+]
+},
+"wall_08": {
+"cut": false,
+"metal": 0.113,
+"rough": 0.656,
+"avg": [
+0.203,
+0.09,
+0.071
+]
+},
+"wall_09": {
+"cut": false,
+"metal": 0.113,
+"rough": 0.659,
+"avg": [
+0.184,
+0.083,
+0.065
+]
+},
+"wall_10": {
+"cut": false,
+"metal": 0.181,
+"rough": 0.651,
+"avg": [
+0.144,
+0.09,
+0.081
+]
+},
+"wall_11": {
+"cut": false,
+"metal": 0.16,
+"rough": 0.622,
+"avg": [
+0.198,
+0.095,
+0.078
+]
+},
+"wall_13": {
+"cut": false,
+"metal": 0.178,
+"rough": 0.631,
+"avg": [
+0.155,
+0.092,
+0.081
+]
+},
+"wall_15": {
+"cut": false,
+"metal": 0.062,
+"rough": 0.666,
+"avg": [
+0.208,
+0.133,
+0.096
+]
+}
+}

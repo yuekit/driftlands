@@ -1,0 +1,12 @@
+[
+  { "name": "hy_day_hub", "pre": "g.startChapter(1)", "time": 90, "js": "const c=g.halyard.hub.o.centre; g.debugCam={p:[c.x+190,c.y+60,c.z+230],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "hy_day_yard", "time": 90, "js": "const c=g.halyard.house('the Yard').o.centre; g.debugCam={p:[c.x-100,c.y+10,c.z+120],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "hy_day_mid", "time": 90, "js": "const c=g.halyard.hub.o.centre; g.debugCam={p:[c.x+500,c.y+160,c.z+620],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "hy_dusk_manor", "time": 330, "js": "const c=g.halyard.house('the Manor').o.centre; g.debugCam={p:[c.x+70,c.y+0,c.z+80],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "hy_night_hub", "time": 380, "js": "g.halyard.setLit(1); for(const h of g.halyard.houses) h.o.lit=1; const c=g.halyard.hub.o.centre; g.debugCam={p:[c.x+190,c.y+60,c.z+230],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "loom_night", "time": 380, "js": "g.loom.setLit(1); for(const o of g.loom.objects) o.lit=1; const c=g.loom.hall.centre; g.debugCam={p:[c.x+150,c.y+40,c.z+170],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "loom_day_dome", "time": 90, "js": "const c=g.loom.dome.centre; g.debugCam={p:[c.x+60,c.y+6,c.z-90],t:[c.x,c.y,c.z],fov:50}", "frames": 30 },
+  { "name": "loom_day_mid", "time": 90, "js": "const c=g.loom.tables.loom.pos; g.debugCam={p:[c.x+330,c.y+150,c.z+330],t:[c.x,c.y+20,c.z],fov:50}", "frames": 30 },
+  { "name": "spindle", "time": 60, "js": "const c=g.loom.spire.centre; g.debugCam={p:[c.x+120,c.y+10,c.z+150],t:[c.x,c.y-20,c.z],fov:50}", "frames": 30 },
+  { "name": "storm", "pre": "g.startChapter(2)", "bot": "god", "sim": 58, "frames": 30 }
+]
